@@ -4,7 +4,7 @@
 
 **v4.0** adds `state:` blocks, memory-backed module statics, expanded stdlib, canvas stroke APIs, and a hosted IDE.
 
-**[Try the IDE online](https://caryn.github.io/Juno/)** (GitHub Pages).
+**[Try the IDE online](https://ajpro774.github.io/Juno/)** (GitHub Pages).
 
 Author: **Alexander J. Patton**. Credits: open **Credits** in the IDE or see `CREDITS.md`.
 

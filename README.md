@@ -6,7 +6,7 @@
 
 ## Try it online
 
-**[Open the Juni IDE](https://caryn.github.io/Juno/)** — edit, compile, and run in your browser (GitHub Pages).
+**[Open the Juni IDE](https://ajpro774.github.io/Juno/)** — edit, compile, and run in your browser (GitHub Pages).
 
 ## Status (v4.0.0)
 
@@ -53,6 +53,18 @@ bash scripts/check-examples.sh
 | `docs/` | Language + graphics docs |
 | `CHANGELOG.md` | Release notes |
 | `CREDITS.md` | People, models, and software per version |
+
+## Publish (GitHub Pages)
+
+```bash
+git remote add origin https://github.com/AJpro774/Juno.git
+git push -u origin main
+git push origin v4.0.0
+```
+
+Enable **Settings → Pages → Build and deployment → GitHub Actions**. The IDE will be live at:
+
+**https://ajpro774.github.io/Juno/**
 
 ## Docs
 
