@@ -1,0 +1,33 @@
+/** Bundled docs/src markdown for the in-IDE Docs panel. */
+
+import intro from "../../docs/src/intro.md?raw";
+import syntax from "../../docs/src/language/syntax.md?raw";
+import types from "../../docs/src/language/types.md?raw";
+import memory from "../../docs/src/language/memory.md?raw";
+import state from "../../docs/src/language/state.md?raw";
+import stdlib from "../../docs/src/language/stdlib.md?raw";
+import controlFlow from "../../docs/src/language/control-flow.md?raw";
+import graphicsOverview from "../../docs/src/graphics/overview.md?raw";
+import graphics2d from "../../docs/src/graphics/2d.md?raw";
+import graphics3d from "../../docs/src/graphics/3d.md?raw";
+import webgpuRuntime from "../../docs/src/webgpu/runtime.md?raw";
+
+export type DocPage = {
+  id: string;
+  title: string;
+  markdown: string;
+};
+
+export const DOC_PAGES: DocPage[] = [
+  { id: "intro", title: "Introduction", markdown: intro },
+  { id: "syntax", title: "Syntax", markdown: syntax },
+  { id: "types", title: "Types", markdown: types },
+  { id: "memory", title: "Memory", markdown: memory },
+  { id: "state", title: "Module state", markdown: state },
+  { id: "stdlib", title: "Standard library", markdown: stdlib },
+  { id: "control-flow", title: "Control flow", markdown: controlFlow },
+  { id: "graphics-overview", title: "Graphics overview", markdown: graphicsOverview },
+  { id: "graphics-2d", title: "Canvas2D", markdown: graphics2d },
+  { id: "graphics-3d", title: "3D", markdown: graphics3d },
+  { id: "webgpu", title: "WebGPU runtime", markdown: webgpuRuntime },
+];

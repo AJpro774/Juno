@@ -1,0 +1,18 @@
+[package]
+name = "juni-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Juni compiler CLI"
+default-run = "juni"
+
+[[bin]]
+name = "juni"
+path = "src/main.rs"
+
+[dependencies]
+juni-syntax.workspace = true
+juni-check.workspace = true
+juni-codegen.workspace = true
+clap.workspace = true
+anyhow.workspace = true

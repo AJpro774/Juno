@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/juni-syntax",
+    "crates/juni-check",
+    "crates/juni-codegen",
+    "crates/juni-cli",
+    "crates/juni-wasm",
+]
+default-members = ["crates/juni-cli"]
+
+[workspace.package]
+version = "4.0.0"
+edition = "2021"
+license = "MIT"
+authors = ["Juni Contributors"]
+
+[workspace.dependencies]
+juni-syntax = { path = "crates/juni-syntax" }
+juni-check = { path = "crates/juni-check" }
+juni-codegen = { path = "crates/juni-codegen" }
+wasm-encoder = "0.221"
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+anyhow = "1"
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde-wasm-bindgen = "0.6"
+base64 = "0.22"

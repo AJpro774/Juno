@@ -1,0 +1,8 @@
+/target/
+node_modules/
+ide/dist/
+.DS_Store
+*.swp
+.cursor/
+debug-*.log
+*.wasm
