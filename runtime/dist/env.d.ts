@@ -1,0 +1,83 @@
+/**
+ * Shared Juni WASM env imports for Node and the browser IDE.
+ */
+import type { EnvOptions, MemoryRef } from "./types.js";
+export declare function createPrintImports(memoryRef: MemoryRef, onPrint?: (text: string) => void): {
+    print_str(ptr: number): void;
+    print_i32(v: number): void;
+    print_f32(v: number): void;
+};
+export declare function createEnvImports(options?: EnvOptions): {
+    env: {
+        sqrt_f32: (x: number) => number;
+        webgpu_stub: (code: number) => void;
+        print_str: (ptr: number) => void;
+        print_i32: (v: number) => void;
+        print_f32: (v: number) => void;
+        canvas_init: (w: number, h: number) => void;
+        canvas_clear: (r: number, g: number, b: number, a: number) => void;
+        canvas_fill_rect: (x: number, y: number, w: number, h: number, r: number, g: number, b: number, a: number) => void;
+        canvas_fill_circle: (x: number, y: number, radius: number, r: number, g: number, b: number, a: number) => void;
+        canvas_fill_text: (ptr: number, x: number, y: number, r: number, g: number, b: number, a: number) => void;
+        canvas_draw_line: (x1: number, y1: number, x2: number, y2: number, width: number, r: number, g: number, b: number, a: number) => void;
+        canvas_stroke_rect: (x: number, y: number, w: number, h: number, width: number, r: number, g: number, b: number, a: number) => void;
+        gpu_clear: (r: number, g: number, b: number, a: number) => void;
+        gpu_draw_triangle: () => void;
+        sin_f32: (x: number) => number;
+        cos_f32: (x: number) => number;
+        tan_f32: (x: number) => number;
+        abs_f32: (x: number) => number;
+        floor_f32: (x: number) => number;
+        ceil_f32: (x: number) => number;
+        min_f32: (a: number, b: number) => number;
+        max_f32: (a: number, b: number) => number;
+        rand_f32: () => number;
+        now_f32: () => number;
+        key_down: (code: number) => number;
+        mouse_x: () => number;
+        mouse_y: () => number;
+        mouse_down: (button: number) => number;
+        scene3d_init: (w: number, h: number) => void;
+        camera3d_perspective: (fov: number, aspect: number, near: number, far: number) => number;
+        mesh3d_box: (sx: number, sy: number, sz: number) => number;
+        mesh3d_set_pose: (mesh: number, tx: number, ty: number, tz: number, rx: number, ry: number, rz: number) => void;
+        mesh3d_rotate: (mesh: number, drx: number, dry: number, drz: number) => void;
+        scene3d_clear: (r: number, g: number, b: number, a: number) => void;
+        scene3d_draw: (meshId: number, camId: number) => void;
+        scene3d_create_node: () => number;
+        scene3d_set_parent: (child: number, parent: number) => void;
+        camera3d_look_at: (cam: number, ex: number, ey: number, ez: number, tx: number, ty: number, tz: number) => void;
+        camera3d_orbit: (cam: number, tx: number, ty: number, tz: number, yaw: number, pitch: number, distance: number) => void;
+        mesh3d_custom: (vertsPtr: number, vertCount: number, indicesPtr: number, indexCount: number) => number;
+        material3d_color: (r: number, g: number, b: number, a: number) => number;
+        mesh3d_set_material: (mesh: number, material: number) => void;
+        str_len: (ptr: number) => number;
+        str_eq: (a: number, b: number) => number;
+        clamp_f32: (x: number, lo: number, hi: number) => number;
+        lerp_f32: (a: number, b: number, t: number) => number;
+        pow_f32: (x: number, y: number) => number;
+        sign_f32: (x: number) => number;
+        fmod_f32: (x: number, y: number) => number;
+        smoothstep_f32: (e0: number, e1: number, x: number) => number;
+        deg_to_rad_f32: (d: number) => number;
+        rad_to_deg_f32: (r: number) => number;
+        dist2_f32: (x1: number, y1: number, x2: number, y2: number) => number;
+        pi_f32: () => number;
+        abs_i32: (x: number) => number;
+        min_i32: (a: number, b: number) => number;
+        max_i32: (a: number, b: number) => number;
+        clamp_i32: (x: number, lo: number, hi: number) => number;
+        len2_f32: (x: number, y: number) => number;
+        dot2_f32: (x1: number, y1: number, x2: number, y2: number) => number;
+        asset_load_str: (ptr: number) => number;
+        sprite_draw: (handle: number, x: number, y: number, w: number, h: number) => void;
+        mesh_load_obj: (ptr: number) => number;
+        aabb_overlap: (aPtr: number, bPtr: number) => number;
+        aabb_resolve_x: (mPtr: number, oPtr: number, velX: number) => number;
+        audio_load: (ptr: number) => number;
+        audio_play: (handle: number) => void;
+    };
+    memoryRef: MemoryRef;
+};
+export declare function instantiateJuni(wasmBytes: BufferSource | Uint8Array, options?: EnvOptions): Promise<WebAssembly.Instance>;
+//# sourceMappingURL=env.d.ts.map

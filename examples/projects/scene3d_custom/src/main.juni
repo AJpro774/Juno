@@ -1,0 +1,26 @@
+state:
+    cam: i32 = 0
+    root: i32 = 0
+    mesh: i32 = 0
+    mat: i32 = 0
+    yaw: f32 = 0.0
+
+fn main() -> i32:
+    scene3d_init(640, 360)
+    cam = camera3d_perspective(60.0, 1.777, 0.1, 100.0)
+    camera3d_orbit(cam, 0.0, 0.0, 0.0, 0.0, 0.4, 6.0)
+    root = scene3d_create_node()
+    mesh = mesh3d_custom([0.0, 1.0, 0.0, 1.0, 0.2, 0.3, -1.0, 0.0, 1.0, 0.2, 0.9, 0.6, 1.0, 0.0, 1.0, 0.2, 0.9, 0.6, 0.0, 0.0, -1.0, 0.9, 0.3, 0.5], 4, [0, 1, 2, 0, 2, 3, 0, 3, 1, 1, 3, 2], 12)
+    mat = material3d_color(0.35, 0.75, 1.0, 1.0)
+    mesh3d_set_material(mesh, mat)
+    scene3d_set_parent(mesh, root)
+    mesh3d_set_pose(root, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    return 0
+
+fn frame(dt: f32) -> i32:
+    scene3d_clear(0.05, 0.06, 0.1, 1.0)
+    yaw = yaw + dt * 0.5
+    camera3d_orbit(cam, 0.0, 0.0, 0.0, yaw, 0.4, 6.0)
+    mesh3d_rotate(root, 0.0, dt * 0.7, 0.0)
+    scene3d_draw(mesh, cam)
+    return 0

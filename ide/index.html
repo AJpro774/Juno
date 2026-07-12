@@ -16,9 +16,11 @@
       <header class="top">
         <div class="brand">
           <span class="brand-mark">Juni</span>
-          <span class="brand-tag">v4</span>
+          <span class="brand-tag">v5</span>
         </div>
         <div class="actions">
+          <button type="button" id="open-project" class="ghost">Open Project</button>
+          <button type="button" id="demo-project" class="ghost">Demo Project</button>
           <select id="examples" aria-label="Examples"></select>
           <div class="mode" role="group" aria-label="Preview mode">
             <button type="button" id="mode-2d" class="mode-btn is-active" data-mode="canvas2d">
@@ -36,7 +38,14 @@
       <div class="workspace">
         <main class="stage">
           <div class="main-row">
-            <div id="editor" class="editor" aria-label="Juni source editor"></div>
+            <aside class="file-tree-pane">
+              <div class="pane-head pane-head-light">Project</div>
+              <div id="file-tree" class="file-tree" aria-label="Project files"></div>
+            </aside>
+            <div class="editor-pane">
+              <div id="tab-bar" class="tab-bar" role="tablist" aria-label="Open files"></div>
+              <div id="editor" class="editor" aria-label="Juni source editor"></div>
+            </div>
             <aside class="preview-pane">
               <div class="pane-head">Preview</div>
               <div class="preview-body" id="preview-body">
@@ -63,6 +72,8 @@
         </aside>
       </div>
     </div>
+    <input type="file" id="zip-input" accept=".zip" hidden />
+    <input type="file" id="folder-input" webkitdirectory multiple hidden />
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

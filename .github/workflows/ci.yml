@@ -19,6 +19,12 @@ jobs:
       - name: Check examples
         run: bash scripts/check-examples.sh
 
+      - name: Check example projects
+        run: bash scripts/check-projects.sh
+
+      - name: LSP smoke
+        run: bash scripts/smoke-lsp.sh
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -30,3 +36,20 @@ jobs:
           npm run build:wasm
           npm run build
           GITHUB_PAGES=true npm run build
+
+  desktop-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check desktop crate compiles
+        run: |
+          mkdir -p ide/dist
+          test -f ide/dist/index.html || echo '<!doctype html><title>Juni</title>' > ide/dist/index.html
+          cargo check --manifest-path desktop/src-tauri/Cargo.toml

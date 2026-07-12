@@ -1,20 +1,25 @@
 //! Juni typechecker and high-level IR.
 
 pub mod diag;
+pub mod generics;
 pub mod hir;
+pub mod program;
 pub mod types;
 
 pub use diag::{diagnostics_to_json, Diagnostic, DiagnosticJson, Severity};
-pub use hir::HirModule;
+pub use hir::{mangle_symbol, HirModule, HirProgram, ModuleId};
+pub use program::{check_program, check_program_ok, ProgramCheckResult, ProgramModule};
 
 use std::collections::HashMap;
 
 use juni_syntax::{
-    BinaryOp, Block, Expr, ExprKind, FnDef, Item, Module, Stmt,
+    BinaryOp, Block, Expr, ExprKind, FnDef, Module, Stmt,
     StructDef, TypeExpr, TypeExprKind, UnaryOp,
 };
 
+use crate::generics::{infer_substitution, instantiate_fn_def, mangle_generic_instance};
 use crate::hir::*;
+use crate::program::{flatten_items, imports_from_module, FlatItem, ImportBindings};
 use crate::types::{Builtin, StructLayout, Type};
 
 #[derive(Debug)]
@@ -24,7 +29,7 @@ pub struct CheckResult {
 }
 
 pub fn check(module: &Module) -> CheckResult {
-    let mut checker = Checker::new();
+    let mut checker = Checker::new_single_file();
     checker.check_module(module);
     CheckResult {
         module: checker.hir,
@@ -45,12 +50,40 @@ pub fn check_ok(module: &Module) -> Result<HirModule, Vec<Diagnostic>> {
     }
 }
 
+#[derive(Clone)]
+struct ExportedFn {
+    sig: FnSig,
+}
+
+#[derive(Default, Clone)]
+pub(crate) struct ExportTable {
+    pub functions: HashMap<String, ExportedFn>,
+    pub structs: HashMap<String, StructLayout>,
+    pub statics: HashMap<String, (Type, StaticId)>,
+}
+
+#[derive(Clone)]
+enum QualifiedRef {
+    Fn(FnSig),
+    Struct(StructLayout),
+    Static(Type, StaticId),
+}
+
 struct Checker {
+    module_name: String,
+    file: Option<String>,
+    module_id: ModuleId,
+    is_entry_module: bool,
+    imports: ImportBindings,
+    foreign_exports: HashMap<String, ExportTable>,
+    item_exported: HashMap<String, bool>,
     structs: HashMap<String, StructLayout>,
     functions: HashMap<String, FnSig>,
     statics: HashMap<String, (Type, StaticId)>,
     locals: Vec<HashMap<String, (Type, LocalId)>>,
     next_local: u32,
+    next_func_id: u32,
+    next_static_id: u32,
     loop_depth: u32,
     current_ret: Type,
     current_fn: String,
@@ -59,6 +92,10 @@ struct Checker {
     hir: HirModule,
     diagnostics: Vec<Diagnostic>,
     fn_local_types: Vec<Type>,
+    /// Generic function templates (`fn min[T: Ord](...)`).
+    generic_fns: HashMap<String, (FnDef, bool)>,
+    /// Active type-parameter substitution while checking a generic template.
+    type_param_scope: Option<HashMap<String, Type>>,
 }
 
 #[derive(Clone)]
@@ -75,28 +112,138 @@ enum VarRef {
 }
 
 impl Checker {
-    fn new() -> Self {
+    fn new_single_file() -> Self {
+        Self::for_program_module(
+            String::new(),
+            None,
+            ModuleId(0),
+            true,
+            &HashMap::new(),
+            0,
+            0,
+            0,
+        )
+    }
+
+    pub(crate) fn for_program_module(
+        module_name: String,
+        file: Option<String>,
+        module_id: ModuleId,
+        is_entry_module: bool,
+        foreign_exports: &HashMap<String, ExportTable>,
+        next_func_id: u32,
+        next_static_id: u32,
+        static_region_offset: u32,
+    ) -> Self {
         Self {
+            module_name,
+            file,
+            module_id,
+            is_entry_module,
+            imports: ImportBindings::default(),
+            foreign_exports: foreign_exports.clone(),
+            item_exported: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
             statics: HashMap::new(),
             locals: Vec::new(),
             next_local: 0,
+            next_func_id,
+            next_static_id,
             loop_depth: 0,
             current_ret: Type::Builtin(Builtin::I32),
             current_fn: String::new(),
             main_let_names: Vec::new(),
             has_frame: false,
             hir: HirModule {
+                id: module_id,
+                name: String::new(),
+                file: None,
                 structs: Vec::new(),
                 statics: Vec::new(),
                 static_region_size: 0,
+                static_region_offset,
                 init_globals: HirBlock { stmts: vec![] },
                 functions: Vec::new(),
             },
             diagnostics: Vec::new(),
             fn_local_types: Vec::new(),
+            generic_fns: HashMap::new(),
+            type_param_scope: None,
         }
+    }
+
+    pub(crate) fn process_imports(&mut self, module: &Module) {
+        self.imports = imports_from_module(module);
+        let module_aliases: Vec<_> = self.imports.module_aliases.iter().map(|(a, t)| (a.clone(), t.clone())).collect();
+        for (alias, target) in module_aliases {
+            if !self.foreign_exports.contains_key(&target) {
+                self.error(
+                    module.span,
+                    format!("unknown module `{target}` (via import `{alias}`)"),
+                );
+            }
+        }
+        let from_imports: Vec<_> = self
+            .imports
+            .from_imports
+            .iter()
+            .map(|(l, (t, s))| (l.clone(), (t.clone(), s.clone())))
+            .collect();
+        for (local, (target, sym)) in from_imports {
+            if let Some(exports) = self.foreign_exports.get(&target) {
+                if !exports.functions.contains_key(&sym)
+                    && !exports.structs.contains_key(&sym)
+                    && !exports.statics.contains_key(&sym)
+                {
+                    self.error(
+                        module.span,
+                        format!("module `{target}` has no exported `{sym}` (via `{local}`)"),
+                    );
+                }
+            } else {
+                self.error(
+                    module.span,
+                    format!("unknown module `{target}` (via `{local}`)"),
+                );
+            }
+        }
+    }
+
+    pub(crate) fn export_table(&self) -> ExportTable {
+        let mut table = ExportTable::default();
+        for (name, sig) in &self.functions {
+            if *self.item_exported.get(name).unwrap_or(&false) {
+                table.functions.insert(
+                    name.clone(),
+                    ExportedFn {
+                        sig: sig.clone(),
+                    },
+                );
+            }
+        }
+        for (name, layout) in &self.structs {
+            if *self.item_exported.get(name).unwrap_or(&false) {
+                table.structs.insert(name.clone(), layout.clone());
+            }
+        }
+        for (name, (ty, id)) in &self.statics {
+            if *self.item_exported.get(name).unwrap_or(&false) {
+                table.statics.insert(name.clone(), (ty.clone(), *id));
+            }
+        }
+        table
+    }
+
+    pub(crate) fn into_hir_module(mut self) -> HirModule {
+        self.hir.name = self.module_name;
+        self.hir.file = self.file;
+        self.hir.id = self.module_id;
+        self.hir
+    }
+
+    fn mangle(&self, name: &str) -> String {
+        mangle_symbol(&self.module_name, name)
     }
 
     fn error(&mut self, span: juni_syntax::Span, msg: impl Into<String>) {
@@ -104,7 +251,73 @@ impl Checker {
             severity: Severity::Error,
             span,
             message: msg.into(),
+            file: self.file.clone(),
         });
+    }
+
+    fn resolve_foreign_struct(&self, module: &str, name: &str) -> Option<StructLayout> {
+        self.foreign_exports
+            .get(module)
+            .and_then(|exports| exports.structs.get(name).cloned())
+    }
+
+    fn lookup_module_alias(&self, alias: &str) -> Option<String> {
+        if let Some(target) = self.imports.module_aliases.get(alias) {
+            return Some(target.clone());
+        }
+        if self.foreign_exports.contains_key(alias) {
+            return Some(alias.to_string());
+        }
+        None
+    }
+
+    fn resolve_qualified(
+        &mut self,
+        module: &str,
+        name: &str,
+        span: juni_syntax::Span,
+    ) -> Option<QualifiedRef> {
+        if module == self.module_name || (self.module_name.is_empty() && module.is_empty()) {
+            if let Some(sig) = self.functions.get(name).cloned() {
+                return Some(QualifiedRef::Fn(sig));
+            }
+            if let Some(layout) = self.structs.get(name).cloned() {
+                return Some(QualifiedRef::Struct(layout));
+            }
+            if let Some((ty, id)) = self.statics.get(name).cloned() {
+                return Some(QualifiedRef::Static(ty, id));
+            }
+            self.error(span, format!("`{module}.{name}` is not defined in this module"));
+            return None;
+        }
+
+        let exports = match self.foreign_exports.get(module) {
+            Some(e) => e,
+            None => {
+                self.error(span, format!("unknown module `{module}`"));
+                return None;
+            }
+        };
+
+        if let Some(exported) = exports.functions.get(name) {
+            return Some(QualifiedRef::Fn(exported.sig.clone()));
+        }
+        if let Some(layout) = exports.structs.get(name) {
+            return Some(QualifiedRef::Struct(layout.clone()));
+        }
+        if let Some((ty, id)) = exports.statics.get(name) {
+            return Some(QualifiedRef::Static(ty.clone(), *id));
+        }
+        self.error(
+            span,
+            format!("module `{module}` has no exported `{name}`"),
+        );
+        None
+    }
+
+    fn resolve_from_import(&mut self, local: &str, span: juni_syntax::Span) -> Option<QualifiedRef> {
+        let (module, name) = self.imports.from_imports.get(local)?.clone();
+        self.resolve_qualified(&module, &name, span)
     }
 
     fn push_scope(&mut self) {
@@ -146,7 +359,13 @@ impl Checker {
 
     fn resolve_type(&mut self, te: &TypeExpr) -> Type {
         match &te.kind {
-            TypeExprKind::Named(name) => match name.as_str() {
+            TypeExprKind::Named(name) => {
+                if let Some(scope) = &self.type_param_scope {
+                    if let Some(t) = scope.get(name) {
+                        return t.clone();
+                    }
+                }
+                match name.as_str() {
                 "i32" => Type::Builtin(Builtin::I32),
                 "i64" => Type::Builtin(Builtin::I64),
                 "f32" => Type::Builtin(Builtin::F32),
@@ -156,13 +375,27 @@ impl Checker {
                 "str" => Type::Builtin(Builtin::Str),
                 other => {
                     if self.structs.contains_key(other) {
-                        Type::Struct(other.to_string())
+                        Type::Struct(mangle_symbol(&self.module_name, other))
+                    } else if let Some((module, sym)) = self.imports.from_imports.get(other) {
+                        if let Some(layout) = self.resolve_foreign_struct(module, sym) {
+                            Type::Struct(mangle_symbol(module, &layout.name))
+                        } else {
+                            self.error(te.span, format!("unknown type `{other}`"));
+                            Type::Builtin(Builtin::I32)
+                        }
+                    } else if self
+                        .type_param_scope
+                        .as_ref()
+                        .is_some_and(|s| s.contains_key(other))
+                    {
+                        Type::TypeParam(other.to_string())
                     } else {
                         self.error(te.span, format!("unknown type `{other}`"));
                         Type::Builtin(Builtin::I32)
                     }
                 }
-            },
+                }
+            }
             TypeExprKind::Array { elem, len } => Type::Array {
                 elem: Box::new(self.resolve_type(elem)),
                 len: *len,
@@ -175,32 +408,36 @@ impl Checker {
     }
 
     fn check_module(&mut self, module: &Module) {
-        self.has_frame = module.items.iter().any(|i| {
-            matches!(i, Item::Fn(f) if f.name == "frame")
+        let flat = flatten_items(module);
+        self.has_frame = flat.iter().any(|item| {
+            matches!(item, FlatItem::Fn(f, _) if f.name == "frame")
         });
-        // Collect structs first
-        for item in &module.items {
-            if let Item::Struct(s) = item {
+        for item in &flat {
+            if let FlatItem::Struct(s, exported) = item {
+                self.item_exported.insert(s.name.clone(), *exported);
                 self.collect_struct(s);
             }
         }
-        // Collect function signatures (before static init exprs may call functions)
-        for item in &module.items {
-            if let Item::Fn(f) = item {
+        for item in &flat {
+            if let FlatItem::Fn(f, exported) = item {
+                self.item_exported.insert(f.name.clone(), *exported);
                 self.collect_fn_sig(f);
             }
         }
-        // Module-level statics
-        for item in &module.items {
+        for item in &flat {
             match item {
-                Item::Global(g) => self.collect_static_binding(
-                    &g.name,
-                    g.ty.as_ref(),
-                    &g.init,
-                    g.span,
-                ),
-                Item::State(s) => {
+                FlatItem::Global(g, exported) => {
+                    self.item_exported.insert(g.name.clone(), *exported);
+                    self.collect_static_binding(
+                        &g.name,
+                        g.ty.as_ref(),
+                        &g.init,
+                        g.span,
+                    );
+                }
+                FlatItem::State(s, exported) => {
                     for field in &s.fields {
+                        self.item_exported.insert(field.name.clone(), *exported);
                         self.collect_static_binding(
                             &field.name,
                             Some(&field.ty),
@@ -213,18 +450,18 @@ impl Checker {
             }
         }
         self.finalize_static_layout();
-        // Record lets declared inside main (for diagnostics)
-        for item in &module.items {
-            if let Item::Fn(f) = item {
+        for item in &flat {
+            if let FlatItem::Fn(f, _) = item {
                 if f.name == "main" {
                     self.collect_main_lets(f);
                 }
             }
         }
-        // Check bodies
-        for item in &module.items {
-            if let Item::Fn(f) = item {
-                self.check_fn(f);
+        for item in &flat {
+            if let FlatItem::Fn(f, exported) = item {
+                if f.type_params.is_empty() {
+                    self.check_fn(f, *exported);
+                }
             }
         }
     }
@@ -280,7 +517,7 @@ impl Checker {
         } else {
             init_ty
         };
-        let id = StaticId(self.hir.statics.len() as u32);
+        let id = StaticId(self.next_static_id + self.hir.statics.len() as u32);
         self.statics.insert(name.to_string(), (ty.clone(), id));
         self.hir.statics.push(HirStatic {
             id,
@@ -292,7 +529,8 @@ impl Checker {
     }
 
     fn finalize_static_layout(&mut self) {
-        let mut offset = 0u32;
+        let base = self.hir.static_region_offset;
+        let mut offset = base;
         let mut init_stmts = Vec::new();
         for stat in &mut self.hir.statics {
             offset = align_up(offset, stat.ty.align());
@@ -304,7 +542,7 @@ impl Checker {
             });
             offset += stat.ty.size(&self.structs);
         }
-        self.hir.static_region_size = align_up(offset, 4);
+        self.hir.static_region_size = align_up(offset.saturating_sub(base), 4);
         self.hir.init_globals = HirBlock { stmts: init_stmts };
     }
 
@@ -328,8 +566,9 @@ impl Checker {
             offset += size;
         }
         let size = align_up(offset, 4);
+        let mangled = mangle_symbol(&self.module_name, &s.name);
         let layout = StructLayout {
-            name: s.name.clone(),
+            name: mangled,
             fields: fields.clone(),
             size,
         };
@@ -338,13 +577,31 @@ impl Checker {
     }
 
     fn collect_fn_sig(&mut self, f: &FnDef) {
-        if self.functions.contains_key(&f.name) {
+        if self.functions.contains_key(&f.name) || self.generic_fns.contains_key(&f.name) {
             self.error(f.span, format!("duplicate function `{}`", f.name));
+            return;
+        }
+        if (f.name == "main" || f.name == "frame") && !self.is_entry_module {
+            self.error(
+                f.span,
+                format!("`{}` may only be defined in the entry module", f.name),
+            );
+        }
+        if !f.type_params.is_empty() {
+            for tp in &f.type_params {
+                if let Some(c) = &tp.constraint {
+                    if c != "Ord" {
+                        self.error(tp.span, format!("unknown constraint `{c}` (only Ord supported)"));
+                    }
+                }
+            }
+            let exported = *self.item_exported.get(&f.name).unwrap_or(&false);
+            self.generic_fns.insert(f.name.clone(), (f.clone(), exported));
             return;
         }
         let params: Vec<Type> = f.params.iter().map(|p| self.resolve_type(&p.ty)).collect();
         let ret = self.resolve_type(&f.ret);
-        let id = FuncId(self.functions.len() as u32);
+        let id = FuncId(self.next_func_id + self.functions.len() as u32);
         self.functions.insert(
             f.name.clone(),
             FnSig {
@@ -355,7 +612,7 @@ impl Checker {
         );
     }
 
-    fn check_fn(&mut self, f: &FnDef) {
+    fn check_fn(&mut self, f: &FnDef, exported: bool) {
         let sig = self.functions.get(&f.name).cloned().unwrap();
         self.next_local = 0;
         self.fn_local_types.clear();
@@ -373,14 +630,25 @@ impl Checker {
         let body = self.check_block(&f.body);
         self.pop_scope();
 
+        let wasm_export = self.is_entry_module && (f.name == "main" || f.name == "frame");
+        let codegen_name = if wasm_export {
+            f.name.clone()
+        } else {
+            self.mangle(&f.name)
+        };
         self.hir.functions.push(HirFunction {
             id: sig.id,
-            name: f.name.clone(),
+            name: codegen_name,
+            pub_name: if exported {
+                Some(f.name.clone())
+            } else {
+                None
+            },
             params: param_locals,
             ret: sig.ret,
             locals: self.fn_local_types.clone(),
             body,
-            export: f.name == "main" || f.name == "frame",
+            export: wasm_export,
         });
     }
 
@@ -621,29 +889,34 @@ impl Checker {
         }
     }
 
+    fn struct_layout(&self, ty: &Type) -> Option<&StructLayout> {
+        match ty {
+            Type::Struct(name) => self
+                .structs
+                .values()
+                .find(|l| l.name == *name)
+                .or_else(|| {
+                    self.structs.get(
+                        name.rsplit_once("::").map(|(_, n)| n).unwrap_or(name),
+                    )
+                }),
+            Type::Ref { inner, .. } => self.struct_layout(inner),
+            _ => None,
+        }
+    }
+
     fn field_info(&mut self, base_ty: &Type, field: &str, span: juni_syntax::Span) -> (Type, u32) {
-        let struct_name = match base_ty {
-            Type::Struct(n) => n.clone(),
-            Type::Ref { inner, .. } => match inner.as_ref() {
-                Type::Struct(n) => n.clone(),
-                _ => {
-                    self.error(span, "field access on non-struct");
-                    return (Type::Builtin(Builtin::I32), 0);
-                }
-            },
-            _ => {
+        let layout = match self.struct_layout(base_ty) {
+            Some(l) => l.clone(),
+            None => {
                 self.error(span, "field access on non-struct");
                 return (Type::Builtin(Builtin::I32), 0);
             }
         };
-        if let Some(layout) = self.structs.get(&struct_name) {
-            if let Some(f) = layout.fields.iter().find(|f| f.name == field) {
-                return (f.ty.clone(), f.offset);
-            }
-            self.error(span, format!("no field `{field}` on `{struct_name}`"));
-        } else {
-            self.error(span, format!("unknown struct `{struct_name}`"));
+        if let Some(f) = layout.fields.iter().find(|f| f.name == field) {
+            return (f.ty.clone(), f.offset);
         }
+        self.error(span, format!("no field `{field}` on `{}`", layout.name));
         (Type::Builtin(Builtin::I32), 0)
     }
 
@@ -663,6 +936,9 @@ impl Checker {
                 Type::Builtin(Builtin::Str),
             ),
             ExprKind::Ident(name) => {
+                if let Some(qref) = self.resolve_from_import(name, expr.span) {
+                    return self.qualified_to_expr(qref, expr.span);
+                }
                 match self.lookup_var(name) {
                     Some(VarRef::Local(ty, id)) => (HirExpr::Local(id, ty.clone()), ty),
                     Some(VarRef::Static(ty, id)) => (HirExpr::Static(id, ty.clone()), ty),
@@ -715,46 +991,35 @@ impl Checker {
                 self.check_binary(*op, lt, rt, expr.span, l, r)
             }
             ExprKind::Call { callee, args } => {
-                // Intrinsics
                 if let ExprKind::Ident(name) = &callee.kind {
+                    if let Some((template, exported)) = self.generic_fns.get(name).cloned() {
+                        return self.instantiate_generic_call(&template, exported, args, expr.span);
+                    }
                     if let Some(intrinsic) = self.check_host_intrinsic(name, args, expr.span) {
                         return intrinsic;
                     }
                     if let Some(sig) = self.functions.get(name).cloned() {
-                        if args.len() != sig.params.len() {
-                            self.error(
-                                expr.span,
-                                format!(
-                                    "`{name}` expects {} args, got {}",
-                                    sig.params.len(),
-                                    args.len()
-                                ),
-                            );
+                        return self.emit_call(sig, args, expr.span);
+                    }
+                    if let Some(qref) = self.resolve_from_import(name, expr.span) {
+                        if let QualifiedRef::Fn(sig) = qref {
+                            return self.emit_call(sig, args, expr.span);
                         }
-                        let mut hir_args = Vec::new();
-                        for (i, arg) in args.iter().enumerate() {
-                            let (e, ty) = self.check_expr(arg);
-                            if let Some(expected) = sig.params.get(i) {
-                                if !types_compatible(expected, &ty) {
-                                    self.error(
-                                        arg.span,
-                                        format!("argument type mismatch: expected {}, got {}", expected, ty),
-                                    );
-                                }
-                            }
-                            hir_args.push(e);
-                        }
-                        return (
-                            HirExpr::Call {
-                                func: sig.id,
-                                args: hir_args,
-                                ty: sig.ret.clone(),
-                            },
-                            sig.ret,
-                        );
                     }
                     self.error(expr.span, format!("unknown function `{name}`"));
                     return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
+                }
+                if let ExprKind::Field { base, field } = &callee.kind {
+                    if let ExprKind::Ident(module_alias) = &base.kind {
+                        if let Some(module) = self.lookup_module_alias(module_alias) {
+                            if let Some(QualifiedRef::Fn(sig)) =
+                                self.resolve_qualified(&module, field, expr.span)
+                            {
+                                return self.emit_call(sig, args, expr.span);
+                            }
+                            return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
+                        }
+                    }
                 }
                 self.error(expr.span, "invalid call target");
                 (HirExpr::Int(0), Type::Builtin(Builtin::I32))
@@ -833,6 +1098,15 @@ impl Checker {
             ExprKind::StructLit { name, fields } => {
                 let layout = if let Some(l) = self.structs.get(name).cloned() {
                     l
+                } else if let Some((module, sym)) = self.imports.from_imports.get(name) {
+                    self.resolve_foreign_struct(module, sym).unwrap_or_else(|| {
+                        self.error(expr.span, format!("unknown struct `{name}`"));
+                        StructLayout {
+                            name: name.clone(),
+                            fields: vec![],
+                            size: 0,
+                        }
+                    })
                 } else {
                     self.error(expr.span, format!("unknown struct `{name}`"));
                     return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
@@ -857,14 +1131,23 @@ impl Checker {
                         size: layout.size,
                         fields: inits,
                     },
-                    Type::Struct(name.clone()),
+                    Type::Struct(layout.name.clone()),
                 )
             }
             ExprKind::New { ty, args } => {
                 let resolved = self.resolve_type(ty);
                 match &resolved {
                     Type::Struct(name) => {
-                        let layout = self.structs.get(name).cloned().unwrap();
+                        let layout = self
+                            .structs
+                            .values()
+                            .find(|l| l.name == *name)
+                            .cloned()
+                            .unwrap_or_else(|| StructLayout {
+                                name: name.clone(),
+                                fields: vec![],
+                                size: 0,
+                            });
                         let mut inits = Vec::new();
                         for (fname, fexpr) in args {
                             let (e, ty) = self.check_expr(fexpr);
@@ -884,7 +1167,7 @@ impl Checker {
                             },
                             Type::Ref {
                                 mutable: true,
-                                inner: Box::new(Type::Struct(name.clone())),
+                                inner: Box::new(Type::Struct(layout.name.clone())),
                             },
                         )
                     }
@@ -894,6 +1177,154 @@ impl Checker {
                     }
                 }
             }
+        }
+    }
+
+    fn instantiate_generic_call(
+        &mut self,
+        template: &FnDef,
+        exported: bool,
+        args: &[Expr],
+        span: juni_syntax::Span,
+    ) -> (HirExpr, Type) {
+        let mut arg_types = Vec::new();
+        for arg in args {
+            let (_, ty) = self.check_expr(arg);
+            arg_types.push(ty);
+        }
+        let subst = match infer_substitution(template, &arg_types) {
+            Ok(s) => s,
+            Err(msg) => {
+                self.error(span, msg);
+                return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
+            }
+        };
+        let concrete_types: Vec<Type> = template
+            .type_params
+            .iter()
+            .map(|tp| subst.get(&tp.name).cloned().unwrap_or(Type::Builtin(Builtin::I32)))
+            .collect();
+        let inst_name = mangle_generic_instance(&template.name, &concrete_types);
+        if !self.functions.contains_key(&inst_name) {
+            let concrete = instantiate_fn_def(template, &subst, inst_name.clone());
+            self.collect_fn_sig(&concrete);
+            if let Some(sig) = self.functions.get(&inst_name).cloned() {
+                self.type_param_scope = Some(subst.clone());
+                self.check_instantiated_fn(&concrete, sig, exported);
+                self.type_param_scope = None;
+            }
+        }
+        let sig = match self.functions.get(&inst_name).cloned() {
+            Some(s) => s,
+            None => {
+                self.error(span, format!("failed to instantiate `{inst_name}`"));
+                return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
+            }
+        };
+        self.emit_call(sig, args, span)
+    }
+
+    fn check_instantiated_fn(&mut self, f: &FnDef, sig: FnSig, exported: bool) {
+        let saved_locals = std::mem::take(&mut self.locals);
+        let saved_next_local = self.next_local;
+        let saved_fn_local_types = self.fn_local_types.clone();
+        let saved_current_fn = self.current_fn.clone();
+        let saved_current_ret = self.current_ret.clone();
+
+        self.next_local = 0;
+        self.fn_local_types.clear();
+        self.current_ret = sig.ret.clone();
+        self.current_fn = f.name.clone();
+        self.locals.clear();
+        self.push_scope();
+
+        let mut param_locals = Vec::new();
+        for (param, ty) in f.params.iter().zip(sig.params.iter()) {
+            let id = self.declare_local(param.name.clone(), ty.clone());
+            param_locals.push((id, ty.clone()));
+        }
+
+        let body = self.check_block(&f.body);
+        self.pop_scope();
+
+        let codegen_name = self.mangle(&f.name);
+        self.hir.functions.push(HirFunction {
+            id: sig.id,
+            name: codegen_name,
+            pub_name: if exported {
+                Some(f.name.clone())
+            } else {
+                None
+            },
+            params: param_locals,
+            ret: sig.ret,
+            locals: self.fn_local_types.clone(),
+            body,
+            export: false,
+        });
+
+        self.locals = saved_locals;
+        self.next_local = saved_next_local;
+        self.fn_local_types = saved_fn_local_types;
+        self.current_fn = saved_current_fn;
+        self.current_ret = saved_current_ret;
+    }
+
+    fn emit_call(
+        &mut self,
+        sig: FnSig,
+        args: &[Expr],
+        span: juni_syntax::Span,
+    ) -> (HirExpr, Type) {
+        if args.len() != sig.params.len() {
+            self.error(
+                span,
+                format!(
+                    "function expects {} args, got {}",
+                    sig.params.len(),
+                    args.len()
+                ),
+            );
+        }
+        let mut hir_args = Vec::new();
+        for (i, arg) in args.iter().enumerate() {
+            let (e, ty) = self.check_expr(arg);
+            if let Some(expected) = sig.params.get(i) {
+                if !types_compatible(expected, &ty) {
+                    self.error(
+                        arg.span,
+                        format!("argument type mismatch: expected {}, got {}", expected, ty),
+                    );
+                }
+            }
+            hir_args.push(e);
+        }
+        (
+            HirExpr::Call {
+                func: sig.id,
+                args: hir_args,
+                ty: sig.ret.clone(),
+            },
+            sig.ret,
+        )
+    }
+
+    fn qualified_to_expr(
+        &mut self,
+        qref: QualifiedRef,
+        span: juni_syntax::Span,
+    ) -> (HirExpr, Type) {
+        match qref {
+            QualifiedRef::Fn(sig) => {
+                self.error(span, "expected value, found function");
+                (HirExpr::Int(0), sig.ret)
+            }
+            QualifiedRef::Struct(layout) => {
+                let _ = layout;
+                self.error(span, "expected value, found struct type");
+                (HirExpr::Int(0), Type::Builtin(Builtin::I32))
+            }
+            QualifiedRef::Static(ty, id) => (HirExpr::Static(id, ty.clone()), ty),
         }
     }
 
@@ -909,6 +1340,10 @@ impl Checker {
         if !matches!(ty, Type::Builtin(Builtin::F32 | Builtin::I32)) {
             self.error(span, format!("{what} must be f32"));
         }
+    }
+
+    fn is_ptr_i32(&self, ty: &Type) -> bool {
+        matches!(ty, Type::Builtin(Builtin::I32)) || ty.wasm_is_i32_ptr()
     }
 
     fn check_host_intrinsic(
@@ -1706,6 +2141,279 @@ impl Checker {
                     Type::Builtin(Builtin::Void),
                 ))
             }
+            "scene3d_create_node" => {
+                if !args.is_empty() {
+                    self.error(span, "scene3d_create_node takes no args");
+                }
+                Some((
+                    HirExpr::Scene3dCreateNode,
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "scene3d_set_parent" => {
+                if args.len() != 2 {
+                    self.error(span, "scene3d_set_parent(child, parent) expects 2 args");
+                }
+                let (child, ct) = self.check_arg(args, 0);
+                let (parent, pt) = self.check_arg(args, 1);
+                if !self.is_ptr_i32(&ct) || !matches!(pt, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "scene3d_set_parent handles must be i32");
+                }
+                Some((
+                    HirExpr::Scene3dSetParent {
+                        child: Box::new(child),
+                        parent: Box::new(parent),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "camera3d_look_at" => {
+                if args.len() != 7 {
+                    self.error(span, "camera3d_look_at(cam, ex, ey, ez, tx, ty, tz) expects 7 args");
+                }
+                let (cam, ct) = self.check_arg(args, 0);
+                if !matches!(ct, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "camera handle must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 1..7 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "camera3d_look_at arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Camera3dLookAt {
+                        cam: Box::new(cam),
+                        ex: Box::new(xs.remove(0)),
+                        ey: Box::new(xs.remove(0)),
+                        ez: Box::new(xs.remove(0)),
+                        tx: Box::new(xs.remove(0)),
+                        ty: Box::new(xs.remove(0)),
+                        tz: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "camera3d_orbit" => {
+                if args.len() != 7 {
+                    self.error(
+                        span,
+                        "camera3d_orbit(cam, tx, ty, tz, yaw, pitch, dist) expects 7 args",
+                    );
+                }
+                let (cam, ct) = self.check_arg(args, 0);
+                if !matches!(ct, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "camera handle must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 1..7 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "camera3d_orbit arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Camera3dOrbit {
+                        cam: Box::new(cam),
+                        target_x: Box::new(xs.remove(0)),
+                        target_y: Box::new(xs.remove(0)),
+                        target_z: Box::new(xs.remove(0)),
+                        yaw: Box::new(xs.remove(0)),
+                        pitch: Box::new(xs.remove(0)),
+                        distance: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "mesh3d_custom" => {
+                if args.len() != 4 {
+                    self.error(
+                        span,
+                        "mesh3d_custom(verts_ptr, vert_count, indices_ptr, index_count) expects 4 args",
+                    );
+                }
+                let (verts_ptr, vpt) = self.check_arg(args, 0);
+                let (vert_count, vct) = self.check_arg(args, 1);
+                let (indices_ptr, ipt) = self.check_arg(args, 2);
+                let (index_count, ict) = self.check_arg(args, 3);
+                if !self.is_ptr_i32(&vpt) {
+                    self.error(span, "mesh3d_custom verts_ptr must be i32 or array pointer");
+                }
+                if !matches!(vct, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "mesh3d_custom vert_count must be i32");
+                }
+                if !self.is_ptr_i32(&ipt) {
+                    self.error(span, "mesh3d_custom indices_ptr must be i32 or array pointer");
+                }
+                if !matches!(ict, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "mesh3d_custom index_count must be i32");
+                }
+                Some((
+                    HirExpr::Mesh3dCustom {
+                        verts_ptr: Box::new(verts_ptr),
+                        vert_count: Box::new(vert_count),
+                        indices_ptr: Box::new(indices_ptr),
+                        index_count: Box::new(index_count),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "material3d_color" => {
+                if args.len() != 4 {
+                    self.error(span, "material3d_color(r, g, b, a) expects 4 args");
+                }
+                let mut xs = Vec::new();
+                for i in 0..4 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "material3d_color arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Material3dColor {
+                        r: Box::new(xs.remove(0)),
+                        g: Box::new(xs.remove(0)),
+                        b: Box::new(xs.remove(0)),
+                        a: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "mesh3d_set_material" => {
+                if args.len() != 2 {
+                    self.error(span, "mesh3d_set_material(mesh, material) expects 2 args");
+                }
+                let (mesh, mt) = self.check_arg(args, 0);
+                let (material, mat) = self.check_arg(args, 1);
+                if !matches!(mt, Type::Builtin(Builtin::I32))
+                    || !matches!(mat, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "mesh3d_set_material handles must be i32");
+                }
+                Some((
+                    HirExpr::Mesh3dSetMaterial {
+                        mesh: Box::new(mesh),
+                        material: Box::new(material),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "asset_load_str" => {
+                if args.len() != 1 {
+                    self.error(span, "asset_load_str(path) expects 1 arg");
+                }
+                let (path, pt) = self.check_arg(args, 0);
+                if !matches!(pt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "asset_load_str path must be str");
+                }
+                Some((
+                    HirExpr::AssetLoadStr {
+                        path: Box::new(path),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "sprite_draw" => {
+                if args.len() != 5 {
+                    self.error(span, "sprite_draw(handle, x, y, w, h) expects 5 args");
+                }
+                let (handle, ht) = self.check_arg(args, 0);
+                if !matches!(ht, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "sprite_draw handle must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 1..5 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "sprite_draw arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::SpriteDraw {
+                        handle: Box::new(handle),
+                        x: Box::new(xs.remove(0)),
+                        y: Box::new(xs.remove(0)),
+                        w: Box::new(xs.remove(0)),
+                        h: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "mesh_load_obj" => {
+                if args.len() != 1 {
+                    self.error(span, "mesh_load_obj(path) expects 1 arg");
+                }
+                let (path, pt) = self.check_arg(args, 0);
+                if !matches!(pt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "mesh_load_obj path must be str");
+                }
+                Some((
+                    HirExpr::MeshLoadObj {
+                        path: Box::new(path),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "aabb_overlap" => {
+                if args.len() != 2 {
+                    self.error(span, "aabb_overlap(a, b) expects 2 args");
+                }
+                let (a, at) = self.check_arg(args, 0);
+                let (b, bt) = self.check_arg(args, 1);
+                if !at.wasm_is_i32_ptr() || !bt.wasm_is_i32_ptr() {
+                    self.error(span, "aabb_overlap requires Aabb struct values");
+                }
+                Some((
+                    HirExpr::AabbOverlap {
+                        a: Box::new(a),
+                        b: Box::new(b),
+                    },
+                    Type::Builtin(Builtin::Bool),
+                ))
+            }
+            "aabb_resolve_x" => {
+                if args.len() != 3 {
+                    self.error(span, "aabb_resolve_x(moving, other, vel_x) expects 3 args");
+                }
+                let (moving, mt) = self.check_arg(args, 0);
+                let (other, ot) = self.check_arg(args, 1);
+                let (vel, vt) = self.check_arg(args, 2);
+                if !mt.wasm_is_i32_ptr() || !ot.wasm_is_i32_ptr() {
+                    self.error(span, "aabb_resolve_x requires Aabb struct values");
+                }
+                self.expect_f32ish(&vt, span, "aabb_resolve_x vel_x");
+                Some((
+                    HirExpr::AabbResolveX {
+                        moving: Box::new(moving),
+                        other: Box::new(other),
+                        vel_x: Box::new(vel),
+                    },
+                    Type::Builtin(Builtin::F32),
+                ))
+            }
+            "audio_load" => {
+                if args.len() != 1 {
+                    self.error(span, "audio_load(path) expects 1 arg");
+                }
+                let (path, pt) = self.check_arg(args, 0);
+                if !matches!(pt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "audio_load path must be str");
+                }
+                Some((
+                    HirExpr::AudioLoad(Box::new(path)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "audio_play" => {
+                if args.len() != 1 {
+                    self.error(span, "audio_play(handle) expects 1 arg");
+                }
+                let (handle, ht) = self.check_arg(args, 0);
+                if !matches!(ht, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "audio_play handle must be i32");
+                }
+                Some((
+                    HirExpr::AudioPlay(Box::new(handle)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
             _ => None,
         }
     }
@@ -1800,6 +2508,8 @@ fn types_compatible(a: &Type, b: &Type) -> bool {
     match (a, b) {
         (Type::Builtin(x), Type::Builtin(y)) => x == y,
         (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::TypeParam(x), Type::TypeParam(y)) => x == y,
+        (Type::TypeParam(_), _) | (_, Type::TypeParam(_)) => true,
         (Type::Array { elem: e1, len: l1 }, Type::Array { elem: e2, len: l2 }) => {
             l1 == l2 && types_compatible(e1, e2)
         }
@@ -1927,5 +2637,227 @@ fn frame(dt: f32) -> i32:
             .diagnostics
             .iter()
             .any(|d| matches!(d.severity, Severity::Error)));
+    }
+
+    #[test]
+    fn check_multi_module_import() {
+        use crate::program::{check_program_ok, ProgramModule};
+
+        let math = parse(
+            r#"export fn greet() -> i32:
+    return 42
+"#,
+        )
+        .unwrap();
+        let main = parse(
+            r#"import math
+
+fn main() -> i32:
+    return math.greet()
+"#,
+        )
+        .unwrap();
+
+        let modules = vec![
+            ProgramModule {
+                name: "math".into(),
+                file: Some("src/math.juni".into()),
+                module: math,
+            },
+            ProgramModule {
+                name: "main".into(),
+                file: Some("src/main.juni".into()),
+                module: main,
+            },
+        ];
+
+        let program = check_program_ok(&modules, "main").unwrap();
+        assert_eq!(program.modules.len(), 2);
+        let math_mod = program.modules.iter().find(|m| m.name == "math").unwrap();
+        assert_eq!(math_mod.functions[0].name, "math::greet");
+    }
+
+    #[test]
+    fn check_from_import_unqualified() {
+        use crate::program::{check_program, ProgramModule};
+        use crate::diag::Severity;
+
+        let math = parse(
+            r#"export fn clamp(x: f32, lo: f32, hi: f32) -> f32:
+    if x < lo:
+        return lo
+    if x > hi:
+        return hi
+    return x
+"#,
+        )
+        .unwrap();
+        let main = parse(
+            r#"from math import clamp
+
+fn main() -> i32:
+    let x = clamp(1.5, 0.0, 1.0)
+    return as_i32(x)
+"#,
+        )
+        .unwrap();
+
+        let modules = vec![
+            ProgramModule {
+                name: "math".into(),
+                file: None,
+                module: math,
+            },
+            ProgramModule {
+                name: "main".into(),
+                file: None,
+                module: main,
+            },
+        ];
+
+        let result = check_program(&modules, "main");
+        assert!(!result
+            .diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Error));
+    }
+
+    #[test]
+    fn check_scene3d_graph_and_materials() {
+        let src = r#"state:
+    cam: i32 = 0
+    root: i32 = 0
+    mesh: i32 = 0
+    mat: i32 = 0
+
+fn main() -> i32:
+    scene3d_init(640, 360)
+    cam = camera3d_perspective(60.0, 1.777, 0.1, 100.0)
+    root = scene3d_create_node()
+    mesh = mesh3d_box(1.0, 1.0, 1.0)
+    mat = material3d_color(0.35, 0.75, 1.0, 1.0)
+    mesh3d_set_material(mesh, mat)
+    scene3d_set_parent(mesh, root)
+    mesh3d_set_pose(root, 0.0, 0.0, -4.0, 0.0, 0.0, 0.0)
+    return 0
+
+fn frame(dt: f32) -> i32:
+    scene3d_clear(0.05, 0.06, 0.1, 1.0)
+    camera3d_look_at(cam, 4.0, 3.0, 4.0, 0.0, 0.0, 0.0)
+    mesh3d_rotate(root, 0.0, dt * 0.7, 0.0)
+    scene3d_draw(mesh, cam)
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
+    }
+
+    #[test]
+    fn check_mesh3d_custom_array_args() {
+        let src = r#"fn main() -> i32:
+    let mesh = mesh3d_custom([0.0, 1.0, 0.0, 1.0, 0.2, 0.3], 1, [0], 1)
+    return mesh
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
+    }
+
+    #[test]
+    fn check_generic_min() {
+        let src = r#"fn gmin[T: Ord](a: T, b: T) -> T:
+    if a < b:
+        return a
+    return b
+
+fn main() -> i32:
+    let x = gmin(3, 7)
+    let y = gmin(2.5, 1.0)
+    print(y)
+    return as_i32(x)
+"#;
+        let m = parse(src).unwrap();
+        let result = check(&m);
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error),
+            "{:?}",
+            result.diagnostics
+        );
+        assert_eq!(result.module.functions.len(), 3);
+        assert!(
+            result
+                .module
+                .functions
+                .iter()
+                .any(|f| f.name.contains("gmin")),
+            "{:?}",
+            result.module.functions.iter().map(|f| &f.name).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn check_aabb_intrinsics() {
+        let src = r#"struct Aabb:
+    x: f32
+    y: f32
+    w: f32
+    h: f32
+
+fn main() -> i32:
+    let a = Aabb(x=0.0, y=0.0, w=10.0, h=10.0)
+    let b = Aabb(x=5.0, y=5.0, w=10.0, h=10.0)
+    if aabb_overlap(a, b):
+        let v = aabb_resolve_x(a, b, 3.0)
+        return as_i32(v)
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
+    }
+
+    #[test]
+    fn check_audio_intrinsics() {
+        let src = r#"fn main() -> i32:
+    let h = audio_load("sfx/hit.wav")
+    audio_play(h)
+    return h
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
+    }
+
+    #[test]
+    fn check_asset_intrinsics() {
+        let src = r#"state:
+    tex: i32 = 0
+
+fn main() -> i32:
+    canvas_init(640, 360)
+    tex = asset_load_str("sprites/juni.png")
+    return 0
+
+fn frame(dt: f32) -> i32:
+    sprite_draw(tex, 100.0, 120.0, 64.0, 64.0)
+    let mesh = mesh_load_obj("models/ship.obj")
+    return mesh
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
+    }
+
+    #[test]
+    fn check_delete_stmt() {
+        let src = r#"struct Node:
+    v: i32
+
+fn main() -> i32:
+    let p = new Node(v=1)
+    delete p
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
     }
 }

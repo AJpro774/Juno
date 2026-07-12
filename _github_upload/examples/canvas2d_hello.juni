@@ -1,0 +1,7 @@
+fn main() -> i32:
+    canvas_init(640, 360)
+    canvas_clear(0.08, 0.09, 0.12, 1.0)
+    canvas_fill_rect(40.0, 40.0, 120.0, 80.0, 0.1, 0.7, 0.5, 1.0)
+    canvas_fill_circle(320.0, 180.0, 40.0, 0.95, 0.55, 0.2, 1.0)
+    canvas_fill_text("Juni 2D", 40.0, 160.0, 1.0, 1.0, 1.0, 1.0)
+    return 0

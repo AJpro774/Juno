@@ -1,0 +1,7 @@
+export fn init() -> i32:
+    print("audio demo: Web Audio hooks planned for v5.1")
+    return 0
+
+export fn play_note(name: str) -> i32:
+    print(str_concat("play ", name))
+    return 0

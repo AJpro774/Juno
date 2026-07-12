@@ -476,4 +476,14 @@ mod tests {
         let src = "struct Vec2:\n    x: f32\n    y: f32\nfn main() -> i32:\n    return 0\n";
         lex(src).expect("lex no blank");
     }
+
+    #[test]
+    fn lex_import_export_keywords() {
+        let src = "import math\nfrom utils import clamp as c\nexport fn foo() -> i32:\n    return 0\n";
+        let tokens = lex(src).unwrap();
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Import));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::From));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::As));
+        assert!(tokens.iter().any(|t| t.kind == TokenKind::Export));
+    }
 }

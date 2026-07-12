@@ -3,6 +3,9 @@
 use crate::types::{StructLayout, Type};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ModuleId(pub usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FuncId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -12,13 +15,43 @@ pub struct LocalId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StaticId(pub u32);
 
+/// Multi-module program HIR (topological module order).
+#[derive(Debug, Clone)]
+pub struct HirProgram {
+    pub modules: Vec<HirModule>,
+    pub entry_module_id: ModuleId,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirModule {
+    pub id: ModuleId,
+    /// Logical module name (`math`, `main`, …).
+    pub name: String,
+    /// Source path for diagnostics (project-relative when available).
+    pub file: Option<String>,
     pub structs: Vec<StructLayout>,
     pub statics: Vec<HirStatic>,
     pub static_region_size: u32,
+    /// Byte offset of this module's static region in the merged linear memory.
+    pub static_region_offset: u32,
     pub init_globals: HirBlock,
     pub functions: Vec<HirFunction>,
+}
+
+impl Default for HirModule {
+    fn default() -> Self {
+        Self {
+            id: ModuleId(0),
+            name: String::new(),
+            file: None,
+            structs: Vec::new(),
+            statics: Vec::new(),
+            static_region_size: 0,
+            static_region_offset: 0,
+            init_globals: HirBlock { stmts: vec![] },
+            functions: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -33,12 +66,25 @@ pub struct HirStatic {
 #[derive(Debug, Clone)]
 pub struct HirFunction {
     pub id: FuncId,
+    /// Codegen symbol (mangled for cross-module items, e.g. `math::greet`).
     pub name: String,
+    /// Unmangled export name when visible to other modules.
+    pub pub_name: Option<String>,
     pub params: Vec<(LocalId, Type)>,
     pub ret: Type,
     pub locals: Vec<Type>,
     pub body: HirBlock,
+    /// When true, exported from the WASM module (entry `main` / `frame` only).
     pub export: bool,
+}
+
+/// Mangle a symbol for cross-module codegen (`math::clamp`).
+pub fn mangle_symbol(module: &str, name: &str) -> String {
+    if module.is_empty() {
+        name.to_string()
+    } else {
+        format!("{module}::{name}")
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -358,6 +404,73 @@ pub enum HirExpr {
         mesh: Box<HirExpr>,
         cam: Box<HirExpr>,
     },
+    Scene3dCreateNode,
+    Scene3dSetParent {
+        child: Box<HirExpr>,
+        parent: Box<HirExpr>,
+    },
+    Camera3dLookAt {
+        cam: Box<HirExpr>,
+        ex: Box<HirExpr>,
+        ey: Box<HirExpr>,
+        ez: Box<HirExpr>,
+        tx: Box<HirExpr>,
+        ty: Box<HirExpr>,
+        tz: Box<HirExpr>,
+    },
+    Camera3dOrbit {
+        cam: Box<HirExpr>,
+        target_x: Box<HirExpr>,
+        target_y: Box<HirExpr>,
+        target_z: Box<HirExpr>,
+        yaw: Box<HirExpr>,
+        pitch: Box<HirExpr>,
+        distance: Box<HirExpr>,
+    },
+    Mesh3dCustom {
+        verts_ptr: Box<HirExpr>,
+        vert_count: Box<HirExpr>,
+        indices_ptr: Box<HirExpr>,
+        index_count: Box<HirExpr>,
+    },
+    Material3dColor {
+        r: Box<HirExpr>,
+        g: Box<HirExpr>,
+        b: Box<HirExpr>,
+        a: Box<HirExpr>,
+    },
+    Mesh3dSetMaterial {
+        mesh: Box<HirExpr>,
+        material: Box<HirExpr>,
+    },
+    AssetLoadStr {
+        path: Box<HirExpr>,
+    },
+    SpriteDraw {
+        handle: Box<HirExpr>,
+        x: Box<HirExpr>,
+        y: Box<HirExpr>,
+        w: Box<HirExpr>,
+        h: Box<HirExpr>,
+    },
+    MeshLoadObj {
+        path: Box<HirExpr>,
+    },
+    /// `aabb_overlap(a, b)` — axis-aligned box overlap (struct pointers).
+    AabbOverlap {
+        a: Box<HirExpr>,
+        b: Box<HirExpr>,
+    },
+    /// `aabb_resolve_x(moving, other, vel_x)` — X-axis collision response.
+    AabbResolveX {
+        moving: Box<HirExpr>,
+        other: Box<HirExpr>,
+        vel_x: Box<HirExpr>,
+    },
+    /// `audio_load(path)` — load audio asset; returns handle id.
+    AudioLoad(Box<HirExpr>),
+    /// `audio_play(handle)` — play loaded audio.
+    AudioPlay(Box<HirExpr>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

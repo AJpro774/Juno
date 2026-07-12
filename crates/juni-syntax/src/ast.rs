@@ -16,6 +16,48 @@ pub enum Item {
     Global(GlobalDef),
     /// Ergonomic module state block for games/sim.
     State(StateDef),
+    Import(ImportDecl),
+    Export(ExportDecl),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportDecl {
+    pub kind: ImportKind,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ImportKind {
+    /// `import math` or `import math as m`
+    Module {
+        name: String,
+        alias: Option<String>,
+    },
+    /// `from math import clamp, Vec2 as V`
+    From {
+        module: String,
+        names: Vec<ImportName>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportName {
+    pub name: String,
+    pub alias: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExportDecl {
+    pub item: ExportItem,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExportItem {
+    Struct(StructDef),
+    Fn(FnDef),
+    Global(GlobalDef),
+    State(StateDef),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,8 +97,17 @@ pub struct FieldDef {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct TypeParam {
+    pub name: String,
+    /// e.g. `Ord` in `[T: Ord]`
+    pub constraint: Option<String>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct FnDef {
     pub name: String,
+    pub type_params: Vec<TypeParam>,
     pub params: Vec<Param>,
     pub ret: TypeExpr,
     pub body: Block,

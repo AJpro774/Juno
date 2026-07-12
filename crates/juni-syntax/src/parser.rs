@@ -113,10 +113,34 @@ impl Parser {
     }
 
     fn parse_item(&mut self) -> Result<Item, ParseError> {
-        match self.peek_kind() {
-            TokenKind::Struct => Ok(Item::Struct(self.parse_struct()?)),
-            TokenKind::Fn => Ok(Item::Fn(self.parse_fn()?)),
-            TokenKind::State => Ok(Item::State(self.parse_state()?)),
+        let export_start = if matches!(self.peek_kind(), TokenKind::Export) {
+            Some(self.expect(TokenKind::Export, "`export`")?.span)
+        } else {
+            None
+        };
+
+        if matches!(self.peek_kind(), TokenKind::Import) {
+            if export_start.is_some() {
+                return Err(ParseError::Message(
+                    "cannot export an import declaration".into(),
+                ));
+            }
+            return Ok(Item::Import(self.parse_import_module()?));
+        }
+
+        if matches!(self.peek_kind(), TokenKind::From) {
+            if export_start.is_some() {
+                return Err(ParseError::Message(
+                    "cannot export an import declaration".into(),
+                ));
+            }
+            return Ok(Item::Import(self.parse_import_from()?));
+        }
+
+        let item = match self.peek_kind() {
+            TokenKind::Struct => Item::Struct(self.parse_struct()?),
+            TokenKind::Fn => Item::Fn(self.parse_fn()?),
+            TokenKind::State => Item::State(self.parse_state()?),
             TokenKind::Let => {
                 let Stmt::Let {
                     name,
@@ -127,22 +151,78 @@ impl Parser {
                 else {
                     unreachable!("parse_let always returns Let");
                 };
-                Ok(Item::Global(GlobalDef {
+                Item::Global(GlobalDef {
                     name,
                     ty,
                     init,
                     span,
-                }))
+                })
             }
             _ => {
                 let t = self.peek();
-                Err(ParseError::Unexpected {
+                return Err(ParseError::Unexpected {
                     line: t.span.line,
                     col: t.span.col,
-                    expected: "`struct`, `fn`, `state`, or `let`".into(),
-                })
+                    expected: "`import`, `from`, `export`, `struct`, `fn`, `state`, or `let`"
+                        .into(),
+                });
             }
+        };
+
+        if let Some(start) = export_start {
+            let span = start.merge(item_span(&item));
+            Ok(Item::Export(ExportDecl {
+                item: export_item_from_item(item),
+                span,
+            }))
+        } else {
+            Ok(item)
         }
+    }
+
+    fn parse_import_module(&mut self) -> Result<ImportDecl, ParseError> {
+        let start = self.expect(TokenKind::Import, "`import`")?.span;
+        let (name, _) = self.expect_ident()?;
+        let alias = if matches!(self.peek_kind(), TokenKind::As) {
+            self.bump();
+            let (alias, _) = self.expect_ident()?;
+            Some(alias)
+        } else {
+            None
+        };
+        let end = self.peek().span;
+        Ok(ImportDecl {
+            kind: ImportKind::Module { name, alias },
+            span: start.merge(end),
+        })
+    }
+
+    fn parse_import_from(&mut self) -> Result<ImportDecl, ParseError> {
+        let start = self.expect(TokenKind::From, "`from`")?.span;
+        let (module, _) = self.expect_ident()?;
+        self.expect(TokenKind::Import, "`import`")?;
+        let mut names = Vec::new();
+        loop {
+            let (name, _) = self.expect_ident()?;
+            let alias = if matches!(self.peek_kind(), TokenKind::As) {
+                self.bump();
+                let (alias, _) = self.expect_ident()?;
+                Some(alias)
+            } else {
+                None
+            };
+            names.push(ImportName { name, alias });
+            if matches!(self.peek_kind(), TokenKind::Comma) {
+                self.bump();
+                continue;
+            }
+            break;
+        }
+        let end = self.peek().span;
+        Ok(ImportDecl {
+            kind: ImportKind::From { module, names },
+            span: start.merge(end),
+        })
     }
 
     fn parse_state(&mut self) -> Result<StateDef, ParseError> {
@@ -210,9 +290,41 @@ impl Parser {
         })
     }
 
+    fn parse_type_params(&mut self) -> Result<Vec<TypeParam>, ParseError> {
+        self.expect(TokenKind::LBracket, "`[`")?;
+        let mut params = Vec::new();
+        loop {
+            let (name, span) = self.expect_ident()?;
+            let constraint = if matches!(self.peek_kind(), TokenKind::Colon) {
+                self.bump();
+                let (c, _) = self.expect_ident()?;
+                Some(c)
+            } else {
+                None
+            };
+            params.push(TypeParam {
+                name,
+                constraint,
+                span,
+            });
+            if matches!(self.peek_kind(), TokenKind::Comma) {
+                self.bump();
+                continue;
+            }
+            break;
+        }
+        self.expect(TokenKind::RBracket, "`]`")?;
+        Ok(params)
+    }
+
     fn parse_fn(&mut self) -> Result<FnDef, ParseError> {
         let start = self.expect(TokenKind::Fn, "`fn`")?.span;
         let (name, _) = self.expect_ident()?;
+        let type_params = if matches!(self.peek_kind(), TokenKind::LBracket) {
+            self.parse_type_params()?
+        } else {
+            Vec::new()
+        };
         self.expect(TokenKind::LParen, "`(`")?;
         let mut params = Vec::new();
         if !matches!(self.peek_kind(), TokenKind::RParen) {
@@ -240,6 +352,7 @@ impl Parser {
         let body = self.parse_block()?;
         Ok(FnDef {
             name,
+            type_params,
             params,
             ret,
             body,
@@ -782,6 +895,29 @@ impl Parser {
     }
 }
 
+fn item_span(item: &Item) -> Span {
+    match item {
+        Item::Struct(s) => s.span,
+        Item::Fn(f) => f.span,
+        Item::Global(g) => g.span,
+        Item::State(s) => s.span,
+        Item::Import(i) => i.span,
+        Item::Export(e) => e.span,
+    }
+}
+
+fn export_item_from_item(item: Item) -> ExportItem {
+    match item {
+        Item::Struct(s) => ExportItem::Struct(s),
+        Item::Fn(f) => ExportItem::Fn(f),
+        Item::Global(g) => ExportItem::Global(g),
+        Item::State(s) => ExportItem::State(s),
+        Item::Import(_) | Item::Export(_) => {
+            unreachable!("import/export items cannot be re-exported here")
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -813,5 +949,180 @@ fn main() -> i32:
 "#;
         let m = parse(src).unwrap();
         assert_eq!(m.items.len(), 2);
+    }
+
+    #[test]
+    fn parse_import_module() {
+        let src = "import math\n\nfn main() -> i32:\n    return 0\n";
+        let m = parse(src).unwrap();
+        assert_eq!(m.items.len(), 2);
+        match &m.items[0] {
+            Item::Import(ImportDecl {
+                kind: ImportKind::Module { name, alias },
+                ..
+            }) => {
+                assert_eq!(name, "math");
+                assert!(alias.is_none());
+            }
+            _ => panic!("expected import math"),
+        }
+    }
+
+    #[test]
+    fn parse_import_module_alias() {
+        let src = "import math as m\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Import(ImportDecl {
+                kind: ImportKind::Module { name, alias },
+                ..
+            }) => {
+                assert_eq!(name, "math");
+                assert_eq!(alias.as_deref(), Some("m"));
+            }
+            _ => panic!("expected import math as m"),
+        }
+    }
+
+    #[test]
+    fn parse_import_from() {
+        let src = "from math import clamp, Vec2\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Import(ImportDecl {
+                kind: ImportKind::From { module, names },
+                ..
+            }) => {
+                assert_eq!(module, "math");
+                assert_eq!(names.len(), 2);
+                assert_eq!(names[0].name, "clamp");
+                assert!(names[0].alias.is_none());
+                assert_eq!(names[1].name, "Vec2");
+                assert!(names[1].alias.is_none());
+            }
+            _ => panic!("expected from math import"),
+        }
+    }
+
+    #[test]
+    fn parse_import_from_alias() {
+        let src = "from utils import clamp as clamp_f32\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Import(ImportDecl {
+                kind: ImportKind::From { module, names },
+                ..
+            }) => {
+                assert_eq!(module, "utils");
+                assert_eq!(names.len(), 1);
+                assert_eq!(names[0].name, "clamp");
+                assert_eq!(names[0].alias.as_deref(), Some("clamp_f32"));
+            }
+            _ => panic!("expected from utils import clamp as clamp_f32"),
+        }
+    }
+
+    #[test]
+    fn parse_export_fn() {
+        let src = "export fn clamp(x: f32, lo: f32, hi: f32) -> f32:\n    return x\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Export(ExportDecl {
+                item: ExportItem::Fn(f),
+                ..
+            }) => {
+                assert_eq!(f.name, "clamp");
+                assert_eq!(f.params.len(), 3);
+            }
+            _ => panic!("expected export fn"),
+        }
+    }
+
+    #[test]
+    fn parse_export_struct() {
+        let src = "export struct Vec2:\n    x: f32\n    y: f32\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Export(ExportDecl {
+                item: ExportItem::Struct(s),
+                ..
+            }) => {
+                assert_eq!(s.name, "Vec2");
+                assert_eq!(s.fields.len(), 2);
+            }
+            _ => panic!("expected export struct"),
+        }
+    }
+
+    #[test]
+    fn parse_export_let() {
+        let src = "export let PI: f32 = 3.14159\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Export(ExportDecl {
+                item: ExportItem::Global(g),
+                ..
+            }) => {
+                assert_eq!(g.name, "PI");
+                assert!(matches!(g.init.kind, ExprKind::Float(_)));
+            }
+            _ => panic!("expected export let"),
+        }
+    }
+
+    #[test]
+    fn parse_module_with_imports_and_exports() {
+        let src = r#"
+import math
+from utils import clamp as clamp_f32
+
+export fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        assert_eq!(m.items.len(), 3);
+        assert!(matches!(&m.items[0], Item::Import(_)));
+        assert!(matches!(&m.items[1], Item::Import(_)));
+        assert!(matches!(&m.items[2], Item::Export(_)));
+    }
+
+    #[test]
+    fn parse_non_exported_still_works() {
+        let src = r#"
+struct Point:
+    x: f32
+    y: f32
+
+fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        assert_eq!(m.items.len(), 2);
+        assert!(matches!(&m.items[0], Item::Struct(_)));
+        assert!(matches!(&m.items[1], Item::Fn(_)));
+    }
+
+    #[test]
+    fn parse_array_literal_in_call() {
+        let src = r#"fn main() -> i32:
+    mesh3d_custom([0.0, 1.0, 0.0], 1, [0], 1)
+    return 0
+"#;
+        parse(src).unwrap();
+    }
+
+    #[test]
+    fn parse_generic_fn() {
+        let src = "fn min[T: Ord](a: T, b: T) -> T:\n    return a\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Fn(f) => {
+                assert_eq!(f.name, "min");
+                assert_eq!(f.type_params.len(), 1);
+                assert_eq!(f.type_params[0].name, "T");
+                assert_eq!(f.type_params[0].constraint.as_deref(), Some("Ord"));
+            }
+            _ => panic!("expected fn"),
+        }
     }
 }

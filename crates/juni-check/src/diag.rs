@@ -13,6 +13,8 @@ pub struct Diagnostic {
     pub severity: Severity,
     pub span: Span,
     pub message: String,
+    /// Source file path when checking multi-module projects.
+    pub file: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,8 +33,9 @@ impl Diagnostic {
             Severity::Error => "error",
             Severity::Warning => "warning",
         };
+        let file = self.file.as_deref().unwrap_or(filename);
         format!(
-            "{filename}:{}:{}: {kind}: {}",
+            "{file}:{}:{}: {kind}: {}",
             self.span.line, self.span.col, self.message
         )
     }

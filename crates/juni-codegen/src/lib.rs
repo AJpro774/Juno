@@ -1,5 +1,8 @@
 //! WASM code generation for Juni HIR.
 
+mod allocator;
+
+use allocator::{heap_base, heap_start};
 use juni_check::hir::*;
 use juni_check::types::{Builtin, Type};
 use wasm_encoder::{
@@ -19,9 +22,42 @@ use wasm_encoder::{
 /// 41 deg_to_rad_f32 42 rad_to_deg_f32 43 dist2_f32 44 pi_f32
 /// 45 abs_i32 46 min_i32 47 max_i32 48 clamp_i32
 /// 49 len2_f32 50 dot2_f32 51 canvas_draw_line 52 canvas_stroke_rect
-const IMPORT_COUNT: u32 = 53;
+/// 53 asset_load_str 54 sprite_draw 55 mesh_load_obj
+/// 56 scene3d_create_node 57 scene3d_set_parent 58 camera3d_look_at 59 camera3d_orbit
+/// 60 mesh3d_custom 61 material3d_color 62 mesh3d_set_material
+/// 63 mesh3d_set_material 64 aabb_overlap 65 aabb_resolve_x 66 audio_load 67 audio_play
+const IMPORT_COUNT: u32 = 67;
 
+/// Emit a single-module program (backward compatible).
 pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
+    emit_wasm_inner(hir)
+}
+
+/// Emit a linked multi-module program as one WASM binary.
+pub fn emit_wasm_program(program: &HirProgram) -> Vec<u8> {
+    let merged = merge_program(program);
+    emit_wasm_inner(&merged)
+}
+
+fn merge_program(program: &HirProgram) -> HirModule {
+    let mut merged = HirModule::default();
+    let mut all_inits = Vec::new();
+    let mut total_static = 0u32;
+
+    for module in &program.modules {
+        merged.structs.extend(module.structs.clone());
+        merged.statics.extend(module.statics.clone());
+        all_inits.extend(module.init_globals.stmts.clone());
+        merged.functions.extend(module.functions.clone());
+        total_static = total_static.max(module.static_region_offset + module.static_region_size);
+    }
+
+    merged.init_globals = HirBlock { stmts: all_inits };
+    merged.static_region_size = align_up(total_static, 4);
+    merged
+}
+
+fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
     let mut module = Module::new();
     let mut types = TypeSection::new();
 
@@ -91,10 +127,19 @@ pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
         &[ValType::F32],
     );
     let t_2i_i32 = add_fn(&[ValType::I32, ValType::I32], &[ValType::I32]);
+    let t_2i_f32 = add_fn(
+        &[ValType::I32, ValType::I32, ValType::F32],
+        &[ValType::F32],
+    );
     let t_3i_i32 = add_fn(
         &[ValType::I32, ValType::I32, ValType::I32],
         &[ValType::I32],
     );
+    let t_4i_i32 = add_fn(
+        &[ValType::I32, ValType::I32, ValType::I32, ValType::I32],
+        &[ValType::I32],
+    );
+    let t_void_i32 = add_fn(&[], &[ValType::I32]);
     let t_4f_f32_ret = add_fn(
         &[ValType::F32, ValType::F32, ValType::F32, ValType::F32],
         &[ValType::F32],
@@ -103,6 +148,16 @@ pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
         &[
             ValType::F32, ValType::F32, ValType::F32, ValType::F32, ValType::F32,
             ValType::F32, ValType::F32, ValType::F32, ValType::F32,
+        ],
+        &[],
+    );
+    let t_i_4f = add_fn(
+        &[
+            ValType::I32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
         ],
         &[],
     );
@@ -173,6 +228,20 @@ pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
     imports.import("env", "dot2_f32", EntityType::Function(t_4f_f32_ret));
     imports.import("env", "canvas_draw_line", EntityType::Function(t_9f));
     imports.import("env", "canvas_stroke_rect", EntityType::Function(t_9f));
+    imports.import("env", "asset_load_str", EntityType::Function(t_i32_i32));
+    imports.import("env", "sprite_draw", EntityType::Function(t_i_4f));
+    imports.import("env", "mesh_load_obj", EntityType::Function(t_i32_i32));
+    imports.import("env", "scene3d_create_node", EntityType::Function(t_void_i32));
+    imports.import("env", "scene3d_set_parent", EntityType::Function(t_2i_void));
+    imports.import("env", "camera3d_look_at", EntityType::Function(t_i_6f));
+    imports.import("env", "camera3d_orbit", EntityType::Function(t_i_6f));
+    imports.import("env", "mesh3d_custom", EntityType::Function(t_4i_i32));
+    imports.import("env", "material3d_color", EntityType::Function(t_4f_i32));
+    imports.import("env", "mesh3d_set_material", EntityType::Function(t_2i_void));
+    imports.import("env", "aabb_overlap", EntityType::Function(t_2i_i32));
+    imports.import("env", "aabb_resolve_x", EntityType::Function(t_2i_f32));
+    imports.import("env", "audio_load", EntityType::Function(t_i32_i32));
+    imports.import("env", "audio_play", EntityType::Function(t_i32_void));
     module.section(&imports);
 
     let mut functions = FunctionSection::new();
@@ -192,15 +261,16 @@ pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
     module.section(&memories);
 
     let mut globals = GlobalSection::new();
-    // Global 0: heap bump pointer
-    let heap_base = align_up(hir.static_region_size, 16).max(1024);
+    // Global 0: heap top pointer (after segregated freelist metadata)
+    let _hbase = heap_base(hir.static_region_size);
+    let hstart = heap_start(hir.static_region_size);
     globals.global(
         GlobalType {
             val_type: ValType::I32,
             mutable: true,
             shared: false,
         },
-        &ConstExpr::i32_const(heap_base as i32),
+        &ConstExpr::i32_const(hstart as i32),
     );
     module.section(&globals);
 
@@ -231,7 +301,7 @@ fn val_type(ty: &Type) -> ValType {
         Type::Builtin(Builtin::F32) => ValType::F32,
         Type::Builtin(Builtin::F64) => ValType::F64,
         Type::Builtin(Builtin::Void) => ValType::I32,
-        Type::Struct(_) | Type::Ref { .. } | Type::Array { .. } => ValType::I32,
+        Type::Struct(_) | Type::Ref { .. } | Type::Array { .. } | Type::TypeParam(_) => ValType::I32,
     }
 }
 
@@ -255,6 +325,12 @@ fn is_void_expr(expr: &HirExpr) -> bool {
             | HirExpr::Scene3dInit { .. }
             | HirExpr::Scene3dClear { .. }
             | HirExpr::Scene3dDraw { .. }
+            | HirExpr::Scene3dSetParent { .. }
+            | HirExpr::Camera3dLookAt { .. }
+            | HirExpr::Camera3dOrbit { .. }
+            | HirExpr::Mesh3dSetMaterial { .. }
+            | HirExpr::SpriteDraw { .. }
+            | HirExpr::AudioPlay(_)
     )
 }
 
@@ -293,16 +369,21 @@ fn emit_function(func: &HirFunction, hir: &HirModule) -> Function {
     local_decls.push((1, ValType::I32));
     let scratch4 = scratch + 3;
     local_decls.push((1, ValType::I32));
+    let scratch5 = scratch + 4;
+    local_decls.push((1, ValType::I32));
 
+    let hbase = heap_base(hir.static_region_size);
     let local_map: Vec<u32> = (0..func.locals.len() as u32).collect();
     let mut f = Function::new(local_decls);
     let mut ctx = EmitCtx {
         local_map: &local_map,
         statics: &hir.statics,
+        heap_base: hbase,
         scratch,
         scratch2,
         scratch3,
         scratch4,
+        scratch5,
     };
     if func.name == "main" && !hir.init_globals.stmts.is_empty() {
         ctx.emit_block(&mut f, &hir.init_globals);
@@ -315,10 +396,12 @@ fn emit_function(func: &HirFunction, hir: &HirModule) -> Function {
 struct EmitCtx<'a> {
     local_map: &'a [u32],
     statics: &'a [HirStatic],
+    heap_base: u32,
     scratch: u32,
     scratch2: u32,
     scratch3: u32,
     scratch4: u32,
+    scratch5: u32,
 }
 
 impl<'a> EmitCtx<'a> {
@@ -332,6 +415,30 @@ impl<'a> EmitCtx<'a> {
 
     fn emit_static_addr(&self, f: &mut Function, offset: u32) {
         f.instruction(&Instruction::I32Const(offset as i32));
+    }
+
+    fn emit_heap_alloc_local(&mut self, f: &mut Function, user_size_local: u32) {
+        allocator::emit_alloc(
+            f,
+            user_size_local,
+            self.scratch,
+            self.scratch2,
+            self.scratch3,
+            self.scratch4,
+            self.heap_base,
+        );
+    }
+
+    fn emit_heap_free_local(&mut self, f: &mut Function, user_ptr_local: u32) {
+        allocator::emit_free(
+            f,
+            user_ptr_local,
+            self.scratch,
+            self.scratch2,
+            self.scratch3,
+            self.scratch4,
+            self.heap_base,
+        );
     }
 
     fn emit_str_concat(&mut self, f: &mut Function, left: &HirExpr, right: &HirExpr) {
@@ -354,20 +461,11 @@ impl<'a> EmitCtx<'a> {
             memory_index: 0,
         }));
         f.instruction(&Instruction::I32Add);
-        f.instruction(&Instruction::LocalTee(self.scratch));
-        // alloc_size = total_len + 4
+        f.instruction(&Instruction::LocalTee(self.scratch5));
         f.instruction(&Instruction::I32Const(4));
         f.instruction(&Instruction::I32Add);
-        // bump heap
-        f.instruction(&Instruction::GlobalGet(0));
-        f.instruction(&Instruction::I32Add);
-        f.instruction(&Instruction::GlobalSet(0));
-        // result_ptr = heap_top - alloc_size
-        f.instruction(&Instruction::GlobalGet(0));
-        f.instruction(&Instruction::LocalGet(self.scratch));
-        f.instruction(&Instruction::I32Const(4));
-        f.instruction(&Instruction::I32Add);
-        f.instruction(&Instruction::I32Sub);
+        f.instruction(&Instruction::LocalSet(self.scratch5));
+        self.emit_heap_alloc_local(f, self.scratch5);
         f.instruction(&Instruction::LocalTee(self.scratch));
         // store total_len header
         f.instruction(&Instruction::LocalGet(self.scratch3));
@@ -450,14 +548,8 @@ impl<'a> EmitCtx<'a> {
         f.instruction(&Instruction::LocalGet(self.scratch));
         f.instruction(&Instruction::I32Const(4));
         f.instruction(&Instruction::I32Add);
-        f.instruction(&Instruction::GlobalGet(0));
-        f.instruction(&Instruction::I32Add);
-        f.instruction(&Instruction::GlobalSet(0));
-        f.instruction(&Instruction::GlobalGet(0));
-        f.instruction(&Instruction::LocalGet(self.scratch));
-        f.instruction(&Instruction::I32Const(4));
-        f.instruction(&Instruction::I32Add);
-        f.instruction(&Instruction::I32Sub);
+        f.instruction(&Instruction::LocalSet(self.scratch5));
+        self.emit_heap_alloc_local(f, self.scratch5);
         f.instruction(&Instruction::LocalTee(self.scratch4));
         f.instruction(&Instruction::LocalGet(self.scratch));
         f.instruction(&Instruction::I32Store(MemArg {
@@ -566,7 +658,11 @@ impl<'a> EmitCtx<'a> {
                 }
                 f.instruction(&Instruction::Return);
             }
-            HirStmt::Delete(_) => {}
+            HirStmt::Delete(ptr) => {
+                self.emit_expr(f, ptr);
+                f.instruction(&Instruction::LocalSet(self.scratch5));
+                self.emit_heap_free_local(f, self.scratch5);
+            }
             HirStmt::Expr(e) => {
                 self.emit_expr(f, e);
                 if !is_void_expr(e) {
@@ -676,12 +772,10 @@ impl<'a> EmitCtx<'a> {
                 elems,
             } => {
                 let total = *elem_size * elems.len() as u32;
-                f.instruction(&Instruction::GlobalGet(0));
-                f.instruction(&Instruction::LocalTee(self.scratch));
-                f.instruction(&Instruction::GlobalGet(0));
                 f.instruction(&Instruction::I32Const(total as i32));
-                f.instruction(&Instruction::I32Add);
-                f.instruction(&Instruction::GlobalSet(0));
+                f.instruction(&Instruction::LocalSet(self.scratch5));
+                self.emit_heap_alloc_local(f, self.scratch5);
+                f.instruction(&Instruction::LocalTee(self.scratch));
                 for (i, e) in elems.iter().enumerate() {
                     f.instruction(&Instruction::LocalGet(self.scratch));
                     f.instruction(&Instruction::I32Const((*elem_size * i as u32) as i32));
@@ -693,12 +787,10 @@ impl<'a> EmitCtx<'a> {
             }
             HirExpr::StructLit { size, fields } | HirExpr::New { size, fields } => {
                 let alloc_size = *size;
-                f.instruction(&Instruction::GlobalGet(0));
-                f.instruction(&Instruction::LocalTee(self.scratch));
-                f.instruction(&Instruction::GlobalGet(0));
                 f.instruction(&Instruction::I32Const(alloc_size as i32));
-                f.instruction(&Instruction::I32Add);
-                f.instruction(&Instruction::GlobalSet(0));
+                f.instruction(&Instruction::LocalSet(self.scratch5));
+                self.emit_heap_alloc_local(f, self.scratch5);
+                f.instruction(&Instruction::LocalTee(self.scratch));
                 for (off, fty, val) in fields {
                     f.instruction(&Instruction::LocalGet(self.scratch));
                     if *off != 0 {
@@ -845,13 +937,10 @@ impl<'a> EmitCtx<'a> {
             }
             HirExpr::StrLit(bytes) => {
                 let alloc_size = 4 + bytes.len() as u32;
-                f.instruction(&Instruction::GlobalGet(0));
-                f.instruction(&Instruction::LocalTee(self.scratch));
-                f.instruction(&Instruction::GlobalGet(0));
                 f.instruction(&Instruction::I32Const(alloc_size as i32));
-                f.instruction(&Instruction::I32Add);
-                f.instruction(&Instruction::GlobalSet(0));
-                f.instruction(&Instruction::LocalGet(self.scratch));
+                f.instruction(&Instruction::LocalSet(self.scratch5));
+                self.emit_heap_alloc_local(f, self.scratch5);
+                f.instruction(&Instruction::LocalTee(self.scratch));
                 f.instruction(&Instruction::I32Const(bytes.len() as i32));
                 f.instruction(&Instruction::I32Store(MemArg {
                     offset: 0,
@@ -1046,6 +1135,100 @@ impl<'a> EmitCtx<'a> {
                 self.emit_expr(f, cam);
                 f.instruction(&Instruction::Call(32));
             }
+            HirExpr::AssetLoadStr { path } => {
+                self.emit_expr(f, path);
+                f.instruction(&Instruction::Call(53));
+            }
+            HirExpr::SpriteDraw { handle, x, y, w, h } => {
+                self.emit_expr(f, handle);
+                for e in [x, y, w, h] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(54));
+            }
+            HirExpr::MeshLoadObj { path } => {
+                self.emit_expr(f, path);
+                f.instruction(&Instruction::Call(55));
+            }
+            HirExpr::Scene3dCreateNode => {
+                f.instruction(&Instruction::Call(56));
+            }
+            HirExpr::Scene3dSetParent { child, parent } => {
+                self.emit_expr(f, child);
+                self.emit_expr(f, parent);
+                f.instruction(&Instruction::Call(57));
+            }
+            HirExpr::Camera3dLookAt {
+                cam,
+                ex,
+                ey,
+                ez,
+                tx,
+                ty,
+                tz,
+            } => {
+                self.emit_expr(f, cam);
+                for e in [ex, ey, ez, tx, ty, tz] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(58));
+            }
+            HirExpr::Camera3dOrbit {
+                cam,
+                target_x,
+                target_y,
+                target_z,
+                yaw,
+                pitch,
+                distance,
+            } => {
+                self.emit_expr(f, cam);
+                for e in [target_x, target_y, target_z, yaw, pitch, distance] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(59));
+            }
+            HirExpr::Mesh3dCustom {
+                verts_ptr,
+                vert_count,
+                indices_ptr,
+                index_count,
+            } => {
+                for e in [verts_ptr, vert_count, indices_ptr, index_count] {
+                    self.emit_expr(f, e);
+                }
+                f.instruction(&Instruction::Call(60));
+            }
+            HirExpr::Material3dColor { r, g, b, a } => {
+                for e in [r, g, b, a] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(61));
+            }
+            HirExpr::Mesh3dSetMaterial { mesh, material } => {
+                self.emit_expr(f, mesh);
+                self.emit_expr(f, material);
+                f.instruction(&Instruction::Call(62));
+            }
+            HirExpr::AabbOverlap { a, b } => {
+                self.emit_expr(f, a);
+                self.emit_expr(f, b);
+                f.instruction(&Instruction::Call(63));
+            }
+            HirExpr::AabbResolveX { moving, other, vel_x } => {
+                self.emit_expr(f, moving);
+                self.emit_expr(f, other);
+                as_f32_expr(f, vel_x, self);
+                f.instruction(&Instruction::Call(64));
+            }
+            HirExpr::AudioLoad(path) => {
+                self.emit_expr(f, path);
+                f.instruction(&Instruction::Call(65));
+            }
+            HirExpr::AudioPlay(handle) => {
+                self.emit_expr(f, handle);
+                f.instruction(&Instruction::Call(66));
+            }
         }
     }
 
@@ -1198,7 +1381,15 @@ fn expr_ty(expr: &HirExpr) -> Type {
         | HirExpr::KeyDown(_)
         | HirExpr::MouseDown(_)
         | HirExpr::Camera3dPerspective { .. }
-        | HirExpr::Mesh3dBox { .. } => Type::Builtin(Builtin::I32),
+        | HirExpr::Mesh3dBox { .. }
+        | HirExpr::Scene3dCreateNode
+        | HirExpr::Mesh3dCustom { .. }
+        | HirExpr::Material3dColor { .. }
+        | HirExpr::AssetLoadStr { .. }
+        | HirExpr::MeshLoadObj { .. }
+        | HirExpr::AudioLoad(_) => Type::Builtin(Builtin::I32),
+        HirExpr::AabbOverlap { .. } => Type::Builtin(Builtin::Bool),
+        HirExpr::AabbResolveX { .. } => Type::Builtin(Builtin::F32),
         HirExpr::StrLit(_) => Type::Builtin(Builtin::Str),
         HirExpr::StrConcat { .. } | HirExpr::StrSubstr { .. } => Type::Builtin(Builtin::Str),
         HirExpr::StrEq { .. } => Type::Builtin(Builtin::Bool),

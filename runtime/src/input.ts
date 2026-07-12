@@ -1,0 +1,68 @@
+/** Keyboard and mouse input for browser hosts. */
+
+import { fr } from "./math.js";
+import type { InputHandlers } from "./types.js";
+
+const keys = new Set<string>();
+let mouseX = 0;
+let mouseY = 0;
+const mouseButtons = new Set<number>();
+
+const KEY_MAP: Record<number, string[]> = {
+  0: ["ArrowLeft"],
+  1: ["ArrowRight"],
+  2: ["ArrowUp"],
+  3: ["ArrowDown"],
+  4: ["KeyA", "a", "A"],
+  5: ["KeyD", "d", "D"],
+  6: ["KeyW", "w", "W"],
+  7: ["KeyS", "s", "S"],
+  8: ["Space", " "],
+};
+
+function onKeyDown(e: KeyboardEvent) {
+  keys.add(e.code);
+  keys.add(e.key);
+}
+
+function onKeyUp(e: KeyboardEvent) {
+  keys.delete(e.code);
+  keys.delete(e.key);
+}
+
+export function attachInputListeners(): void {
+  if (typeof window === "undefined") return;
+  window.removeEventListener("keydown", onKeyDown);
+  window.removeEventListener("keyup", onKeyUp);
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+}
+
+export function bindMouse(canvas: HTMLCanvasElement): void {
+  canvas.tabIndex = 0;
+  canvas.addEventListener("mousemove", (e) => {
+    const r = canvas.getBoundingClientRect();
+    mouseX = ((e.clientX - r.left) / r.width) * canvas.width;
+    mouseY = ((e.clientY - r.top) / r.height) * canvas.height;
+  });
+  canvas.addEventListener("mousedown", (e) => {
+    mouseButtons.add(e.button);
+    canvas.focus();
+  });
+  canvas.addEventListener("mouseup", (e) => mouseButtons.delete(e.button));
+}
+
+export function createInputHandlers(): InputHandlers {
+  return {
+    keyDown(code: number) {
+      const names = KEY_MAP[code | 0] ?? [];
+      for (const n of names) if (keys.has(n)) return 1;
+      return 0;
+    },
+    mouseX: () => fr(mouseX),
+    mouseY: () => fr(mouseY),
+    mouseDown(button: number) {
+      return mouseButtons.has(button | 0) ? 1 : 0;
+    },
+  };
+}

@@ -2,7 +2,7 @@ import "./style.css";
 import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { marked } from "marked";
-import { JUNI_LANGUAGE_ID, registerJuniLanguage } from "./juni-lang";
+import { registerJuniLanguage, JUNI_LANGUAGE_ID } from "./juni-lang";
 import {
   instantiateJuni,
   startFrameLoop,
@@ -11,7 +11,19 @@ import {
 } from "./juni-runtime";
 import { DOC_PAGES } from "./docs-index";
 import { CREDITS_MARKDOWN } from "./credits";
-import init, { compile } from "../public/pkg/juni_wasm.js";
+import { renderFileTree } from "./file-tree";
+import {
+  buildCompilePayload,
+  createDemoProject,
+  isProjectMode,
+  openProjectFromFileInput,
+  openProjectFromPicker,
+  projectFromFiles,
+  type ProjectState,
+} from "./project-store";
+import { TabEditor } from "./tab-editor";
+import { setupEditorIntelliSense } from "./lsp-client";
+import init, { compile, compile_project, complete_source, goto_def_source } from "../public/pkg/juni_wasm.js";
 
 self.MonacoEnvironment = {
   getWorker() {
@@ -26,6 +38,7 @@ type Diag = {
   endLine: number;
   endCol: number;
   message: string;
+  file?: string;
 };
 
 type CompileResult = {
@@ -35,6 +48,8 @@ type CompileResult = {
 };
 
 type PreviewMode = "canvas2d" | "webgpu";
+
+const SCRATCH_FILE = "scratch.juni";
 
 const HELLO = `fn main() -> i32:
     print("Hello, World!")
@@ -220,6 +235,12 @@ const consoleEl = document.getElementById("console") as HTMLPreElement;
 const runBtn = document.getElementById("run") as HTMLButtonElement;
 const examplesSel = document.getElementById("examples") as HTMLSelectElement;
 const editorHost = document.getElementById("editor") as HTMLDivElement;
+const tabBar = document.getElementById("tab-bar") as HTMLDivElement;
+const fileTreeHost = document.getElementById("file-tree") as HTMLDivElement;
+const openProjectBtn = document.getElementById("open-project") as HTMLButtonElement;
+const demoProjectBtn = document.getElementById("demo-project") as HTMLButtonElement;
+const zipInput = document.getElementById("zip-input") as HTMLInputElement;
+const folderInput = document.getElementById("folder-input") as HTMLInputElement;
 const workspace = document.querySelector(".workspace") as HTMLElement;
 const docsPanel = document.getElementById("docs-panel") as HTMLElement;
 const docsNav = document.getElementById("docs-nav") as HTMLElement;
@@ -239,6 +260,8 @@ let panelMode: "docs" | "credits" | null = null;
 let activeDocId = DOC_PAGES[0]?.id ?? "intro";
 let frameCtl: FrameController | null = null;
 let runGeneration = 0;
+let project: ProjectState | null = null;
+let tabEditor: TabEditor | null = null;
 
 function logLine(text: string, cls?: string) {
   const span = document.createElement("span");
@@ -259,8 +282,8 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-function setMarkers(model: monaco.editor.ITextModel, diags: Diag[]) {
-  const markers: monaco.editor.IMarkerData[] = diags.map((d) => ({
+function diagToMarker(d: Diag): monaco.editor.IMarkerData {
+  return {
     severity:
       d.severity === "warning"
         ? monaco.MarkerSeverity.Warning
@@ -270,8 +293,62 @@ function setMarkers(model: monaco.editor.ITextModel, diags: Diag[]) {
     startColumn: d.col,
     endLineNumber: d.endLine || d.line,
     endColumn: Math.max(d.endCol || d.col + 1, d.col + 1),
-  }));
-  monaco.editor.setModelMarkers(model, "juni", markers);
+  };
+}
+
+function clearAllMarkers(editor: TabEditor) {
+  for (const path of editor.getOpenPaths()) {
+    const model = editor.getModel(path);
+    if (model) monaco.editor.setModelMarkers(model, "juni", []);
+  }
+}
+
+function setDiagnostics(editor: TabEditor, diags: Diag[]) {
+  clearAllMarkers(editor);
+  const byFile = new Map<string, monaco.editor.IMarkerData[]>();
+  const active = editor.getActivePath();
+
+  for (const d of diags) {
+    const file = d.file ?? active ?? SCRATCH_FILE;
+    const list = byFile.get(file) ?? [];
+    list.push(diagToMarker(d));
+    byFile.set(file, list);
+  }
+
+  for (const [file, markers] of byFile) {
+    const model = editor.getModel(file);
+    if (model) monaco.editor.setModelMarkers(model, "juni", markers);
+  }
+}
+
+function refreshFileTree() {
+  renderFileTree(fileTreeHost, project, tabEditor?.getActivePath() ?? null, {
+    onOpenFile: (path) => tabEditor?.activateTab(path),
+  });
+}
+
+function loadProject(next: ProjectState, focusPath?: string | null) {
+  project = next;
+  examplesSel.value = "";
+  tabEditor?.loadProject(next, focusPath);
+  refreshFileTree();
+  clearConsole();
+  logLine(`Loaded project "${next.name}".`, "meta");
+}
+
+function loadScratchExample(ex: Example) {
+  project = null;
+  tabEditor?.openScratch(SCRATCH_FILE, ex.source);
+  if (ex.mode) setPreviewMode(ex.mode);
+  refreshFileTree();
+  clearConsole();
+  const model = tabEditor?.getModel(SCRATCH_FILE);
+  if (model) monaco.editor.setModelMarkers(model, "juni", []);
+}
+
+function syncProjectFromEditor() {
+  if (!project || !tabEditor) return;
+  tabEditor.updateProjectFiles(project);
 }
 
 function setPreviewMode(mode: PreviewMode) {
@@ -335,7 +412,65 @@ function setupSidePanel() {
   docsClose.addEventListener("click", () => setPanel(null));
 }
 
+async function openProjectFolderFallback(): Promise<ProjectState | null> {
+  return new Promise((resolve, reject) => {
+    folderInput.onchange = async () => {
+      const fileList = folderInput.files;
+      folderInput.value = "";
+      if (!fileList || fileList.length === 0) {
+        resolve(null);
+        return;
+      }
+      try {
+        const files = new Map<string, string>();
+        let rootName = "project";
+        for (const file of fileList) {
+          const rel = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+          if (!rel) continue;
+          const normalized = rel.replace(/\\/g, "/");
+          const parts = normalized.split("/");
+          if (parts.length < 2) continue;
+          rootName = parts[0];
+          const path = parts.slice(1).join("/");
+          files.set(path, await file.text());
+        }
+        if (!files.has("juni.toml")) {
+          throw new Error("Selected folder must contain juni.toml at the project root.");
+        }
+        resolve(projectFromFiles(rootName, ".", files));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    folderInput.click();
+  });
+}
+
+async function handleOpenProject() {
+  try {
+    let next = await openProjectFromPicker();
+    if (!next) {
+      const useZip = window.confirm(
+        "Folder picker unavailable. Open a .zip project archive?\n\nCancel to pick a folder via the legacy file input."
+      );
+      if (useZip) {
+        next = await openProjectFromFileInput(zipInput);
+      } else {
+        next = await openProjectFolderFallback();
+      }
+    }
+    if (next) loadProject(next);
+  } catch (e) {
+    logLine(String(e), "err");
+  }
+}
+
 async function main() {
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Examples…";
+  examplesSel.appendChild(placeholder);
+
   for (const name of Object.keys(EXAMPLES)) {
     const opt = document.createElement("option");
     opt.value = name;
@@ -352,32 +487,40 @@ async function main() {
   await init();
   registerJuniLanguage(monaco);
 
-  const editor = monaco.editor.create(editorHost, {
-    value: HELLO,
-    language: JUNI_LANGUAGE_ID,
-    theme: "vs",
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 14,
-    minimap: { enabled: false },
-    automaticLayout: true,
-    scrollBeyondLastLine: false,
-    padding: { top: 16 },
-    renderLineHighlight: "line",
-    tabSize: 4,
-    insertSpaces: true,
+  tabEditor = new TabEditor({
+    host: editorHost,
+    tabBar,
+    onDirtyChange: () => refreshFileTree(),
+    onActiveChange: () => refreshFileTree(),
+  });
+
+  setupEditorIntelliSense(
+    monaco,
+    JUNI_LANGUAGE_ID,
+    { complete_source, goto_def_source },
+    () => {
+      const path = tabEditor?.getActivePath() ?? SCRATCH_FILE;
+      return tabEditor?.getModel(path)?.getValue() ?? "";
+    },
+    () => tabEditor?.getActivePath() ?? SCRATCH_FILE,
+  );
+
+  openProjectBtn.addEventListener("click", () => {
+    void handleOpenProject();
+  });
+
+  demoProjectBtn.addEventListener("click", () => {
+    loadProject(createDemoProject());
   });
 
   examplesSel.addEventListener("change", () => {
     const ex = EXAMPLES[examplesSel.value];
     if (!ex) return;
-    editor.setValue(ex.source);
-    if (ex.mode) setPreviewMode(ex.mode);
-    clearConsole();
-    const model = editor.getModel();
-    if (model) monaco.editor.setModelMarkers(model, "juni", []);
+    loadScratchExample(ex);
   });
 
   async function run() {
+    if (!tabEditor) return;
     frameCtl?.stop();
     frameCtl = null;
     const gen = ++runGeneration;
@@ -386,22 +529,30 @@ async function main() {
     runBtn.classList.add("is-running");
     window.setTimeout(() => runBtn.classList.remove("is-running"), 500);
 
-    const source = editor.getValue();
-    const model = editor.getModel();
+    syncProjectFromEditor();
+
     let result: CompileResult;
     try {
-      result = JSON.parse(compile(source)) as CompileResult;
+      if (isProjectMode(project)) {
+        result = JSON.parse(compile_project(buildCompilePayload(project!))) as CompileResult;
+      } else {
+        const active = tabEditor.getActivePath() ?? SCRATCH_FILE;
+        const model = tabEditor.getModel(active);
+        const source = model?.getValue() ?? "";
+        result = JSON.parse(compile(source)) as CompileResult;
+      }
     } catch (e) {
       logLine(String(e), "err");
       return;
     }
 
-    if (model) setMarkers(model, result.diagnostics ?? []);
+    setDiagnostics(tabEditor, result.diagnostics ?? []);
 
     if (!result.ok || !result.wasm) {
       logLine("Compile failed.", "err");
       for (const d of result.diagnostics ?? []) {
-        logLine(`${d.line}:${d.col} ${d.message}`, "err");
+        const where = d.file ? `${d.file}:${d.line}:${d.col}` : `${d.line}:${d.col}`;
+        logLine(`${where} ${d.message}`, "err");
       }
       return;
     }
@@ -448,11 +599,27 @@ async function main() {
     void run();
   });
 
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+  tabEditor.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
     void run();
   });
 
-  logLine("Ready. Press Run (⌘/Ctrl+Enter).", "meta");
+  tabEditor.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+    const path = tabEditor?.getActivePath();
+    if (!path || !tabEditor) return;
+    tabEditor.markSaved(path);
+    if (project) {
+      const file = project.files.get(path);
+      if (file) {
+        file.content = tabEditor.getModel(path)?.getValue() ?? file.content;
+        file.dirty = false;
+      }
+    }
+    logLine(`Saved ${path} (in-memory).`, "meta");
+  });
+
+  loadScratchExample(EXAMPLES["Hello World"]);
+  refreshFileTree();
+  logLine("Ready. Open a project or press Run (⌘/Ctrl+Enter).", "meta");
 }
 
 main().catch((e) => {

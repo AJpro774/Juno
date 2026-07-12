@@ -4,13 +4,15 @@ members = [
     "crates/juni-syntax",
     "crates/juni-check",
     "crates/juni-codegen",
+    "crates/juni-driver",
+    "crates/juni-lsp",
     "crates/juni-cli",
     "crates/juni-wasm",
 ]
 default-members = ["crates/juni-cli"]
 
 [workspace.package]
-version = "4.0.0"
+version = "5.0.0"
 edition = "2021"
 license = "MIT"
 authors = ["Juni Contributors"]
@@ -19,6 +21,8 @@ authors = ["Juni Contributors"]
 juni-syntax = { path = "crates/juni-syntax" }
 juni-check = { path = "crates/juni-check" }
 juni-codegen = { path = "crates/juni-codegen" }
+juni-driver = { path = "crates/juni-driver" }
+juni-lsp = { path = "crates/juni-lsp", default-features = false }
 wasm-encoder = "0.221"
 clap = { version = "4", features = ["derive"] }
 thiserror = "2"

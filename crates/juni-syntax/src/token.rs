@@ -32,6 +32,10 @@ pub enum TokenKind {
     State,
     Break,
     Continue,
+    Import,
+    Export,
+    From,
+    As,
 
     // Identifiers and literals
     Ident(String),
@@ -94,6 +98,10 @@ impl TokenKind {
             "state" => TokenKind::State,
             "break" => TokenKind::Break,
             "continue" => TokenKind::Continue,
+            "import" => TokenKind::Import,
+            "export" => TokenKind::Export,
+            "from" => TokenKind::From,
+            "as" => TokenKind::As,
             _ => return None,
         })
     }

@@ -27,6 +27,8 @@ pub enum Type {
     Struct(String),
     Array { elem: Box<Type>, len: u32 },
     Ref { mutable: bool, inner: Box<Type> },
+    /// Unresolved generic type parameter during template checking.
+    TypeParam(String),
 }
 
 impl Type {
@@ -56,6 +58,7 @@ impl Type {
             Type::Ref { .. } => 4,
             Type::Array { elem, len } => elem.size(structs).saturating_mul(*len),
             Type::Struct(name) => structs.get(name).map(|s| s.size).unwrap_or(4),
+            Type::TypeParam(_) => 4,
         }
     }
 
@@ -64,8 +67,16 @@ impl Type {
             Type::Builtin(Builtin::I64 | Builtin::F64) => 8,
             Type::Builtin(Builtin::Void) => 1,
             Type::Array { elem, .. } => elem.align(),
+            Type::TypeParam(_) => 4,
             _ => 4,
         }
+    }
+
+    pub fn is_ord(&self) -> bool {
+        matches!(
+            self,
+            Type::Builtin(Builtin::I32 | Builtin::F32)
+        )
     }
 
     pub fn elem_size(&self, structs: &HashMap<String, StructLayout>) -> u32 {
@@ -104,6 +115,7 @@ impl fmt::Display for Type {
                 mutable: false,
                 inner,
             } => write!(f, "ref {inner}"),
+            Type::TypeParam(n) => write!(f, "{n}"),
         }
     }
 }

@@ -8,17 +8,15 @@
 
 **[Open the Juni IDE](https://ajpro774.github.io/Juno/)** — edit, compile, and run in your browser (GitHub Pages).
 
-## Status (v4.0.0)
+## Status (v5.0.0)
 
-- **Module state:** `state:` blocks and module `let` as **memory-backed statics** (any-expression init; shared across `main` / `frame`)
-- Language → WASM: structs, refs, control flow, strings, arrays, **`for` ranges**, **`break` / `continue`**
-- Stdlib: strings, math (`clamp`/`lerp`/`pow`/…), vec2 (`len2`/`dot2`/`dist2`), integer helpers
-- **Canvas2D** fill + **stroke** (`canvas_draw_line`, `canvas_stroke_rect`) + **frame(`dt`)** loop
-- **scene3d_*** / **mesh3d_*** / **camera3d_*** (rotating cube sample)
-- **Docs** and **Credits** panels in the IDE; **CI** + GitHub Pages deploy
-- CLI: `juni check` / `juni build`; Node stubs graphics/input safely
-
-Out of v4: modules/imports, generics, LSP, full physics, asset pipeline, desktop shell.
+- **Projects:** `juni.toml` + `src/` modules, Python-style `import` / `export` / `from`, single merged WASM
+- **IDE:** file tree, multi-tab editors, project open (folder + zip), completion-lite + go-to-def
+- **LSP:** `juni lsp` (tower-lsp) with cross-module completion and definition
+- **Desktop:** Tauri 2 shell wrapping the IDE with native folder open
+- **Examples:** `examples/projects/*` — modules, sprites, 3D, paddle physics, audio demo
+- **Docs:** modules, juni.toml, assets, physics, audio, desktop
+- **CI:** `cargo test`, example + project checks, LSP smoke, IDE build
 
 ## Browser IDE (local)
 
@@ -32,25 +30,36 @@ Open http://localhost:5173 — **Run** (⌘/Ctrl+Enter) compiles and executes; s
 ## CLI quick start
 
 ```bash
-cargo run -p juni-cli -- build examples/hello_world.juni -o hello.wasm
-node runtime/host.js hello.wasm
+cd examples/projects/hello_modules
+cargo run -p juni-cli -- build
+node ../../runtime/host.js hello_modules.wasm
 ```
 
 Check all samples:
 
 ```bash
 bash scripts/check-examples.sh
+bash scripts/check-projects.sh
+```
+
+## Desktop IDE
+
+```bash
+cd ide && npm run build:wasm
+cd desktop && npm install && npm run dev
 ```
 
 ## Layout
 
 | Path | Role |
 |------|------|
-| `crates/*` | Compiler (syntax, check, codegen, CLI, wasm) |
+| `crates/*` | Compiler (syntax, check, codegen, driver, lsp, CLI, wasm) |
 | `ide/` | Vite + Monaco browser IDE |
+| `desktop/` | Tauri 2 native shell |
 | `runtime/` | JS host + stubs |
-| `examples/` | Sample `.juni` programs |
-| `docs/` | Language + graphics docs |
+| `examples/` | Single-file `.juni` programs |
+| `examples/projects/` | Multi-module `juni.toml` projects |
+| `docs/` | Language + project docs |
 | `CHANGELOG.md` | Release notes |
 | `CREDITS.md` | People, models, and software per version |
 
@@ -59,7 +68,7 @@ bash scripts/check-examples.sh
 ```bash
 git remote add origin https://github.com/AJpro774/Juno.git
 git push -u origin main
-git push origin v4.0.0
+git push origin v5.0.0
 ```
 
 Enable **Settings → Pages → Build and deployment → GitHub Actions**. The IDE will be live at:

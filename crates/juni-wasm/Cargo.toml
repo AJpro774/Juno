@@ -12,6 +12,8 @@ crate-type = ["cdylib", "rlib"]
 juni-syntax.workspace = true
 juni-check.workspace = true
 juni-codegen.workspace = true
+juni-driver.workspace = true
+juni-lsp = { workspace = true, default-features = false }
 wasm-bindgen.workspace = true
 serde.workspace = true
 serde_json.workspace = true

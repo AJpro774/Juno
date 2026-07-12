@@ -16,5 +16,5 @@
     "resolveJsonModule": true,
     "types": ["@webgpu/types"]
   },
-  "include": ["src"]
+  "include": ["src", "../runtime/src"]
 }

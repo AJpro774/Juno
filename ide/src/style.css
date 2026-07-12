@@ -199,9 +199,145 @@ select {
 
 .main-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(14rem, 0.85fr);
+  grid-template-columns: minmax(9rem, 0.55fr) minmax(0, 1.15fr) minmax(14rem, 0.85fr);
   min-height: 0;
   border-bottom: 1px solid var(--line);
+}
+
+.file-tree-pane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  min-width: 0;
+  background: var(--pane);
+  border-right: 1px solid var(--line);
+}
+
+.pane-head-light {
+  color: var(--muted);
+  background: var(--pane);
+  border-bottom: 1px solid var(--line);
+}
+
+.file-tree {
+  overflow: auto;
+  padding: 0.45rem 0.35rem 0.75rem;
+  min-height: 0;
+}
+
+.file-tree-empty {
+  margin: 0.5rem 0.35rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.file-tree-section {
+  margin-bottom: 0.55rem;
+}
+
+.file-tree-section-head {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.file-tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.file-tree-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0.35rem;
+  padding: 0.32rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-tree-item:hover,
+.file-tree-item.is-active {
+  background: rgba(15, 110, 86, 0.1);
+  color: var(--accent);
+}
+
+.editor-pane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  min-width: 0;
+}
+
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  padding: 0.35rem 0.45rem 0;
+  background: var(--editor-bg);
+  border-right: 1px solid var(--line);
+  overflow-x: auto;
+  min-height: 2.1rem;
+}
+
+.editor-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(28, 25, 21, 0.04);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 0.35rem 0.35rem 0 0;
+  padding: 0.3rem 0.45rem 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--muted);
+  cursor: pointer;
+  max-width: 10rem;
+  flex: 0 0 auto;
+}
+
+.editor-tab.is-active {
+  background: var(--editor-bg);
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.editor-tab.is-dirty .editor-tab-label::after {
+  content: " •";
+  color: var(--accent);
+}
+
+.editor-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tab-close {
+  opacity: 0.45;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+}
+
+.editor-tab:hover .editor-tab-close,
+.editor-tab.is-active .editor-tab-close {
+  opacity: 0.85;
 }
 
 .editor {
@@ -451,7 +587,16 @@ select {
 @media (max-width: 960px) {
   .main-row {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(12rem, 45vh) minmax(10rem, 28vh);
+    grid-template-rows: minmax(8rem, 22vh) minmax(12rem, 45vh) minmax(10rem, 28vh);
+  }
+
+  .file-tree-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .editor-pane {
+    border-bottom: 1px solid var(--line);
   }
 
   .editor {
