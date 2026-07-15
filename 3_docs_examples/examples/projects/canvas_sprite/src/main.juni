@@ -1,0 +1,16 @@
+state:
+    sprite_tex: i32 = 0
+    sprite_x: f32 = 200.0
+
+fn main() -> i32:
+    canvas_init(640, 360)
+    sprite_tex = asset_load_str("sprites/juni.png")
+    return 0
+
+fn frame(dt: f32) -> i32:
+    canvas_clear(0.08, 0.09, 0.12, 1.0)
+    sprite_x = sprite_x + 120.0 * dt
+    if sprite_x > 576.0:
+        sprite_x = 32.0
+    sprite_draw(sprite_tex, sprite_x, 160.0, 64.0, 64.0)
+    return 0

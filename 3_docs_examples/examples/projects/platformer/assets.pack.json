@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "assets": {
+    "level.json": {
+      "id": 1,
+      "kind": "tilemap",
+      "w": 0,
+      "h": 0,
+      "path": "level.json",
+      "embed": "ewogICJ0aWxlX3NpemUiOiAzMiwKICAiY29scyI6IDEwLAogICJyb3dzIjogMywKICAidGlsZXMiOiBbCiAgICAwLCAwLCAwLCAwLCAwLCAwLCAwLCAwLCAwLCAwLAogICAgMCwgMCwgMCwgMCwgMCwgMCwgMCwgMCwgMCwgMCwKICAgIDEsIDEsIDEsIDEsIDEsIDEsIDEsIDEsIDEsIDEKICBdLAogICJ0aWxlc2V0IjogMAp9Cg=="
+    },
+    "scenes/level1.jscene": {
+      "id": 2,
+      "kind": "scene",
+      "w": 0,
+      "h": 0,
+      "path": "scenes/level1.jscene",
+      "embed": "ewogICJ2ZXJzaW9uIjogMSwKICAiZ3Jhdml0eSI6IDEyMDAsCiAgImVudGl0aWVzIjogWwogICAgewogICAgICAiaWQiOiAxLAogICAgICAibmFtZSI6ICJDYW1lcmEiLAogICAgICAidGFnIjogImNhbWVyYSIsCiAgICAgICJjb21wb25lbnRzIjogewogICAgICAgICJjYW1lcmEyZCI6IHsgIngiOiAxNjAsICJ5IjogMTAwLCAiem9vbSI6IDEsICJhY3RpdmUiOiB0cnVlIH0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgImlkIjogMiwKICAgICAgIm5hbWUiOiAiR3JvdW5kIiwKICAgICAgInRhZyI6ICJncm91bmQiLAogICAgICAiY29tcG9uZW50cyI6IHsKICAgICAgICAidHJhbnNmb3JtMmQiOiB7ICJ4IjogMTYwLCAieSI6IDIyMCwgInNjYWxlIjogWzEsIDFdLCAiel9pbmRleCI6IDAgfSwKICAgICAgICAiY29sbGlkZXIyZCI6IHsgInR5cGUiOiAiYWFiYiIsICJ3IjogNDAwLCAiaCI6IDQwLCAic29saWQiOiB0cnVlIH0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgImlkIjogMywKICAgICAgIm5hbWUiOiAiUGxheWVyIiwKICAgICAgInRhZyI6ICJwbGF5ZXIiLAogICAgICAiY29tcG9uZW50cyI6IHsKICAgICAgICAidHJhbnNmb3JtMmQiOiB7ICJ4IjogODAsICJ5IjogMTYwLCAic2NhbGUiOiBbMSwgMV0sICJ6X2luZGV4IjogMTAgfSwKICAgICAgICAic3ByaXRlIjogeyAiYXNzZXQiOiAic3ByaXRlcy9wbGF5ZXIucG5nIiwgInciOiAzMiwgImgiOiAzMiB9LAogICAgICAgICJyaWdpZGJvZHkyZCI6IHsgInZ4IjogMCwgInZ5IjogMCwgImdyYXZpdHkiOiAxMjAwIH0sCiAgICAgICAgImNvbGxpZGVyMmQiOiB7ICJ0eXBlIjogImFhYmIiLCAidyI6IDI4LCAiaCI6IDI4LCAic29saWQiOiB0cnVlIH0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgImlkIjogNCwKICAgICAgIm5hbWUiOiAiUGxhdGZvcm0iLAogICAgICAidGFnIjogInBsYXQxIiwKICAgICAgImNvbXBvbmVudHMiOiB7CiAgICAgICAgInRyYW5zZm9ybTJkIjogeyAieCI6IDI2MCwgInkiOiAxNDAsICJzY2FsZSI6IFsxLCAxXSwgInpfaW5kZXgiOiAxIH0sCiAgICAgICAgImNvbGxpZGVyMmQiOiB7ICJ0eXBlIjogImFhYmIiLCAidyI6IDgwLCAiaCI6IDE2LCAic29saWQiOiB0cnVlIH0KICAgICAgfQogICAgfQogIF0KfQo="
+    },
+    "sprites/player.png": {
+      "id": 3,
+      "kind": "image",
+      "w": 8,
+      "h": 8,
+      "path": "sprites/player.png",
+      "embed": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGP432P0Hx9mGBkKAE2OrwFezBBTAAAAAElFTkSuQmCC"
+    },
+    "sprites/tiles.png": {
+      "id": 4,
+      "kind": "image",
+      "w": 8,
+      "h": 8,
+      "path": "sprites/tiles.png",
+      "embed": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGP432P0Hx9mGBkKAE2OrwFezBBTAAAAAElFTkSuQmCC"
+    }
+  }
+}

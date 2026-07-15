@@ -1,0 +1,9 @@
+[project]
+name = "scene3d_lit"
+version = "0.1.0"
+entry = "src/main.juni"
+
+[assets]
+root = "assets"
+include = ["**/*.gltf", "**/*.png"]
+pack = "assets.pack.json"

@@ -1,0 +1,3 @@
+export fn greet() -> i32:
+    print("from math module")
+    return 42

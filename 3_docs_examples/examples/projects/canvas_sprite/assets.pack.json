@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "assets": {
+    "sprites/juni.png": {
+      "id": 1,
+      "kind": "image",
+      "w": 8,
+      "h": 8,
+      "path": "sprites/juni.png",
+      "embed": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGP432P0Hx9mGBkKAE2OrwFezBBTAAAAAElFTkSuQmCC"
+    }
+  }
+}
