@@ -22,5 +22,5 @@ desktop/node_modules/
 # Netlify CLI
 .netlify/
 
-# wasm-pack scratch
-pkg/
+# wasm-pack scratch at repo root (keep ide/public/pkg tracked)
+/pkg/
