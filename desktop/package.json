@@ -1,0 +1,14 @@
+{
+  "name": "juni-desktop",
+  "private": true,
+  "version": "6.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:ide": "cd ../ide && npm ci && npm run build:wasm && npm run build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}
