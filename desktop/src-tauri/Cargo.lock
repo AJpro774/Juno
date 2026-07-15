@@ -1580,7 +1580,7 @@ dependencies = [
 
 [[package]]
 name = "juni-check"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "juni-syntax",
  "thiserror 2.0.18",
@@ -1588,7 +1588,7 @@ dependencies = [
 
 [[package]]
 name = "juni-desktop"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "juni-driver",
  "juni-lsp",
@@ -1601,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "juni-driver"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "base64 0.22.1",
  "juni-syntax",
@@ -1613,7 +1613,7 @@ dependencies = [
 
 [[package]]
 name = "juni-lsp"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "juni-check",
  "juni-driver",
@@ -1625,7 +1625,7 @@ dependencies = [
 
 [[package]]
 name = "juni-syntax"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "thiserror 2.0.18",
 ]

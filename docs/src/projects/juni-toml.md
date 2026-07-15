@@ -26,6 +26,15 @@ math = "src/lib/math.juni"
 
 Maps a logical module name to a specific path when the default `src/<name>.juni` layout does not apply.
 
+## Default scene (optional)
+
+```toml
+[scene]
+default = "scenes/level1.jscene"
+```
+
+Used by the IDE editor and documentation; Juni code typically calls `scene_load("scenes/level1.jscene")` explicitly.
+
 ## CLI
 
 From the project root (or with `--project`):

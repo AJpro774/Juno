@@ -1,6 +1,6 @@
 # Modules and imports
 
-Juni v5 adds **Python-style modules** for multi-file projects. Each `.juni` file under `src/` is a module; names default to the file stem (`src/math.juni` → module `math`).
+Juni v6 adds **Python-style modules** for multi-file projects. Each `.juni` file under `src/` is a module; names default to the file stem (`src/math.juni` → module `math`).
 
 ## Import forms
 

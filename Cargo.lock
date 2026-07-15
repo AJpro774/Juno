@@ -466,7 +466,7 @@ dependencies = [
 
 [[package]]
 name = "juni-check"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "juni-syntax",
  "thiserror",
@@ -474,7 +474,7 @@ dependencies = [
 
 [[package]]
 name = "juni-cli"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -483,11 +483,12 @@ dependencies = [
  "juni-driver",
  "juni-lsp",
  "juni-syntax",
+ "serde_json",
 ]
 
 [[package]]
 name = "juni-codegen"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "juni-check",
  "wasm-encoder",
@@ -495,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "juni-driver"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "base64",
  "juni-check",
@@ -510,7 +511,7 @@ dependencies = [
 
 [[package]]
 name = "juni-lsp"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "juni-check",
  "juni-driver",
@@ -525,14 +526,14 @@ dependencies = [
 
 [[package]]
 name = "juni-syntax"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "juni-wasm"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "base64",
  "juni-check",

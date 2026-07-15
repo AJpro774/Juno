@@ -7,6 +7,7 @@ import { createCanvasFillTextFallback } from "./canvas.js";
 import { createAssetStubs } from "./assets.js";
 import { createAudioStubs } from "./audio.js";
 import { createPhysicsImports } from "./physics.js";
+import { createEngineStubs } from "./engine.js";
 function stub() { }
 function stub0() {
     return 0;
@@ -54,6 +55,7 @@ export function createEnvImports(options = {}) {
     const assets = options.assets ?? createAssetStubs();
     const audio = options.audio ?? createAudioStubs();
     const physics = createPhysicsImports(memoryRef);
+    const engine = options.engine ?? createEngineStubs();
     return {
         env: {
             sqrt_f32: (x) => fr(Math.sqrt(x)),
@@ -133,6 +135,42 @@ export function createEnvImports(options = {}) {
             aabb_resolve_x: physics.aabb_resolve_x,
             audio_load: audio.audio_load,
             audio_play: audio.audio_play,
+            // Engine ECS (indices 67+)
+            world_create: engine.world_create,
+            entity_create: engine.entity_create,
+            entity_destroy: engine.entity_destroy,
+            entity_set_tag: engine.entity_set_tag,
+            entity_find_by_tag: engine.entity_find_by_tag,
+            transform2d_set: engine.transform2d_set,
+            transform3d_set: engine.transform3d_set,
+            sprite_set: engine.sprite_set,
+            mesh3d_attach: engine.mesh3d_attach,
+            world_step: engine.world_step,
+            scene_load: engine.scene_load,
+            camera2d_set: engine.camera2d_set,
+            tilemap_load: engine.tilemap_load,
+            tilemap_attach: engine.tilemap_attach,
+            world_draw: engine.world_draw,
+            material3d_texture: engine.material3d_texture,
+            light3d_directional: engine.light3d_directional,
+            light3d_point: engine.light3d_point,
+            mesh_load_gltf: engine.mesh_load_gltf,
+            aabb_resolve_y: physics.aabb_resolve_y,
+            audio_play_loop: audio.audio_play_loop ?? stub,
+            audio_set_volume: audio.audio_set_volume ?? stub,
+            gamepad_axis: input.gamepadAxis ?? stubF,
+            gamepad_button: input.gamepadButton ?? stub0,
+            collision_count: engine.collision_count ?? stub0,
+            collision_entity_a: engine.collision_entity_a ?? stub0,
+            collision_entity_b: engine.collision_entity_b ?? stub0,
+            rigidbody2d_set_vel: engine.rigidbody2d_set_vel ?? stub,
+            rigidbody2d_get_grounded: engine.rigidbody2d_get_grounded ?? stub0,
+            collider2d_set: engine.collider2d_set ?? stub,
+            camera2d_follow: engine.camera2d_follow ?? stub,
+            prefab_spawn: engine.prefab_spawn ?? stub0,
+            world_draw3d: engine.world_draw3d ?? stub,
+            scene3d_set_ambient: engine.scene3d_set_ambient ?? stub,
+            scene3d_set_fog: engine.scene3d_set_fog ?? stub,
         },
         memoryRef,
     };

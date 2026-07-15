@@ -8,17 +8,21 @@
 
 **[Open the Juni IDE](https://ajpro774.github.io/Juno/)** — edit, compile, and run in your browser (GitHub Pages).
 
-## Status (v5.0.0)
+Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-- **Projects:** `juni.toml` + `src/` modules, Python-style `import` / `export` / `from`, single merged WASM
-- **IDE:** file tree, multi-tab editors, project open (folder + zip), completion-lite + go-to-def
-- **LSP:** `juni lsp` (tower-lsp) with cross-module completion and definition
-- **Desktop:** Tauri 2 shell wrapping the IDE with native folder open
-- **Examples:** `examples/projects/*` — modules, sprites, 3D, paddle physics, audio demo
-- **Docs:** modules, juni.toml, assets, physics, audio, desktop
-- **CI:** `cargo test`, example + project checks, LSP smoke, IDE build
+## Status (v7.5.0)
+
+- **Engine:** host ECS, `.jscene`, prefabs, collision poll, camera follow, `world_draw3d`, ambient/fog
+- **Editor:** hierarchy/inspector, Save to disk, undo/redo, play snapshot, hot reload, Export Web
+- **Optional AI:** WebLLM (model picker) — chat, autocorrect, explain — **off by default**
+- **Projects:** `juni.toml` modules, `juni export-web`, Netlify-ready static export
+- **Examples:** platformer vertical slice, scene3d_lit, paddle, audio, modules
+- **Docs:** engine, levels, Netlify, export-web, AI assistant
+- **CI:** `cargo test`, example checks, LSP smoke, IDE / Pages build
 
 ## Browser IDE (local)
+
+Double-click [`RunJuniEditor.command`](RunJuniEditor.command), or:
 
 ```bash
 cd ide && npm run build:wasm
@@ -68,7 +72,7 @@ cd desktop && npm install && npm run dev
 ```bash
 git remote add origin https://github.com/AJpro774/Juno.git
 git push -u origin main
-git push origin v5.0.0
+git push origin v6.0.0
 ```
 
 Enable **Settings → Pages → Build and deployment → GitHub Actions**. The IDE will be live at:

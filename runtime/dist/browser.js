@@ -2,8 +2,10 @@
 import { createCanvasHandlers, createGpuHandlers } from "./canvas.js";
 import { createEnvImports } from "./env.js";
 import { createAssetHandlers } from "./assets.js";
+import { createAudioHandlers } from "./audio.js";
 import { attachInputListeners, bindMouse, createInputHandlers } from "./input.js";
-import { createScene3dHandlers, ensureGpu, resetSceneTables } from "./scene3d.js";
+import { createCustomMeshFromData, createScene3dHandlers, ensureGpu, light3dDirectional, light3dPoint, material3dTexture, resetSceneTables, scene3dSetAmbient, scene3dSetFog, syncMeshPose, } from "./scene3d.js";
+import { createEngineImports, resetWorld } from "./engine.js";
 export function startFrameLoop(instance, options = {}) {
     const frame = instance.exports.frame;
     if (typeof frame !== "function")
@@ -53,14 +55,41 @@ export async function instantiateJuni(wasmBytes, options = {}) {
         assetBaseUrl: options.assetBaseUrl ?? "",
         getCtx2d: canvasHandlers.getCtx2d,
     });
+    const audioHandlers = createAudioHandlers({
+        memoryRef,
+        assetPack: options.assetPack ?? null,
+        assetBaseUrl: options.assetBaseUrl ?? "",
+    });
+    resetWorld();
+    resetSceneTables();
+    const scene3dHandlers = createScene3dHandlers(gcanvas, memoryRef);
+    const engine = createEngineImports({
+        memoryRef,
+        assetPack: options.assetPack ?? null,
+        getCtx2d: canvasHandlers.getCtx2d,
+        getBitmap: (handle) => assetHandlers.getBitmap(handle),
+        getAssetText: options.getAssetText ?? ((path) => assetHandlers.getText(path)),
+        createCustomMesh: createCustomMeshFromData,
+        syncMeshPose,
+        materialTexture: material3dTexture,
+        lightDirectional: light3dDirectional,
+        lightPoint: light3dPoint,
+        scene3dClear: (r, g, b, a) => scene3dHandlers.clear?.(r, g, b, a),
+        scene3dDraw: (mesh, cam) => scene3dHandlers.draw?.(mesh, cam),
+        scene3dSetAmbient,
+        scene3dSetFog,
+        initialScene: options.initialScene ?? null,
+    });
     const { env, memoryRef: envMemoryRef } = createEnvImports({
         memoryRef,
         onPrint: options.onPrint,
         canvas: canvasHandlers,
         gpu: createGpuHandlers(),
         input: createInputHandlers(),
-        scene3d: createScene3dHandlers(gcanvas, memoryRef),
+        scene3d: scene3dHandlers,
         assets: assetHandlers,
+        audio: audioHandlers,
+        engine,
         verbose: options.verbose,
     });
     if (options.mode === "webgpu" && gcanvas) {
@@ -76,7 +105,6 @@ export async function instantiateJuni(wasmBytes, options = {}) {
         if (gcanvas)
             gcanvas.style.display = "none";
     }
-    resetSceneTables();
     await assetHandlers.preloadAll();
     const result = await WebAssembly.instantiate(wasmBytes, { env });
     const instance = "instance" in result

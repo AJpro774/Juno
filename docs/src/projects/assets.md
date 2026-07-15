@@ -1,6 +1,6 @@
 # Assets
 
-Juni v5 introduces a project-level **asset manifest** driven by `juni.toml` `[assets]` sections and an `assets/` directory.
+Juni v6 introduces a project-level **asset manifest** driven by `juni.toml` `[assets]` sections and an `assets/` directory.
 
 ## Layout
 

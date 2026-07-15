@@ -23,6 +23,27 @@ import {
 } from "./project-store";
 import { TabEditor } from "./tab-editor";
 import { setupEditorIntelliSense } from "./lsp-client";
+import { sceneStore } from "./editor/scene-store";
+import { getEditorMode, setEditorMode, subscribeMode } from "./editor/mode";
+import { renderScenePanel } from "./editor/scene-panel";
+import { renderInspector } from "./editor/inspector";
+import { renderAssetBrowser } from "./editor/asset-browser";
+import { attachSceneView } from "./editor/scene-view";
+import type { AssetPack } from "../../runtime/src/types";
+import { clearWritableRoot, writeProjectFile } from "./project-persist";
+import type { JScene } from "../../runtime/src/scene-loader";
+import {
+  isAiEnabled,
+  subscribeAiSettings,
+  type DiagLike,
+} from "./agent/agent";
+import {
+  explainLastDiagnostics,
+  setAiUiHooks,
+  updateAiStatusLabel,
+  wireAiPanelDom,
+} from "./agent/ui";
+import { setupAiAutocorrect } from "./agent/autocorrect";
 import init, { compile, compile_project, complete_source, goto_def_source } from "../public/pkg/juni_wasm.js";
 
 self.MonacoEnvironment = {
@@ -68,7 +89,7 @@ const EXAMPLES: Record<string, Example> = {
     print(pow(2.0, 10.0))
     print(pi())
     print(dist2(0.0, 0.0, 3.0, 4.0))
-    print(str_concat("Juni ", "v4"))
+    print(str_concat("Juni ", "v6"))
     print(iclamp(99, 0, 10))
     return 0
 `,
@@ -78,7 +99,7 @@ const EXAMPLES: Record<string, Example> = {
     print(len2(3.0, 4.0))
     print(dot2(1.0, 2.0, 3.0, 4.0))
     print(dist2(0.0, 0.0, 3.0, 4.0))
-    print(str_substr("Juni v4", 5, 2))
+    print(str_substr("Juni v6", 5, 2))
     return 0
 `,
   },
@@ -165,7 +186,7 @@ fn frame(dt: f32) -> i32:
 
 fn main() -> i32:
     print(str_len("Juni"))
-    if str_eq("v4", "v4"):
+    if str_eq("v6", "v6"):
         print("str_eq ok")
     print(lerp(0.0, 10.0, 0.5))
     return 0
@@ -249,19 +270,159 @@ const sideTitle = document.getElementById("side-panel-title") as HTMLElement;
 const docsToggle = document.getElementById("docs-toggle") as HTMLButtonElement;
 const creditsToggle = document.getElementById("credits-toggle") as HTMLButtonElement;
 const docsClose = document.getElementById("docs-close") as HTMLButtonElement;
+const aiToggle = document.getElementById("ai-toggle") as HTMLButtonElement;
+const aiPanel = document.getElementById("ai-panel") as HTMLElement;
+const aiClose = document.getElementById("ai-close") as HTMLButtonElement;
+const explainErrorsBtn = document.getElementById("explain-errors") as HTMLButtonElement;
+const aiFixModal = document.getElementById("ai-fix-modal") as HTMLElement;
+const aiFixOriginal = document.getElementById("ai-fix-original") as HTMLPreElement;
+const aiFixProposed = document.getElementById("ai-fix-proposed") as HTMLPreElement;
+const aiFixApply = document.getElementById("ai-fix-apply") as HTMLButtonElement;
+const aiFixDismiss = document.getElementById("ai-fix-dismiss") as HTMLButtonElement;
 const mode2d = document.getElementById("mode-2d") as HTMLButtonElement;
 const modeGpu = document.getElementById("mode-gpu") as HTMLButtonElement;
 const canvas2d = document.getElementById("canvas2d") as HTMLCanvasElement;
 const canvasGpu = document.getElementById("canvas-gpu") as HTMLCanvasElement;
 const previewBody = document.getElementById("preview-body") as HTMLElement;
+const scenePanelHost = document.getElementById("scene-panel") as HTMLDivElement;
+const inspectorHost = document.getElementById("inspector") as HTMLDivElement;
+const assetBrowserHost = document.getElementById("asset-browser") as HTMLDivElement;
+const modeEditBtn = document.getElementById("mode-edit") as HTMLButtonElement;
+const modePlayBtn = document.getElementById("mode-play") as HTMLButtonElement;
+const saveSceneBtn = document.getElementById("save-scene") as HTMLButtonElement;
+const undoSceneBtn = document.getElementById("undo-scene") as HTMLButtonElement;
+const redoSceneBtn = document.getElementById("redo-scene") as HTMLButtonElement;
+const sceneDirtyEl = document.getElementById("scene-dirty") as HTMLElement;
+const hotReloadChk = document.getElementById("hot-reload") as HTMLInputElement;
+const exportWebBtn = document.getElementById("export-web") as HTMLButtonElement;
 
 let previewMode: PreviewMode = "canvas2d";
-let panelMode: "docs" | "credits" | null = null;
+let panelMode: "docs" | "credits" | "ai" | null = null;
 let activeDocId = DOC_PAGES[0]?.id ?? "intro";
 let frameCtl: FrameController | null = null;
 let runGeneration = 0;
 let project: ProjectState | null = null;
 let tabEditor: TabEditor | null = null;
+let currentAssetPack: AssetPack | null = null;
+let sceneView: ReturnType<typeof attachSceneView> | null = null;
+let lastDiagnostics: DiagLike[] = [];
+let pendingFixApply: (() => void) | null = null;
+let prePlayScene: JScene | null = null;
+let hotReloadEnabled = false;
+
+function refreshEnginePanels() {
+  renderScenePanel(scenePanelHost, sceneStore);
+  renderInspector(inspectorHost, sceneStore, currentAssetPack);
+  renderAssetBrowser(assetBrowserHost, currentAssetPack, sceneStore);
+  sceneView?.redraw();
+}
+
+function tryLoadSceneFromProject() {
+  if (!project) return;
+  const candidates = [
+    "scenes/main.jscene",
+    "scenes/level1.jscene",
+    ...[...project.files.keys()].filter((p) => p.endsWith(".jscene")),
+  ];
+  for (const path of candidates) {
+    const file = project.files.get(path);
+    if (file) {
+      try {
+        sceneStore.load(file.content, path);
+        return;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+function syncSceneIntoProject() {
+  if (!project) return;
+  const path = sceneStore.getPath();
+  const content = sceneStore.serialize();
+  const existing = project.files.get(path);
+  if (existing) {
+    existing.content = content;
+    existing.dirty = true;
+  } else {
+    project.files.set(path, { path, content, dirty: true });
+  }
+  refreshFileTree();
+}
+
+async function persistSceneToDisk(): Promise<void> {
+  syncSceneIntoProject();
+  const path = sceneStore.getPath();
+  const content = sceneStore.serialize();
+  try {
+    const how = await writeProjectFile(path, content);
+    sceneStore.markSaved();
+    const file = project?.files.get(path);
+    if (file) file.dirty = false;
+    refreshFileTree();
+    updateSceneDirtyUi();
+    if (how === "disk") logLine(`Saved scene ${path} to disk.`, "meta");
+    else logLine(`Downloaded ${path} (no writable project folder).`, "meta");
+  } catch (e) {
+    logLine(`Save failed: ${e}`, "err");
+  }
+}
+
+function updateSceneDirtyUi(): void {
+  if (sceneDirtyEl) sceneDirtyEl.hidden = !sceneStore.isDirty();
+  if (undoSceneBtn) undoSceneBtn.disabled = !sceneStore.canUndo();
+  if (redoSceneBtn) redoSceneBtn.disabled = !sceneStore.canRedo();
+}
+
+function stopPlayAndRestore(): void {
+  frameCtl?.stop();
+  frameCtl = null;
+  if (prePlayScene) {
+    sceneStore.restoreScene(prePlayScene);
+    prePlayScene = null;
+  }
+  refreshEnginePanels();
+}
+
+async function loadAssetPackFromProject(): Promise<void> {
+  currentAssetPack = null;
+  if (!project) return;
+  const packFile = project.files.get("assets.pack.json");
+  if (packFile) {
+    try {
+      currentAssetPack = JSON.parse(packFile.content) as AssetPack;
+      return;
+    } catch {
+      /* fall through */
+    }
+  }
+  // Build a lightweight pack from image embeds in the project files map.
+  const assets: AssetPack["assets"] = {};
+  let id = 1;
+  for (const [path, file] of project.files) {
+    if (!path.startsWith("assets/")) continue;
+    const rel = path.slice("assets/".length);
+    const lower = rel.toLowerCase();
+    let kind = "blob";
+    if (/\.(png|jpg|jpeg|gif|webp)$/.test(lower)) kind = "image";
+    else if (lower.endsWith(".jscene")) kind = "scene";
+    else if (lower.endsWith(".gltf")) kind = "gltf";
+    else if (lower.endsWith(".json")) kind = "tilemap";
+    else if (/\.(wav|mp3|ogg)$/.test(lower)) kind = "audio";
+    assets[rel] = {
+      id: id++,
+      kind,
+      w: 0,
+      h: 0,
+      path: rel,
+      embed: kind !== "image" ? btoa(file.content) : undefined,
+    };
+  }
+  if (Object.keys(assets).length) {
+    currentAssetPack = { version: 1, assets };
+  }
+}
 
 function logLine(text: string, cls?: string) {
   const span = document.createElement("span");
@@ -334,10 +495,16 @@ function loadProject(next: ProjectState, focusPath?: string | null) {
   refreshFileTree();
   clearConsole();
   logLine(`Loaded project "${next.name}".`, "meta");
+  void loadAssetPackFromProject().then(() => {
+    tryLoadSceneFromProject();
+    refreshEnginePanels();
+    updateSceneDirtyUi();
+  });
 }
 
 function loadScratchExample(ex: Example) {
   project = null;
+  clearWritableRoot();
   tabEditor?.openScratch(SCRATCH_FILE, ex.source);
   if (ex.mode) setPreviewMode(ex.mode);
   refreshFileTree();
@@ -365,11 +532,14 @@ function markPreviewUsed() {
   previewBody.classList.add("has-frame");
 }
 
-function setPanel(mode: "docs" | "credits" | null) {
+function setPanel(mode: "docs" | "credits" | "ai" | null) {
   panelMode = mode;
-  const open = mode !== null;
-  workspace.classList.toggle("docs-open", open);
-  docsPanel.setAttribute("aria-hidden", open ? "false" : "true");
+  const docsOpen = mode === "docs" || mode === "credits";
+  const aiOpen = mode === "ai";
+  workspace.classList.toggle("docs-open", docsOpen);
+  workspace.classList.toggle("ai-open", aiOpen);
+  docsPanel.setAttribute("aria-hidden", docsOpen ? "false" : "true");
+  aiPanel.setAttribute("aria-hidden", aiOpen ? "false" : "true");
   if (mode === "docs") {
     sideTitle.textContent = "Docs";
     docsNav.style.display = "";
@@ -379,6 +549,44 @@ function setPanel(mode: "docs" | "credits" | null) {
     docsNav.style.display = "none";
     docsBody.innerHTML = marked.parse(CREDITS_MARKDOWN, { async: false }) as string;
   }
+}
+
+function showFixPreview(original: string, proposed: string, apply: () => void) {
+  pendingFixApply = apply;
+  aiFixOriginal.textContent = original;
+  aiFixProposed.textContent = proposed;
+  aiFixModal.hidden = false;
+}
+
+function hideFixPreview() {
+  pendingFixApply = null;
+  aiFixModal.hidden = true;
+}
+
+function currentSource(): string {
+  const path = tabEditor?.getActivePath() ?? SCRATCH_FILE;
+  return tabEditor?.getModel(path)?.getValue() ?? "";
+}
+
+function currentExtraContext(): string {
+  const path = tabEditor?.getActivePath() ?? SCRATCH_FILE;
+  const diags = formatDiagnosticsBrief(lastDiagnostics);
+  return `Active file: ${path}\nLast diagnostics:\n${diags || "(none)"}`;
+}
+
+function formatDiagnosticsBrief(diags: DiagLike[]): string {
+  return diags
+    .slice(0, 12)
+    .map((d) => {
+      const where = d.file ? `${d.file}:${d.line}:${d.col}` : `${d.line}:${d.col}`;
+      return `${where} ${d.message}`;
+    })
+    .join("\n");
+}
+
+function updateExplainButton() {
+  const show = isAiEnabled() && lastDiagnostics.length > 0;
+  explainErrorsBtn.hidden = !show;
 }
 
 function renderDoc(id: string) {
@@ -410,6 +618,18 @@ function setupSidePanel() {
     setPanel(panelMode === "credits" ? null : "credits");
   });
   docsClose.addEventListener("click", () => setPanel(null));
+  aiToggle.addEventListener("click", () => {
+    setPanel(panelMode === "ai" ? null : "ai");
+  });
+  aiClose.addEventListener("click", () => setPanel(null));
+  explainErrorsBtn.addEventListener("click", () => {
+    void explainLastDiagnostics();
+  });
+  aiFixApply.addEventListener("click", () => {
+    pendingFixApply?.();
+    hideFixPreview();
+  });
+  aiFixDismiss.addEventListener("click", () => hideFixPreview());
 }
 
 async function openProjectFolderFallback(): Promise<ProjectState | null> {
@@ -484,6 +704,71 @@ async function main() {
   mode2d.addEventListener("click", () => setPreviewMode("canvas2d"));
   modeGpu.addEventListener("click", () => setPreviewMode("webgpu"));
 
+  sceneView = attachSceneView(canvas2d, sceneStore, () => currentAssetPack);
+  sceneStore.subscribe(() => {
+    refreshEnginePanels();
+    updateSceneDirtyUi();
+  });
+  refreshEnginePanels();
+  updateSceneDirtyUi();
+
+  modeEditBtn.addEventListener("click", () => {
+    setEditorMode("edit");
+    stopPlayAndRestore();
+  });
+  modePlayBtn.addEventListener("click", () => {
+    prePlayScene = sceneStore.cloneScene();
+    setEditorMode("play");
+    void run();
+  });
+  subscribeMode((mode) => {
+    modeEditBtn.classList.toggle("is-active", mode === "edit");
+    modePlayBtn.classList.toggle("is-active", mode === "play");
+    if (mode === "edit") {
+      canvas2d.hidden = false;
+      canvas2d.style.display = "block";
+      sceneView?.redraw();
+      logLine("Edit mode.", "meta");
+    }
+  });
+
+  saveSceneBtn.addEventListener("click", () => {
+    void persistSceneToDisk();
+  });
+  undoSceneBtn?.addEventListener("click", () => {
+    if (getEditorMode() !== "edit") return;
+    sceneStore.undo();
+  });
+  redoSceneBtn?.addEventListener("click", () => {
+    if (getEditorMode() !== "edit") return;
+    sceneStore.redo();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (getEditorMode() !== "edit") return;
+    const meta = e.metaKey || e.ctrlKey;
+    if (!meta) return;
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === "TEXTAREA" || target.tagName === "INPUT" || target.isContentEditable)) {
+      return;
+    }
+    // Let Monaco handle editor-focused shortcuts.
+    if (target?.closest?.(".monaco-editor")) return;
+    if (e.key === "z" && !e.shiftKey) {
+      e.preventDefault();
+      sceneStore.undo();
+    } else if ((e.key === "z" && e.shiftKey) || e.key === "y") {
+      e.preventDefault();
+      sceneStore.redo();
+    }
+  });
+  hotReloadChk?.addEventListener("change", () => {
+    hotReloadEnabled = !!hotReloadChk.checked;
+    logLine(hotReloadEnabled ? "Hot reload on (saves while playing re-run)." : "Hot reload off.", "meta");
+  });
+  exportWebBtn?.addEventListener("click", () => {
+    void exportWebBuild();
+  });
+
   await init();
   registerJuniLanguage(monaco);
 
@@ -504,6 +789,48 @@ async function main() {
     },
     () => tabEditor?.getActivePath() ?? SCRATCH_FILE,
   );
+
+  setAiUiHooks({
+    getSource: currentSource,
+    getDiagnostics: () => lastDiagnostics,
+    getExtraContext: currentExtraContext,
+    applySource: (source: string) => {
+      const path = tabEditor?.getActivePath() ?? SCRATCH_FILE;
+      const model = tabEditor?.getModel(path);
+      if (!model) return;
+      model.setValue(source);
+      syncProjectFromEditor();
+    },
+    applySelection: (source: string) => {
+      const ed = tabEditor?.editor;
+      if (!ed) return;
+      const sel = ed.getSelection();
+      if (!sel) {
+        logLine("No selection to replace.", "meta");
+        return;
+      }
+      ed.executeEdits("ai-replace", [
+        { range: sel, text: source, forceMoveMarkers: true },
+      ]);
+      syncProjectFromEditor();
+    },
+    openScratch: (source: string, name = "ai-snippet.juni") => {
+      tabEditor?.openScratch(name, source);
+    },
+    logLine,
+    openPanel: () => setPanel("ai"),
+  });
+  wireAiPanelDom();
+  updateAiStatusLabel();
+  updateExplainButton();
+  subscribeAiSettings(() => updateExplainButton());
+
+  setupAiAutocorrect(monaco, JUNI_LANGUAGE_ID, tabEditor.editor, {
+    getSource: currentSource,
+    getDiagnostics: () => lastDiagnostics,
+    logLine,
+    showFixPreview,
+  });
 
   openProjectBtn.addEventListener("click", () => {
     void handleOpenProject();
@@ -547,12 +874,23 @@ async function main() {
     }
 
     setDiagnostics(tabEditor, result.diagnostics ?? []);
+    lastDiagnostics = (result.diagnostics ?? []).map((d) => ({
+      severity: d.severity,
+      line: d.line,
+      col: d.col,
+      message: d.message,
+      file: d.file,
+    }));
+    updateExplainButton();
 
     if (!result.ok || !result.wasm) {
       logLine("Compile failed.", "err");
       for (const d of result.diagnostics ?? []) {
         const where = d.file ? `${d.file}:${d.line}:${d.col}` : `${d.line}:${d.col}`;
         logLine(`${where} ${d.message}`, "err");
+      }
+      if (isAiEnabled()) {
+        logLine("Tip: open AI panel or click Explain with AI.", "meta");
       }
       return;
     }
@@ -564,7 +902,18 @@ async function main() {
         canvasEl: canvas2d,
         gpuCanvasEl: canvasGpu,
         mode: previewMode,
-        getShouldStop: () => gen !== runGeneration,
+        getShouldStop: () => gen !== runGeneration || getEditorMode() === "edit",
+        assetPack: currentAssetPack,
+        initialScene: getEditorMode() === "play" ? sceneStore.getScene() : null,
+        getAssetText: (path: string) => {
+          if (!project) return null;
+          const candidates = [`assets/${path}`, path, `scenes/${path}`];
+          for (const c of candidates) {
+            const f = project.files.get(c);
+            if (f) return f.content;
+          }
+          return null;
+        },
       };
       const instance = await instantiateJuni(bytes, opts);
       if (gen !== runGeneration) return;
@@ -588,7 +937,7 @@ async function main() {
       }
       frameCtl = startFrameLoop(instance, opts);
       if (frameCtl) {
-        logLine("frame loop running (click Run again to stop).", "meta");
+        logLine("frame loop running (click Edit or Run again to stop).", "meta");
       }
     } catch (e) {
       logLine(String(e), "err");
@@ -604,18 +953,53 @@ async function main() {
   });
 
   tabEditor.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-    const path = tabEditor?.getActivePath();
-    if (!path || !tabEditor) return;
-    tabEditor.markSaved(path);
-    if (project) {
-      const file = project.files.get(path);
-      if (file) {
-        file.content = tabEditor.getModel(path)?.getValue() ?? file.content;
-        file.dirty = false;
+    void (async () => {
+      const path = tabEditor?.getActivePath();
+      if (!path || !tabEditor) return;
+      syncProjectFromEditor();
+      const content = tabEditor.getModel(path)?.getValue() ?? "";
+      if (project) {
+        const file = project.files.get(path);
+        if (file) {
+          file.content = content;
+          file.dirty = false;
+        }
       }
-    }
-    logLine(`Saved ${path} (in-memory).`, "meta");
+      tabEditor.markSaved(path);
+      try {
+        const how = await writeProjectFile(path, content);
+        logLine(how === "disk" ? `Saved ${path} to disk.` : `Downloaded ${path}.`, "meta");
+      } catch (e) {
+        logLine(`Saved ${path} in-memory only (${e}).`, "meta");
+      }
+      if (hotReloadEnabled && getEditorMode() === "play") {
+        logLine("Hot reload…", "meta");
+        void run();
+      }
+    })();
   });
+
+  async function exportWebBuild(): Promise<void> {
+    const { exportProjectWeb } = await import("./export-web");
+    try {
+      await exportProjectWeb({
+        project,
+        compileProject: async () => {
+          if (!project || !isProjectMode(project)) {
+            throw new Error("Open a juni.toml project first.");
+          }
+          const result = JSON.parse(compile_project(buildCompilePayload(project))) as CompileResult;
+          if (!result.ok || !result.wasm) {
+            throw new Error(result.diagnostics?.[0]?.message ?? "Compile failed");
+          }
+          return { wasmB64: result.wasm, assetPack: currentAssetPack };
+        },
+        logLine,
+      });
+    } catch (e) {
+      logLine(String(e), "err");
+    }
+  }
 
   loadScratchExample(EXAMPLES["Hello World"]);
   refreshFileTree();

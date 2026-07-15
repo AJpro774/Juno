@@ -22,6 +22,9 @@ jobs:
       - name: Check example projects
         run: bash scripts/check-projects.sh
 
+      - name: Check engine examples
+        run: bash scripts/check-engine-examples.sh
+
       - name: LSP smoke
         run: bash scripts/smoke-lsp.sh
 

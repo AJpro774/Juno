@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "assets": {
+    "albedo.png": {
+      "id": 1,
+      "kind": "image",
+      "w": 8,
+      "h": 8,
+      "path": "albedo.png",
+      "embed": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAEklEQVR4nGP432P0Hx9mGBkKAE2OrwFezBBTAAAAAElFTkSuQmCC"
+    },
+    "triangle.gltf": {
+      "id": 2,
+      "kind": "gltf",
+      "w": 0,
+      "h": 0,
+      "path": "triangle.gltf",
+      "embed": "eyJhc3NldCI6eyJ2ZXJzaW9uIjoiMi4wIn0sImJ1ZmZlcnMiOlt7ImJ5dGVMZW5ndGgiOjQyLCJ1cmkiOiJkYXRhOmFwcGxpY2F0aW9uL29jdGV0LXN0cmVhbTtiYXNlNjQsQUFBQUFBQUFnRDhBQUFBQUFBQ0FQd0FBZ0w4QUFBQUFBQUNBdndBQWdMOEFBQUFBQUFBQkFBSUEifV0sImJ1ZmZlclZpZXdzIjpbeyJidWZmZXIiOjAsImJ5dGVPZmZzZXQiOjAsImJ5dGVMZW5ndGgiOjM2fSx7ImJ1ZmZlciI6MCwiYnl0ZU9mZnNldCI6MzYsImJ5dGVMZW5ndGgiOjZ9XSwiYWNjZXNzb3JzIjpbeyJidWZmZXJWaWV3IjowLCJjb21wb25lbnRUeXBlIjo1MTI2LCJjb3VudCI6MywidHlwZSI6IlZFQzMiLCJtYXgiOlsxLDEsMF0sIm1pbiI6Wy0xLC0xLDBdfSx7ImJ1ZmZlclZpZXciOjEsImNvbXBvbmVudFR5cGUiOjUxMjMsImNvdW50IjozLCJ0eXBlIjoiU0NBTEFSIn1dLCJtZXNoZXMiOlt7InByaW1pdGl2ZXMiOlt7ImF0dHJpYnV0ZXMiOnsiUE9TSVRJT04iOjB9LCJpbmRpY2VzIjoxfV19XX0="
+    }
+  }
+}

@@ -1,8 +1,8 @@
 # Physics
 
-Juni v5 adds lightweight **axis-aligned bounding box (AABB)** helpers for 2D games and simulations.
+Juni ships 2D physics helpers for games and simulations.
 
-## Aabb struct (planned)
+## Aabb struct
 
 ```juni
 struct Aabb:
@@ -12,29 +12,17 @@ struct Aabb:
     h: f32
 ```
 
-## Intrinsics (planned)
+## Intrinsics
 
 | Function | Description |
 |----------|-------------|
 | `aabb_overlap(a, b)` | Returns `true` when two boxes intersect |
-| `aabb_resolve(a, b)` | Separates `a` from `b` along the smallest axis |
+| `aabb_resolve_x(moving, other, vel_x)` | Zeroes horizontal velocity on X overlap |
+| `aabb_resolve_y(moving, other, vel_y)` | Zeroes vertical velocity on Y overlap |
+| `world_step(dt)` | Integrates ECS rigidbodies (velocity, gravity, AABB/circle resolve) |
 
-Until those intrinsics land, projects can implement simple rectangle collision with comparisons and `clamp`, as in `examples/projects/paddle_physics`.
+ECS entities with `rigidbody2d` + `collider2d` components are stepped automatically inside `world_step`.
 
-## Example pattern
+## Example
 
-```juni
-state:
-    paddle_x: f32 = 272.0
-    ball_x: f32 = 320.0
-    ball_y: f32 = 180.0
-
-fn frame(dt: f32) -> i32:
-    ball_x = ball_x + ball_vx * dt
-    ball_y = ball_y + ball_vy * dt
-    if ball_y > 300.0 and ball_x >= paddle_x and ball_x <= paddle_x + 96.0:
-        ball_vy = -abs(ball_vy)
-    return 0
-```
-
-Run `juni build` in `examples/projects/paddle_physics` to produce a playable paddle + ball demo.
+See `examples/projects/paddle_physics` (legacy AABB calls) and `examples/projects/platformer` (ECS + `world_step`).

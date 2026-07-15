@@ -2,6 +2,73 @@
 
 All notable changes to Juni are documented here.
 
+## [7.5.0] — 2026-07-15
+
+Editor persistence, gameplay APIs, 3D polish, AI/DX, and Netlify deploy.
+
+### Deploy
+- Root `netlify.toml` builds the IDE (`ide/`, base `/`, SPA redirects)
+- Docs: [Deploy to Netlify](docs/src/projects/netlify.md), [Export for web](docs/src/projects/export-web.md)
+- `juni export-web` writes `dist/web/` (+ game `netlify.toml`)
+
+### Editor (7.2)
+- Save Scene / ⌘S → disk (FSA / Tauri / download fallback)
+- Undo/Redo, play snapshot restore, dirty indicator, hot-reload toggle
+
+### Gameplay (7.3)
+- Collision poll, rigidbody/collider APIs, `camera2d_follow`, `prefab_spawn`
+- Platformer vertical slice + Making a level docs
+
+### 3D (7.4)
+- `world_draw3d`, ambient/fog, richer glTF load
+
+### AI / DX (7.5)
+- Model picker, docs RAG chunks, Replace selection / New file from chat
+
+## [7.1.0] — 2026-07-15
+
+Optional local AI assistant in the IDE (WebLLM + Qwen2.5-Coder-1.5B).
+
+### IDE
+
+- Off-by-default AI panel: enable/download, chat, progress status
+- Autocorrect: Monaco code action + Apply/Dismiss preview
+- Debug assist: Explain with AI on compile diagnostics
+- Dynamic-import WebLLM so disabled builds never load the model stack
+
+### Docs
+
+- `docs/src/projects/ai-assistant.md`, `docs/src/engine/intrinsics.md`
+- Expanded engine overview / editor docs
+
+## [7.0.0] — 2026-07-15
+
+Game engine release: host ECS world, `.jscene` scenes, 2D/3D systems, and visual editor.
+
+### Engine
+
+- Host-side ECS (`world_*`, `entity_*`, `transform2d_set`, `sprite_set`, `mesh3d_attach`, `world_step`, `world_draw`)
+- `.jscene` JSON scenes + `scene_load`; optional `[scene]` in `juni.toml`
+- 2D: Camera2D, sprite batching / sheets, tilemaps
+- 3D: textured materials, directional/point lights, glTF load, frustum culling
+- Physics: velocity integration, circle colliders, `aabb_resolve_y`, ECS `world_step`
+- Input: expanded key map, `gamepad_axis` / `gamepad_button`
+- Audio: `audio_play_loop`, `audio_set_volume`
+
+### IDE
+
+- Hierarchy, Inspector, Asset browser, Edit/Play modes, scene view gizmos
+- Play-in-editor injects the current scene before `main()`
+
+### Examples
+
+- `examples/projects/platformer` — 2D ECS platformer
+- `examples/projects/scene3d_lit` — lit 3D + glTF
+
+## [6.0.0] — 2026-07-12
+
+Full software engine release (modules, projects, IDE, LSP, desktop, assets, 3D, physics, audio, generics).
+
 ## [5.0.0] — 2026-07-11
 
 ### Projects and modules

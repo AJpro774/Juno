@@ -2,8 +2,12 @@ export { fr, rgba } from "./math.js";
 export { readStr, strEq, strLen } from "./memory.js";
 export { attachInputListeners, bindMouse, createInputHandlers } from "./input.js";
 export { createCanvasHandlers, createCanvasFillTextFallback, createGpuHandlers, gpuTri, initGpuTriangle, } from "./canvas.js";
-export { createScene3dHandlers, ensureGpu, initScene3d, resetSceneTables, scene3d, } from "./scene3d.js";
+export { createScene3dHandlers, ensureGpu, initScene3d, resetSceneTables, scene3d, createCustomMeshFromData, syncMeshPose, material3dTexture, light3dDirectional, light3dPoint, } from "./scene3d.js";
 export { createEnvImports, createPrintImports, instantiateJuni } from "./env.js";
 export { createAssetHandlers, createAssetStubs } from "./assets.js";
 export { instantiateJuni as instantiateJuniBrowser, startFrameLoop } from "./browser.js";
+export { createWorld, getWorld, resetWorld, worldStep, entityCreate, entityDestroy, } from "./world.js";
+export { loadSceneIntoWorld, parseScene, serializeWorld, emptyScene } from "./scene-loader.js";
+export { renderWorld2d, screenToWorld, worldToScreen } from "./render2d.js";
+export { createEngineImports, createEngineStubs } from "./engine.js";
 //# sourceMappingURL=index.js.map

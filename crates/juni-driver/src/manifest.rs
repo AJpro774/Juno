@@ -27,6 +27,8 @@ pub struct ProjectConfig {
     pub module_overrides: HashMap<String, PathBuf>,
     /// Asset pipeline settings from `[assets]`.
     pub assets: AssetConfig,
+    /// Optional default scene from `[scene]`.
+    pub scene: SceneConfig,
 }
 
 /// `[assets]` section in `juni.toml`.
@@ -36,6 +38,12 @@ pub struct AssetConfig {
     pub include: Vec<String>,
     pub embed_max_bytes: usize,
     pub pack: PathBuf,
+}
+
+/// `[scene]` section in `juni.toml`.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SceneConfig {
+    pub default: Option<PathBuf>,
 }
 
 impl Default for AssetConfig {
@@ -48,6 +56,9 @@ impl Default for AssetConfig {
                 "**/*.jpeg".into(),
                 "**/*.wav".into(),
                 "**/*.obj".into(),
+                "**/*.jscene".into(),
+                "**/*.gltf".into(),
+                "**/*.json".into(),
             ],
             embed_max_bytes: 65536,
             pack: PathBuf::from("assets.pack.json"),
@@ -62,6 +73,14 @@ struct JuniManifest {
     modules: HashMap<String, String>,
     #[serde(default = "default_assets_section")]
     assets: AssetsSection,
+    #[serde(default)]
+    scene: SceneSection,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct SceneSection {
+    #[serde(default)]
+    default: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,6 +115,9 @@ fn default_include() -> Vec<String> {
         "**/*.jpeg".into(),
         "**/*.wav".into(),
         "**/*.obj".into(),
+        "**/*.jscene".into(),
+        "**/*.gltf".into(),
+        "**/*.json".into(),
     ]
 }
 
@@ -153,6 +175,9 @@ pub fn load_manifest(root: &Path) -> Result<ProjectConfig, ManifestError> {
             include: raw.assets.include,
             embed_max_bytes: raw.assets.embed_max_bytes,
             pack: PathBuf::from(raw.assets.pack),
+        },
+        scene: SceneConfig {
+            default: raw.scene.default.map(PathBuf::from),
         },
     })
 }

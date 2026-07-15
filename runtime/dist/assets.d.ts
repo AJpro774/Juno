@@ -5,6 +5,8 @@ export type AssetHandlers = {
     sprite_draw: (handle: number, x: number, y: number, w: number, h: number) => void;
     mesh_load_obj: (ptr: number) => number;
     preloadAll: () => Promise<void>;
+    getBitmap: (handle: number) => ImageBitmap | null;
+    getText: (path: string) => string | null;
 };
 export declare function createAssetHandlers(options: {
     memoryRef: MemoryRef;

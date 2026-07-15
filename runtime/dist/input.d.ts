@@ -1,4 +1,4 @@
-/** Keyboard and mouse input for browser hosts. */
+/** Keyboard, mouse, and gamepad input for browser hosts. */
 import type { InputHandlers } from "./types.js";
 export declare function attachInputListeners(): void;
 export declare function bindMouse(canvas: HTMLCanvasElement): void;

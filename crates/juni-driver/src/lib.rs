@@ -15,7 +15,7 @@ use thiserror::Error;
 pub use assets::{build_asset_pack, scan_assets, write_asset_pack, AssetEntry, AssetError, AssetPack};
 pub use discover::{discover_sources, logical_name_for_path};
 pub use imports::extract_imports;
-pub use manifest::{load_manifest, AssetConfig, ManifestError, ProjectConfig};
+pub use manifest::{load_manifest, AssetConfig, ManifestError, ProjectConfig, SceneConfig};
 pub use resolve::{build_graph, resolve_module_path, ModuleNode, ResolveError};
 
 #[derive(Debug, Error)]
@@ -118,6 +118,14 @@ fn parse_manifest_text(text: &str) -> Result<ProjectConfig, ManifestError> {
         modules: HashMap<String, String>,
         #[serde(default = "default_assets_section")]
         assets: AssetsSection,
+        #[serde(default)]
+        scene: SceneSection,
+    }
+
+    #[derive(serde::Deserialize, Default)]
+    struct SceneSection {
+        #[serde(default)]
+        default: Option<String>,
     }
 
     #[derive(serde::Deserialize)]
@@ -152,6 +160,9 @@ fn parse_manifest_text(text: &str) -> Result<ProjectConfig, ManifestError> {
             "**/*.jpeg".into(),
             "**/*.wav".into(),
             "**/*.obj".into(),
+            "**/*.jscene".into(),
+            "**/*.gltf".into(),
+            "**/*.json".into(),
         ]
     }
 
@@ -203,6 +214,9 @@ fn parse_manifest_text(text: &str) -> Result<ProjectConfig, ManifestError> {
             include: raw.assets.include,
             embed_max_bytes: raw.assets.embed_max_bytes,
             pack: PathBuf::from(raw.assets.pack),
+        },
+        scene: SceneConfig {
+            default: raw.scene.default.map(PathBuf::from),
         },
     })
 }

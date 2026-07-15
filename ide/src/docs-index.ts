@@ -7,6 +7,14 @@ import memory from "../../docs/src/language/memory.md?raw";
 import state from "../../docs/src/language/state.md?raw";
 import stdlib from "../../docs/src/language/stdlib.md?raw";
 import controlFlow from "../../docs/src/language/control-flow.md?raw";
+import engineOverview from "../../docs/src/engine/overview.md?raw";
+import engineIntrinsics from "../../docs/src/engine/intrinsics.md?raw";
+import engineJscene from "../../docs/src/engine/jscene.md?raw";
+import engineEditor from "../../docs/src/engine/editor.md?raw";
+import engineLevel from "../../docs/src/engine/level.md?raw";
+import aiAssistant from "../../docs/src/projects/ai-assistant.md?raw";
+import netlifyDoc from "../../docs/src/projects/netlify.md?raw";
+import exportWebDoc from "../../docs/src/projects/export-web.md?raw";
 import graphicsOverview from "../../docs/src/graphics/overview.md?raw";
 import graphics2d from "../../docs/src/graphics/2d.md?raw";
 import graphics3d from "../../docs/src/graphics/3d.md?raw";
@@ -26,6 +34,14 @@ export const DOC_PAGES: DocPage[] = [
   { id: "state", title: "Module state", markdown: state },
   { id: "stdlib", title: "Standard library", markdown: stdlib },
   { id: "control-flow", title: "Control flow", markdown: controlFlow },
+  { id: "engine-overview", title: "Engine overview", markdown: engineOverview },
+  { id: "engine-intrinsics", title: "Host intrinsics", markdown: engineIntrinsics },
+  { id: "engine-jscene", title: ".jscene scenes", markdown: engineJscene },
+  { id: "engine-editor", title: "Visual editor", markdown: engineEditor },
+  { id: "engine-level", title: "Making a level", markdown: engineLevel },
+  { id: "ai-assistant", title: "AI assistant", markdown: aiAssistant },
+  { id: "netlify", title: "Deploy to Netlify", markdown: netlifyDoc },
+  { id: "export-web", title: "Export for web", markdown: exportWebDoc },
   { id: "graphics-overview", title: "Graphics overview", markdown: graphicsOverview },
   { id: "graphics-2d", title: "Canvas2D", markdown: graphics2d },
   { id: "graphics-3d", title: "3D", markdown: graphics3d },

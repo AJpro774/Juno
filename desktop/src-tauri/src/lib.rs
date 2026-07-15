@@ -28,6 +28,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             open_project_folder,
             lsp_request,
+            save_scene_file,
+            write_project_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -119,6 +121,33 @@ fn lsp_request(
         }
         other => Err(format!("unsupported LSP method: {other}")),
     }
+}
+
+/// Persist any text file under the open project root.
+#[tauri::command]
+fn write_project_file(
+    relative_path: String,
+    contents: String,
+    state: tauri::State<'_, Mutex<LspState>>,
+) -> Result<(), String> {
+    let guard = state.lock().map_err(|e| e.to_string())?;
+    let root = guard.root.as_ref().ok_or("no project open")?;
+    let path = root.join(&relative_path);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, contents).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Persist a `.jscene` JSON document under the open project root.
+#[tauri::command]
+fn save_scene_file(
+    relative_path: String,
+    contents: String,
+    state: tauri::State<'_, Mutex<LspState>>,
+) -> Result<(), String> {
+    write_project_file(relative_path, contents, state)
 }
 
 fn normalize_file(file: &str, root: Option<&PathBuf>) -> String {

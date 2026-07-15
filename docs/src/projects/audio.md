@@ -1,6 +1,6 @@
 # Audio
 
-Juni v5 adds a small **Web Audio** surface for browser games, with Node stubs for headless runs.
+Juni v6 adds a small **Web Audio** surface for browser games, with Node stubs for headless runs.
 
 ## APIs (planned)
 

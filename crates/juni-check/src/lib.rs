@@ -2414,6 +2414,608 @@ impl Checker {
                     Type::Builtin(Builtin::Void),
                 ))
             }
+            "world_create" => {
+                if !args.is_empty() {
+                    self.error(span, "world_create takes no args");
+                }
+                Some((HirExpr::WorldCreate, Type::Builtin(Builtin::I32)))
+            }
+            "entity_create" => {
+                if !args.is_empty() {
+                    self.error(span, "entity_create takes no args");
+                }
+                Some((HirExpr::EntityCreate, Type::Builtin(Builtin::I32)))
+            }
+            "entity_destroy" => {
+                if args.len() != 1 {
+                    self.error(span, "entity_destroy(id) expects 1 arg");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "entity_destroy id must be i32");
+                }
+                Some((
+                    HirExpr::EntityDestroy(Box::new(id)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "entity_set_tag" => {
+                if args.len() != 2 {
+                    self.error(span, "entity_set_tag(id, tag) expects 2 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                let (tag, tt) = self.check_arg(args, 1);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "entity_set_tag id must be i32");
+                }
+                if !matches!(tt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "entity_set_tag tag must be str");
+                }
+                Some((
+                    HirExpr::EntitySetTag {
+                        id: Box::new(id),
+                        tag: Box::new(tag),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "entity_find_by_tag" => {
+                if args.len() != 1 {
+                    self.error(span, "entity_find_by_tag(tag) expects 1 arg");
+                }
+                let (tag, tt) = self.check_arg(args, 0);
+                if !matches!(tt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "entity_find_by_tag tag must be str");
+                }
+                Some((
+                    HirExpr::EntityFindByTag(Box::new(tag)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "transform2d_set" => {
+                if args.len() != 6 {
+                    self.error(span, "transform2d_set(id,x,y,rot,sx,sy) expects 6 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "transform2d_set id must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 1..6 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "transform2d_set arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Transform2dSet {
+                        id: Box::new(id),
+                        x: Box::new(xs.remove(0)),
+                        y: Box::new(xs.remove(0)),
+                        rot: Box::new(xs.remove(0)),
+                        sx: Box::new(xs.remove(0)),
+                        sy: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "transform3d_set" => {
+                if args.len() != 10 {
+                    self.error(
+                        span,
+                        "transform3d_set(id,tx,ty,tz,rx,ry,rz,sx,sy,sz) expects 10 args",
+                    );
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "transform3d_set id must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 1..10 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "transform3d_set arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Transform3dSet {
+                        id: Box::new(id),
+                        tx: Box::new(xs.remove(0)),
+                        ty: Box::new(xs.remove(0)),
+                        tz: Box::new(xs.remove(0)),
+                        rx: Box::new(xs.remove(0)),
+                        ry: Box::new(xs.remove(0)),
+                        rz: Box::new(xs.remove(0)),
+                        sx: Box::new(xs.remove(0)),
+                        sy: Box::new(xs.remove(0)),
+                        sz: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "sprite_set" => {
+                if args.len() != 4 {
+                    self.error(span, "sprite_set(id, tex, w, h) expects 4 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                let (tex, tt) = self.check_arg(args, 1);
+                if !matches!(it, Type::Builtin(Builtin::I32))
+                    || !matches!(tt, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "sprite_set id/tex must be i32");
+                }
+                let (w, wt) = self.check_arg(args, 2);
+                let (h, ht) = self.check_arg(args, 3);
+                self.expect_f32ish(&wt, span, "sprite_set w");
+                self.expect_f32ish(&ht, span, "sprite_set h");
+                Some((
+                    HirExpr::SpriteSet {
+                        id: Box::new(id),
+                        tex: Box::new(tex),
+                        w: Box::new(w),
+                        h: Box::new(h),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "mesh3d_attach" => {
+                if args.len() != 2 {
+                    self.error(span, "mesh3d_attach(id, mesh) expects 2 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                let (mesh, mt) = self.check_arg(args, 1);
+                if !matches!(it, Type::Builtin(Builtin::I32))
+                    || !matches!(mt, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "mesh3d_attach handles must be i32");
+                }
+                Some((
+                    HirExpr::Mesh3dAttach {
+                        id: Box::new(id),
+                        mesh: Box::new(mesh),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "world_step" => {
+                if args.len() != 1 {
+                    self.error(span, "world_step(dt) expects 1 arg");
+                }
+                let (dt, dt_t) = self.check_arg(args, 0);
+                self.expect_f32ish(&dt_t, span, "world_step dt");
+                Some((
+                    HirExpr::WorldStep(Box::new(dt)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "scene_load" => {
+                if args.len() != 1 {
+                    self.error(span, "scene_load(path) expects 1 arg");
+                }
+                let (path, pt) = self.check_arg(args, 0);
+                if !matches!(pt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "scene_load path must be str");
+                }
+                Some((
+                    HirExpr::SceneLoad(Box::new(path)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "camera2d_set" => {
+                if args.len() != 4 {
+                    self.error(span, "camera2d_set(id, x, y, zoom) expects 4 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "camera2d_set id must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 1..4 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "camera2d_set arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Camera2dSet {
+                        id: Box::new(id),
+                        x: Box::new(xs.remove(0)),
+                        y: Box::new(xs.remove(0)),
+                        zoom: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "tilemap_load" => {
+                if args.len() != 1 {
+                    self.error(span, "tilemap_load(path) expects 1 arg");
+                }
+                let (path, pt) = self.check_arg(args, 0);
+                if !matches!(pt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "tilemap_load path must be str");
+                }
+                Some((
+                    HirExpr::TilemapLoad(Box::new(path)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "tilemap_attach" => {
+                if args.len() != 2 {
+                    self.error(span, "tilemap_attach(entity, tilemap) expects 2 args");
+                }
+                let (entity, et) = self.check_arg(args, 0);
+                let (tilemap, tt) = self.check_arg(args, 1);
+                if !matches!(et, Type::Builtin(Builtin::I32))
+                    || !matches!(tt, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "tilemap_attach handles must be i32");
+                }
+                Some((
+                    HirExpr::TilemapAttach {
+                        entity: Box::new(entity),
+                        tilemap: Box::new(tilemap),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "world_draw" => {
+                if args.len() != 1 {
+                    self.error(span, "world_draw(cam_entity) expects 1 arg");
+                }
+                let (cam, ct) = self.check_arg(args, 0);
+                if !matches!(ct, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "world_draw cam must be i32");
+                }
+                Some((
+                    HirExpr::WorldDraw(Box::new(cam)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "material3d_texture" => {
+                if args.len() != 1 {
+                    self.error(span, "material3d_texture(asset) expects 1 arg");
+                }
+                let (asset, at) = self.check_arg(args, 0);
+                if !matches!(at, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "material3d_texture asset must be i32");
+                }
+                Some((
+                    HirExpr::Material3dTexture(Box::new(asset)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "light3d_directional" => {
+                if args.len() != 6 {
+                    self.error(span, "light3d_directional(dx,dy,dz,r,g,b) expects 6 args");
+                }
+                let mut xs = Vec::new();
+                for i in 0..6 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "light3d_directional arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Light3dDirectional {
+                        dx: Box::new(xs.remove(0)),
+                        dy: Box::new(xs.remove(0)),
+                        dz: Box::new(xs.remove(0)),
+                        r: Box::new(xs.remove(0)),
+                        g: Box::new(xs.remove(0)),
+                        b: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "light3d_point" => {
+                if args.len() != 7 {
+                    self.error(span, "light3d_point(x,y,z,r,g,b,range) expects 7 args");
+                }
+                let mut xs = Vec::new();
+                for i in 0..7 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "light3d_point arg");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Light3dPoint {
+                        x: Box::new(xs.remove(0)),
+                        y: Box::new(xs.remove(0)),
+                        z: Box::new(xs.remove(0)),
+                        r: Box::new(xs.remove(0)),
+                        g: Box::new(xs.remove(0)),
+                        b: Box::new(xs.remove(0)),
+                        range: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "mesh_load_gltf" => {
+                if args.len() != 1 {
+                    self.error(span, "mesh_load_gltf(path) expects 1 arg");
+                }
+                let (path, pt) = self.check_arg(args, 0);
+                if !matches!(pt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "mesh_load_gltf path must be str");
+                }
+                Some((
+                    HirExpr::MeshLoadGltf(Box::new(path)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "aabb_resolve_y" => {
+                if args.len() != 3 {
+                    self.error(span, "aabb_resolve_y(moving, other, vel_y) expects 3 args");
+                }
+                let (moving, mt) = self.check_arg(args, 0);
+                let (other, ot) = self.check_arg(args, 1);
+                let (vel, vt) = self.check_arg(args, 2);
+                if !mt.wasm_is_i32_ptr() || !ot.wasm_is_i32_ptr() {
+                    self.error(span, "aabb_resolve_y requires Aabb struct values");
+                }
+                self.expect_f32ish(&vt, span, "aabb_resolve_y vel_y");
+                Some((
+                    HirExpr::AabbResolveY {
+                        moving: Box::new(moving),
+                        other: Box::new(other),
+                        vel_y: Box::new(vel),
+                    },
+                    Type::Builtin(Builtin::F32),
+                ))
+            }
+            "audio_play_loop" => {
+                if args.len() != 1 {
+                    self.error(span, "audio_play_loop(handle) expects 1 arg");
+                }
+                let (handle, ht) = self.check_arg(args, 0);
+                if !matches!(ht, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "audio_play_loop handle must be i32");
+                }
+                Some((
+                    HirExpr::AudioPlayLoop(Box::new(handle)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "audio_set_volume" => {
+                if args.len() != 2 {
+                    self.error(span, "audio_set_volume(handle, volume) expects 2 args");
+                }
+                let (handle, ht) = self.check_arg(args, 0);
+                let (vol, vt) = self.check_arg(args, 1);
+                if !matches!(ht, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "audio_set_volume handle must be i32");
+                }
+                self.expect_f32ish(&vt, span, "audio_set_volume volume");
+                Some((
+                    HirExpr::AudioSetVolume {
+                        handle: Box::new(handle),
+                        volume: Box::new(vol),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "gamepad_axis" => {
+                if args.len() != 2 {
+                    self.error(span, "gamepad_axis(pad, axis) expects 2 args");
+                }
+                let (pad, pt) = self.check_arg(args, 0);
+                let (axis, at) = self.check_arg(args, 1);
+                if !matches!(pt, Type::Builtin(Builtin::I32))
+                    || !matches!(at, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "gamepad_axis args must be i32");
+                }
+                Some((
+                    HirExpr::GamepadAxis {
+                        pad: Box::new(pad),
+                        axis: Box::new(axis),
+                    },
+                    Type::Builtin(Builtin::F32),
+                ))
+            }
+            "gamepad_button" => {
+                if args.len() != 2 {
+                    self.error(span, "gamepad_button(pad, button) expects 2 args");
+                }
+                let (pad, pt) = self.check_arg(args, 0);
+                let (button, bt) = self.check_arg(args, 1);
+                if !matches!(pt, Type::Builtin(Builtin::I32))
+                    || !matches!(bt, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "gamepad_button args must be i32");
+                }
+                Some((
+                    HirExpr::GamepadButton {
+                        pad: Box::new(pad),
+                        button: Box::new(button),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "collision_count" => {
+                if !args.is_empty() {
+                    self.error(span, "collision_count() expects 0 args");
+                }
+                Some((HirExpr::CollisionCount, Type::Builtin(Builtin::I32)))
+            }
+            "collision_entity_a" => {
+                if args.len() != 1 {
+                    self.error(span, "collision_entity_a(i) expects 1 arg");
+                }
+                let (i, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "collision_entity_a i must be i32");
+                }
+                Some((
+                    HirExpr::CollisionEntityA(Box::new(i)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "collision_entity_b" => {
+                if args.len() != 1 {
+                    self.error(span, "collision_entity_b(i) expects 1 arg");
+                }
+                let (i, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "collision_entity_b i must be i32");
+                }
+                Some((
+                    HirExpr::CollisionEntityB(Box::new(i)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "rigidbody2d_set_vel" => {
+                if args.len() != 3 {
+                    self.error(span, "rigidbody2d_set_vel(id, vx, vy) expects 3 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "rigidbody2d_set_vel id must be i32");
+                }
+                let (vx, vt) = self.check_arg(args, 1);
+                let (vy, yt) = self.check_arg(args, 2);
+                self.expect_f32ish(&vt, span, "rigidbody2d_set_vel vx");
+                self.expect_f32ish(&yt, span, "rigidbody2d_set_vel vy");
+                Some((
+                    HirExpr::Rigidbody2dSetVel {
+                        id: Box::new(id),
+                        vx: Box::new(vx),
+                        vy: Box::new(vy),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "rigidbody2d_get_grounded" => {
+                if args.len() != 1 {
+                    self.error(span, "rigidbody2d_get_grounded(id) expects 1 arg");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "rigidbody2d_get_grounded id must be i32");
+                }
+                Some((
+                    HirExpr::Rigidbody2dGetGrounded(Box::new(id)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "collider2d_set" => {
+                if args.len() != 6 {
+                    self.error(
+                        span,
+                        "collider2d_set(id, kind, w, h, radius, solid) expects 6 args",
+                    );
+                }
+                let (id, it) = self.check_arg(args, 0);
+                let (kind, kt) = self.check_arg(args, 1);
+                if !matches!(it, Type::Builtin(Builtin::I32))
+                    || !matches!(kt, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "collider2d_set id/kind must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 2..5 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "collider2d_set size");
+                    xs.push(e);
+                }
+                let (solid, st) = self.check_arg(args, 5);
+                if !matches!(st, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "collider2d_set solid must be i32");
+                }
+                Some((
+                    HirExpr::Collider2dSet {
+                        id: Box::new(id),
+                        kind: Box::new(kind),
+                        w: Box::new(xs.remove(0)),
+                        h: Box::new(xs.remove(0)),
+                        radius: Box::new(xs.remove(0)),
+                        solid: Box::new(solid),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "camera2d_follow" => {
+                if args.len() != 3 {
+                    self.error(span, "camera2d_follow(cam, target, smooth) expects 3 args");
+                }
+                let (cam, ct) = self.check_arg(args, 0);
+                let (target, tt) = self.check_arg(args, 1);
+                if !matches!(ct, Type::Builtin(Builtin::I32))
+                    || !matches!(tt, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "camera2d_follow cam/target must be i32");
+                }
+                let (smooth, st) = self.check_arg(args, 2);
+                self.expect_f32ish(&st, span, "camera2d_follow smooth");
+                Some((
+                    HirExpr::Camera2dFollow {
+                        cam: Box::new(cam),
+                        target: Box::new(target),
+                        smooth: Box::new(smooth),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "prefab_spawn" => {
+                if args.len() != 3 {
+                    self.error(span, "prefab_spawn(path, x, y) expects 3 args");
+                }
+                let (path, pt) = self.check_arg(args, 0);
+                if !matches!(pt, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "prefab_spawn path must be str");
+                }
+                let (x, xt) = self.check_arg(args, 1);
+                let (y, yt) = self.check_arg(args, 2);
+                self.expect_f32ish(&xt, span, "prefab_spawn x");
+                self.expect_f32ish(&yt, span, "prefab_spawn y");
+                Some((
+                    HirExpr::PrefabSpawn {
+                        path: Box::new(path),
+                        x: Box::new(x),
+                        y: Box::new(y),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "world_draw3d" => {
+                if args.len() != 1 {
+                    self.error(span, "world_draw3d(cam) expects 1 arg");
+                }
+                let (cam, ct) = self.check_arg(args, 0);
+                if !matches!(ct, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "world_draw3d cam must be i32");
+                }
+                Some((
+                    HirExpr::WorldDraw3d(Box::new(cam)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "scene3d_set_ambient" => {
+                if args.len() != 3 {
+                    self.error(span, "scene3d_set_ambient(r,g,b) expects 3 args");
+                }
+                let mut xs = Vec::new();
+                for i in 0..3 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "scene3d_set_ambient");
+                    xs.push(e);
+                }
+                Some((
+                    HirExpr::Scene3dSetAmbient {
+                        r: Box::new(xs.remove(0)),
+                        g: Box::new(xs.remove(0)),
+                        b: Box::new(xs.remove(0)),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "scene3d_set_fog" => {
+                if args.len() != 1 {
+                    self.error(span, "scene3d_set_fog(density) expects 1 arg");
+                }
+                let (d, dt) = self.check_arg(args, 0);
+                self.expect_f32ish(&dt, span, "scene3d_set_fog");
+                Some((
+                    HirExpr::Scene3dSetFog(Box::new(d)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
             _ => None,
         }
     }

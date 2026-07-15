@@ -167,11 +167,31 @@ export async function openProjectFromPicker(): Promise<ProjectState | null> {
   if (!picker) {
     return null;
   }
-  const dir = await picker.call(window, { mode: "read" });
+  // Prefer readwrite so Save Scene can persist via File System Access.
+  let dir: FileSystemDirectoryHandle;
+  try {
+    dir = await picker.call(window, { mode: "readwrite" });
+  } catch {
+    dir = await picker.call(window, { mode: "read" });
+  }
   const files = new Map<string, string>();
   await readDirectory(dir, "", files);
   if (!files.has("juni.toml")) {
     throw new Error("Selected folder must contain juni.toml at the project root.");
+  }
+  const { setWritableRoot } = await import("./project-persist");
+  try {
+    // Permission may still be needed for writes later.
+    const perm = await (
+      dir as FileSystemDirectoryHandle & {
+        requestPermission?: (o: { mode: string }) => Promise<string>;
+      }
+    ).requestPermission?.({ mode: "readwrite" });
+    if (perm === "granted" || perm === undefined) {
+      setWritableRoot({ kind: "fsa", dir });
+    }
+  } catch {
+    setWritableRoot({ kind: "fsa", dir });
   }
   return projectFromFiles(dir.name, ".", files);
 }

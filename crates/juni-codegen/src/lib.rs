@@ -25,8 +25,19 @@ use wasm_encoder::{
 /// 53 asset_load_str 54 sprite_draw 55 mesh_load_obj
 /// 56 scene3d_create_node 57 scene3d_set_parent 58 camera3d_look_at 59 camera3d_orbit
 /// 60 mesh3d_custom 61 material3d_color 62 mesh3d_set_material
-/// 63 mesh3d_set_material 64 aabb_overlap 65 aabb_resolve_x 66 audio_load 67 audio_play
-const IMPORT_COUNT: u32 = 67;
+/// 63 aabb_overlap 64 aabb_resolve_x 65 audio_load 66 audio_play
+/// 67 world_create 68 entity_create 69 entity_destroy 70 entity_set_tag
+/// 71 entity_find_by_tag 72 transform2d_set 73 transform3d_set 74 sprite_set
+/// 75 mesh3d_attach 76 world_step 77 scene_load 78 camera2d_set
+/// 79 tilemap_load 80 tilemap_attach 81 world_draw 82 material3d_texture
+/// 83 light3d_directional 84 light3d_point 85 mesh_load_gltf
+/// 86 aabb_resolve_y 87 audio_play_loop 88 audio_set_volume
+/// 89 gamepad_axis 90 gamepad_button
+/// 91 collision_count 92 collision_entity_a 93 collision_entity_b
+/// 94 rigidbody2d_set_vel 95 rigidbody2d_get_grounded 96 collider2d_set
+/// 97 camera2d_follow 98 prefab_spawn 99 world_draw3d
+/// 100 scene3d_set_ambient 101 scene3d_set_fog
+const IMPORT_COUNT: u32 = 102;
 
 /// Emit a single-module program (backward compatible).
 pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
@@ -161,6 +172,79 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
         ],
         &[],
     );
+    let t_i_5f = add_fn(
+        &[
+            ValType::I32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+        ],
+        &[],
+    );
+    let t_i_9f = add_fn(
+        &[
+            ValType::I32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+        ],
+        &[],
+    );
+    let t_2i_2f = add_fn(
+        &[ValType::I32, ValType::I32, ValType::F32, ValType::F32],
+        &[],
+    );
+    let t_6f_i32 = add_fn(
+        &[
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+        ],
+        &[ValType::I32],
+    );
+    let t_7f_i32 = add_fn(
+        &[
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+        ],
+        &[ValType::I32],
+    );
+    let t_i_f_void = add_fn(&[ValType::I32, ValType::F32], &[]);
+    let t_2i_f32_ret = add_fn(&[ValType::I32, ValType::I32], &[ValType::F32]);
+    let t_i_2f_void = add_fn(&[ValType::I32, ValType::F32, ValType::F32], &[]);
+    let t_2i_f_void = add_fn(&[ValType::I32, ValType::I32, ValType::F32], &[]);
+    let t_i_str_2f_i32 = add_fn(
+        &[ValType::I32, ValType::F32, ValType::F32],
+        &[ValType::I32],
+    );
+    let t_collider_set = add_fn(
+        &[
+            ValType::I32,
+            ValType::I32,
+            ValType::F32,
+            ValType::F32,
+            ValType::F32,
+            ValType::I32,
+        ],
+        &[],
+    );
+    let t_3f_void = add_fn(&[ValType::F32, ValType::F32, ValType::F32], &[]);
 
     let mut func_type_indices = Vec::new();
     for func in &hir.functions {
@@ -242,6 +326,41 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
     imports.import("env", "aabb_resolve_x", EntityType::Function(t_2i_f32));
     imports.import("env", "audio_load", EntityType::Function(t_i32_i32));
     imports.import("env", "audio_play", EntityType::Function(t_i32_void));
+    imports.import("env", "world_create", EntityType::Function(t_void_i32));
+    imports.import("env", "entity_create", EntityType::Function(t_void_i32));
+    imports.import("env", "entity_destroy", EntityType::Function(t_i32_void));
+    imports.import("env", "entity_set_tag", EntityType::Function(t_2i_void));
+    imports.import("env", "entity_find_by_tag", EntityType::Function(t_i32_i32));
+    imports.import("env", "transform2d_set", EntityType::Function(t_i_5f));
+    imports.import("env", "transform3d_set", EntityType::Function(t_i_9f));
+    imports.import("env", "sprite_set", EntityType::Function(t_2i_2f));
+    imports.import("env", "mesh3d_attach", EntityType::Function(t_2i_void));
+    imports.import("env", "world_step", EntityType::Function(t_f32_void));
+    imports.import("env", "scene_load", EntityType::Function(t_i32_i32));
+    imports.import("env", "camera2d_set", EntityType::Function(t_i_3f));
+    imports.import("env", "tilemap_load", EntityType::Function(t_i32_i32));
+    imports.import("env", "tilemap_attach", EntityType::Function(t_2i_void));
+    imports.import("env", "world_draw", EntityType::Function(t_i32_void));
+    imports.import("env", "material3d_texture", EntityType::Function(t_i32_i32));
+    imports.import("env", "light3d_directional", EntityType::Function(t_6f_i32));
+    imports.import("env", "light3d_point", EntityType::Function(t_7f_i32));
+    imports.import("env", "mesh_load_gltf", EntityType::Function(t_i32_i32));
+    imports.import("env", "aabb_resolve_y", EntityType::Function(t_2i_f32));
+    imports.import("env", "audio_play_loop", EntityType::Function(t_i32_void));
+    imports.import("env", "audio_set_volume", EntityType::Function(t_i_f_void));
+    imports.import("env", "gamepad_axis", EntityType::Function(t_2i_f32_ret));
+    imports.import("env", "gamepad_button", EntityType::Function(t_2i_i32));
+    imports.import("env", "collision_count", EntityType::Function(t_void_i32));
+    imports.import("env", "collision_entity_a", EntityType::Function(t_i32_i32));
+    imports.import("env", "collision_entity_b", EntityType::Function(t_i32_i32));
+    imports.import("env", "rigidbody2d_set_vel", EntityType::Function(t_i_2f_void));
+    imports.import("env", "rigidbody2d_get_grounded", EntityType::Function(t_i32_i32));
+    imports.import("env", "collider2d_set", EntityType::Function(t_collider_set));
+    imports.import("env", "camera2d_follow", EntityType::Function(t_2i_f_void));
+    imports.import("env", "prefab_spawn", EntityType::Function(t_i_str_2f_i32));
+    imports.import("env", "world_draw3d", EntityType::Function(t_i32_void));
+    imports.import("env", "scene3d_set_ambient", EntityType::Function(t_3f_void));
+    imports.import("env", "scene3d_set_fog", EntityType::Function(t_f32_void));
     module.section(&imports);
 
     let mut functions = FunctionSection::new();
@@ -331,6 +450,24 @@ fn is_void_expr(expr: &HirExpr) -> bool {
             | HirExpr::Mesh3dSetMaterial { .. }
             | HirExpr::SpriteDraw { .. }
             | HirExpr::AudioPlay(_)
+            | HirExpr::EntityDestroy(_)
+            | HirExpr::EntitySetTag { .. }
+            | HirExpr::Transform2dSet { .. }
+            | HirExpr::Transform3dSet { .. }
+            | HirExpr::SpriteSet { .. }
+            | HirExpr::Mesh3dAttach { .. }
+            | HirExpr::WorldStep(_)
+            | HirExpr::Camera2dSet { .. }
+            | HirExpr::TilemapAttach { .. }
+            | HirExpr::WorldDraw(_)
+            | HirExpr::AudioPlayLoop(_)
+            | HirExpr::AudioSetVolume { .. }
+            | HirExpr::Rigidbody2dSetVel { .. }
+            | HirExpr::Collider2dSet { .. }
+            | HirExpr::Camera2dFollow { .. }
+            | HirExpr::WorldDraw3d(_)
+            | HirExpr::Scene3dSetAmbient { .. }
+            | HirExpr::Scene3dSetFog(_)
     )
 }
 
@@ -1229,6 +1366,217 @@ impl<'a> EmitCtx<'a> {
                 self.emit_expr(f, handle);
                 f.instruction(&Instruction::Call(66));
             }
+            HirExpr::WorldCreate => {
+                f.instruction(&Instruction::Call(67));
+            }
+            HirExpr::EntityCreate => {
+                f.instruction(&Instruction::Call(68));
+            }
+            HirExpr::EntityDestroy(id) => {
+                self.emit_expr(f, id);
+                f.instruction(&Instruction::Call(69));
+            }
+            HirExpr::EntitySetTag { id, tag } => {
+                self.emit_expr(f, id);
+                self.emit_expr(f, tag);
+                f.instruction(&Instruction::Call(70));
+            }
+            HirExpr::EntityFindByTag(tag) => {
+                self.emit_expr(f, tag);
+                f.instruction(&Instruction::Call(71));
+            }
+            HirExpr::Transform2dSet {
+                id,
+                x,
+                y,
+                rot,
+                sx,
+                sy,
+            } => {
+                self.emit_expr(f, id);
+                for e in [x, y, rot, sx, sy] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(72));
+            }
+            HirExpr::Transform3dSet {
+                id,
+                tx,
+                ty,
+                tz,
+                rx,
+                ry,
+                rz,
+                sx,
+                sy,
+                sz,
+            } => {
+                self.emit_expr(f, id);
+                for e in [tx, ty, tz, rx, ry, rz, sx, sy, sz] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(73));
+            }
+            HirExpr::SpriteSet { id, tex, w, h } => {
+                self.emit_expr(f, id);
+                self.emit_expr(f, tex);
+                as_f32_expr(f, w, self);
+                as_f32_expr(f, h, self);
+                f.instruction(&Instruction::Call(74));
+            }
+            HirExpr::Mesh3dAttach { id, mesh } => {
+                self.emit_expr(f, id);
+                self.emit_expr(f, mesh);
+                f.instruction(&Instruction::Call(75));
+            }
+            HirExpr::WorldStep(dt) => {
+                as_f32_expr(f, dt, self);
+                f.instruction(&Instruction::Call(76));
+            }
+            HirExpr::SceneLoad(path) => {
+                self.emit_expr(f, path);
+                f.instruction(&Instruction::Call(77));
+            }
+            HirExpr::Camera2dSet { id, x, y, zoom } => {
+                self.emit_expr(f, id);
+                for e in [x, y, zoom] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(78));
+            }
+            HirExpr::TilemapLoad(path) => {
+                self.emit_expr(f, path);
+                f.instruction(&Instruction::Call(79));
+            }
+            HirExpr::TilemapAttach { entity, tilemap } => {
+                self.emit_expr(f, entity);
+                self.emit_expr(f, tilemap);
+                f.instruction(&Instruction::Call(80));
+            }
+            HirExpr::WorldDraw(cam) => {
+                self.emit_expr(f, cam);
+                f.instruction(&Instruction::Call(81));
+            }
+            HirExpr::Material3dTexture(asset) => {
+                self.emit_expr(f, asset);
+                f.instruction(&Instruction::Call(82));
+            }
+            HirExpr::Light3dDirectional { dx, dy, dz, r, g, b } => {
+                for e in [dx, dy, dz, r, g, b] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(83));
+            }
+            HirExpr::Light3dPoint {
+                x,
+                y,
+                z,
+                r,
+                g,
+                b,
+                range,
+            } => {
+                for e in [x, y, z, r, g, b, range] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(84));
+            }
+            HirExpr::MeshLoadGltf(path) => {
+                self.emit_expr(f, path);
+                f.instruction(&Instruction::Call(85));
+            }
+            HirExpr::AabbResolveY {
+                moving,
+                other,
+                vel_y,
+            } => {
+                self.emit_expr(f, moving);
+                self.emit_expr(f, other);
+                as_f32_expr(f, vel_y, self);
+                f.instruction(&Instruction::Call(86));
+            }
+            HirExpr::AudioPlayLoop(handle) => {
+                self.emit_expr(f, handle);
+                f.instruction(&Instruction::Call(87));
+            }
+            HirExpr::AudioSetVolume { handle, volume } => {
+                self.emit_expr(f, handle);
+                as_f32_expr(f, volume, self);
+                f.instruction(&Instruction::Call(88));
+            }
+            HirExpr::GamepadAxis { pad, axis } => {
+                self.emit_expr(f, pad);
+                self.emit_expr(f, axis);
+                f.instruction(&Instruction::Call(89));
+            }
+            HirExpr::GamepadButton { pad, button } => {
+                self.emit_expr(f, pad);
+                self.emit_expr(f, button);
+                f.instruction(&Instruction::Call(90));
+            }
+            HirExpr::CollisionCount => {
+                f.instruction(&Instruction::Call(91));
+            }
+            HirExpr::CollisionEntityA(i) => {
+                self.emit_expr(f, i);
+                f.instruction(&Instruction::Call(92));
+            }
+            HirExpr::CollisionEntityB(i) => {
+                self.emit_expr(f, i);
+                f.instruction(&Instruction::Call(93));
+            }
+            HirExpr::Rigidbody2dSetVel { id, vx, vy } => {
+                self.emit_expr(f, id);
+                as_f32_expr(f, vx, self);
+                as_f32_expr(f, vy, self);
+                f.instruction(&Instruction::Call(94));
+            }
+            HirExpr::Rigidbody2dGetGrounded(id) => {
+                self.emit_expr(f, id);
+                f.instruction(&Instruction::Call(95));
+            }
+            HirExpr::Collider2dSet {
+                id,
+                kind,
+                w,
+                h,
+                radius,
+                solid,
+            } => {
+                self.emit_expr(f, id);
+                self.emit_expr(f, kind);
+                as_f32_expr(f, w, self);
+                as_f32_expr(f, h, self);
+                as_f32_expr(f, radius, self);
+                self.emit_expr(f, solid);
+                f.instruction(&Instruction::Call(96));
+            }
+            HirExpr::Camera2dFollow { cam, target, smooth } => {
+                self.emit_expr(f, cam);
+                self.emit_expr(f, target);
+                as_f32_expr(f, smooth, self);
+                f.instruction(&Instruction::Call(97));
+            }
+            HirExpr::PrefabSpawn { path, x, y } => {
+                self.emit_expr(f, path);
+                as_f32_expr(f, x, self);
+                as_f32_expr(f, y, self);
+                f.instruction(&Instruction::Call(98));
+            }
+            HirExpr::WorldDraw3d(cam) => {
+                self.emit_expr(f, cam);
+                f.instruction(&Instruction::Call(99));
+            }
+            HirExpr::Scene3dSetAmbient { r, g, b } => {
+                for e in [r, g, b] {
+                    as_f32_expr(f, e, self);
+                }
+                f.instruction(&Instruction::Call(100));
+            }
+            HirExpr::Scene3dSetFog(d) => {
+                as_f32_expr(f, d, self);
+                f.instruction(&Instruction::Call(101));
+            }
         }
     }
 
@@ -1387,9 +1735,26 @@ fn expr_ty(expr: &HirExpr) -> Type {
         | HirExpr::Material3dColor { .. }
         | HirExpr::AssetLoadStr { .. }
         | HirExpr::MeshLoadObj { .. }
-        | HirExpr::AudioLoad(_) => Type::Builtin(Builtin::I32),
+        | HirExpr::AudioLoad(_)
+        | HirExpr::WorldCreate
+        | HirExpr::EntityCreate
+        | HirExpr::EntityFindByTag(_)
+        | HirExpr::SceneLoad(_)
+        | HirExpr::TilemapLoad(_)
+        | HirExpr::Material3dTexture(_)
+        | HirExpr::Light3dDirectional { .. }
+        | HirExpr::Light3dPoint { .. }
+        | HirExpr::MeshLoadGltf(_)
+        | HirExpr::GamepadButton { .. }
+        | HirExpr::CollisionCount
+        | HirExpr::CollisionEntityA(_)
+        | HirExpr::CollisionEntityB(_)
+        | HirExpr::Rigidbody2dGetGrounded(_)
+        | HirExpr::PrefabSpawn { .. } => Type::Builtin(Builtin::I32),
         HirExpr::AabbOverlap { .. } => Type::Builtin(Builtin::Bool),
-        HirExpr::AabbResolveX { .. } => Type::Builtin(Builtin::F32),
+        HirExpr::AabbResolveX { .. } | HirExpr::AabbResolveY { .. } | HirExpr::GamepadAxis { .. } => {
+            Type::Builtin(Builtin::F32)
+        }
         HirExpr::StrLit(_) => Type::Builtin(Builtin::Str),
         HirExpr::StrConcat { .. } | HirExpr::StrSubstr { .. } => Type::Builtin(Builtin::Str),
         HirExpr::StrEq { .. } => Type::Builtin(Builtin::Bool),

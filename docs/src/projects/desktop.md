@@ -1,6 +1,6 @@
 # Desktop IDE
 
-Juni v5 ships a **Tauri 2** desktop shell around the same Vite + Monaco IDE used in the browser.
+Juni v6 ships a **Tauri 2** desktop shell around the same Vite + Monaco IDE used in the browser.
 
 ## Location
 

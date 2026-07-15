@@ -44,6 +44,15 @@ enum Commands {
     },
     /// Run the Juni language server (stdio)
     Lsp,
+    /// Export a project as a static web folder (index.html + wasm + runtime)
+    ExportWeb {
+        /// Project root directory (contains juni.toml)
+        #[arg(long)]
+        project: Option<PathBuf>,
+        /// Output directory (default: dist/web)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -61,6 +70,7 @@ fn run() -> Result<()> {
     match cli.command {
         Commands::Check { file, project } => check_cmd(file, project),
         Commands::Build { file, project, output } => build_cmd(file, project, output),
+        Commands::ExportWeb { project, output } => export_web_cmd(project, output),
         Commands::Lsp => {
             run_stdio_server();
             Ok(())
@@ -169,6 +179,128 @@ fn build_project_dir(root: &Path, output: Option<PathBuf>) -> Result<()> {
         pack_path.display(),
         pack.assets.len()
     );
+    Ok(())
+}
+
+fn export_web_cmd(project: Option<PathBuf>, output: Option<PathBuf>) -> Result<()> {
+    let root = match project {
+        Some(p) => p,
+        None => env::current_dir().context("current directory")?,
+    };
+    let out_dir = output.unwrap_or_else(|| root.join("dist/web"));
+    fs::create_dir_all(&out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
+
+    let project = load_project(&root).map_err(driver_err)?;
+    if let Some(err) = project_parse_errors(&project) {
+        return Err(err);
+    }
+    let result = check_loaded_project(&project);
+    print_project_diagnostics(&project, &result.diagnostics);
+    if result.diagnostics.iter().any(|d| d.severity == Severity::Error) {
+        bail!("typecheck failed");
+    }
+    let wasm = emit_wasm_program(&result.program);
+    let wasm_path = out_dir.join("game.wasm");
+    fs::write(&wasm_path, &wasm).with_context(|| format!("writing {}", wasm_path.display()))?;
+
+    let (pack, _) = build_asset_pack(&root, &project.config.assets)
+        .map_err(|e| anyhow::anyhow!("asset pack: {e}"))?;
+    let pack_json = serde_json::to_string_pretty(&pack).unwrap_or_else(|_| "{}".into());
+    fs::write(out_dir.join("assets.pack.json"), pack_json)?;
+
+    let title = &project.config.name;
+    let index = format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title}</title>
+  <style>
+    html, body {{ margin: 0; height: 100%; background: #0e0f12; color: #e8e1d4; font-family: system-ui, sans-serif; }}
+    #wrap {{ display: grid; place-items: center; min-height: 100%; padding: 1rem; }}
+    canvas {{ max-width: 100%; background: #000; }}
+    #log {{ max-width: 40rem; margin: 1rem auto; font: 12px/1.4 ui-monospace, monospace; white-space: pre-wrap; opacity: .7; }}
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="c2d" width="640" height="360"></canvas>
+    <canvas id="cgpu" width="640" height="360" hidden></canvas>
+  </div>
+  <pre id="log"></pre>
+  <script type="module" src="./play.js"></script>
+</body>
+</html>
+"#
+    );
+    fs::write(out_dir.join("index.html"), index)?;
+
+    let play = r#"import { instantiateJuni, startFrameLoop } from "./runtime/browser.js";
+const logEl = document.getElementById("log");
+const log = (t) => { if (logEl) logEl.textContent += t + "\n"; };
+const wasm = await (await fetch("./game.wasm")).arrayBuffer();
+const assets = await (await fetch("./assets.pack.json")).json();
+const canvas2d = document.getElementById("c2d");
+const canvasGpu = document.getElementById("cgpu");
+const opts = {
+  onPrint: log,
+  canvasEl: canvas2d,
+  gpuCanvasEl: canvasGpu,
+  mode: "canvas2d",
+  assetPack: assets,
+  getAssetText: (path) => {
+    const a = assets?.assets?.[path];
+    if (!a?.embed) return null;
+    try { return atob(a.embed); } catch { return null; }
+  },
+};
+const instance = await instantiateJuni(new Uint8Array(wasm), opts);
+const exports = instance.exports;
+if (typeof exports.main === "function") log("main() => " + exports.main());
+startFrameLoop(instance, opts);
+log("Running.");
+"#;
+    fs::write(out_dir.join("play.js"), play)?;
+
+    // Copy runtime/dist → out_dir/runtime
+    let runtime_src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/dist");
+    let runtime_dst = out_dir.join("runtime");
+    copy_dir_recursive(&runtime_src, &runtime_dst)?;
+
+    let netlify = r#"[build]
+  publish = "."
+  command = "echo static"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+"#;
+    fs::write(out_dir.join("netlify.toml"), netlify)?;
+
+    println!("exported web build → {}", out_dir.display());
+    Ok(())
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
+    if !src.is_dir() {
+        bail!(
+            "runtime dist missing at {} — run `cd runtime && npm run build`",
+            src.display()
+        );
+    }
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let to = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_recursive(&entry.path(), &to)?;
+        } else {
+            fs::copy(entry.path(), &to)?;
+        }
+    }
     Ok(())
 }
 

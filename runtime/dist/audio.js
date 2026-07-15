@@ -1,4 +1,4 @@
-/** Audio intrinsics: audio_load, audio_play. */
+/** Audio intrinsics: audio_load, audio_play, audio_play_loop, audio_set_volume. */
 import { readStr } from "./memory.js";
 function mimeForAudio(path) {
     if (path.endsWith(".wav"))
@@ -12,14 +12,25 @@ export function createAudioHandlers(options) {
     const pack = options.assetPack ?? null;
     const assetBaseUrl = options.assetBaseUrl ?? "";
     const buffers = new Map();
-    const sources = new Map();
+    const volumes = new Map();
+    let sharedCtx = null;
+    function getCtx() {
+        if (typeof AudioContext === "undefined")
+            return null;
+        if (!sharedCtx)
+            sharedCtx = new AudioContext();
+        return sharedCtx;
+    }
     function lookup(path) {
         if (!pack?.assets)
             return null;
         return pack.assets[path] ?? null;
     }
     async function ensureBuffer(entry) {
-        if (buffers.has(entry.id) || typeof AudioContext === "undefined")
+        if (buffers.has(entry.id))
+            return;
+        const ctx = getCtx();
+        if (!ctx)
             return;
         let url;
         if (entry.embed) {
@@ -35,11 +46,24 @@ export function createAudioHandlers(options) {
         if (!resp.ok)
             return;
         const data = await resp.arrayBuffer();
-        const ctx = new AudioContext();
         const buf = await ctx.decodeAudioData(data.slice(0));
         buffers.set(entry.id, buf);
-        sources.set(entry.id, buf);
-        await ctx.close();
+    }
+    function play(handle, loop) {
+        const ctx = getCtx();
+        if (!ctx)
+            return;
+        const buf = buffers.get(handle | 0);
+        if (!buf)
+            return;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = loop;
+        const gain = ctx.createGain();
+        gain.gain.value = volumes.get(handle | 0) ?? 1;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        src.start();
     }
     return {
         audio_load(ptr) {
@@ -56,19 +80,13 @@ export function createAudioHandlers(options) {
             return entry.id | 0;
         },
         audio_play(handle) {
-            if (typeof AudioContext === "undefined")
-                return;
-            const buf = buffers.get(handle | 0) ?? sources.get(handle | 0);
-            if (!buf)
-                return;
-            const ctx = new AudioContext();
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            src.connect(ctx.destination);
-            src.start();
-            src.onended = () => {
-                ctx.close().catch(() => { });
-            };
+            play(handle, false);
+        },
+        audio_play_loop(handle) {
+            play(handle, true);
+        },
+        audio_set_volume(handle, volume) {
+            volumes.set(handle | 0, Math.max(0, Math.min(1, volume)));
         },
     };
 }
@@ -78,6 +96,8 @@ export function createAudioStubs() {
     return {
         audio_load: () => next++ | 0,
         audio_play: () => { },
+        audio_play_loop: () => { },
+        audio_set_volume: () => { },
     };
 }
 //# sourceMappingURL=audio.js.map

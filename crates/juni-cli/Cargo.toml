@@ -18,3 +18,4 @@ juni-driver.workspace = true
 juni-lsp = { workspace = true, features = ["server"] }
 clap.workspace = true
 anyhow.workspace = true
+serde_json = "1"

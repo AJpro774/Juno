@@ -48,6 +48,20 @@ Built with **Cursor** (AI-assisted development) and the open-source toolchain li
 - **Built with:** Cursor
 - **Software:** Rust, wasm-bindgen, Vite, Monaco, GitHub Pages, GitHub Actions
 
+## v6 — Full software engine
+
+- **Author:** Alexander J. Patton
+- **Deliverable:** Modules/imports, project IDE, LSP, Tauri desktop, assets, 3D, physics, audio, generics; `v6.0.0` tag
+- **Built with:** Cursor
+- **Software:** Rust, juni-driver, juni-lsp, Tauri 2, wasm-bindgen, Vite, Monaco, GitHub Actions
+
+## v7 — Game engine
+
+- **Author:** Alexander J. Patton
+- **Deliverable:** Host ECS, `.jscene` scenes, 2D/3D systems (cameras, tilemaps, lights, glTF), physics step, visual editor (hierarchy / inspector / assets / Edit·Play); `v7.0.0`
+- **Built with:** Cursor
+- **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.

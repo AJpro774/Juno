@@ -1,0 +1,17 @@
+{
+  "name": "juni-wasm",
+  "type": "module",
+  "description": "Juni compiler for the browser (wasm-bindgen)",
+  "version": "6.0.0",
+  "license": "MIT",
+  "files": [
+    "juni_wasm_bg.wasm",
+    "juni_wasm.js",
+    "juni_wasm.d.ts"
+  ],
+  "main": "juni_wasm.js",
+  "types": "juni_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

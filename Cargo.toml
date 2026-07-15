@@ -12,7 +12,7 @@ members = [
 default-members = ["crates/juni-cli"]
 
 [workspace.package]
-version = "5.0.0"
+version = "6.0.0"
 edition = "2021"
 license = "MIT"
 authors = ["Juni Contributors"]

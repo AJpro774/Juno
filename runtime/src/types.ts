@@ -11,6 +11,10 @@ export type RunOptions = {
   getShouldStop?: () => boolean;
   assetPack?: AssetPack | null;
   assetBaseUrl?: string;
+  /** Optional initial `.jscene` JSON or object loaded before `main()`. */
+  initialScene?: unknown;
+  /** Optional text asset resolver for scenes / tilemaps / glTF. */
+  getAssetText?: (path: string) => string | null;
 };
 
 export type AssetEntry = {
@@ -94,6 +98,8 @@ export type InputHandlers = {
   mouseX?: () => number;
   mouseY?: () => number;
   mouseDown?: (button: number) => number;
+  gamepadAxis?: (pad: number, axis: number) => number;
+  gamepadButton?: (pad: number, button: number) => number;
 };
 
 export type Scene3dHandlers = {
@@ -151,6 +157,8 @@ export type EnvOptions = {
   scene3d?: Scene3dHandlers;
   assets?: AssetHostHandlers;
   audio?: AudioHostHandlers;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  engine?: Record<string, any>;
   webgpuStub?: (code: number) => void;
   verbose?: boolean;
 };
@@ -164,4 +172,6 @@ export type AssetHostHandlers = {
 export type AudioHostHandlers = {
   audio_load: (ptr: number) => number;
   audio_play: (handle: number) => void;
+  audio_play_loop?: (handle: number) => void;
+  audio_set_volume?: (handle: number, volume: number) => void;
 };

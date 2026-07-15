@@ -11,6 +11,7 @@ export function createAssetHandlers(options) {
     const assetBaseUrl = options.assetBaseUrl ?? "";
     const getCtx2d = options.getCtx2d ?? (() => null);
     const bitmaps = new Map();
+    const texts = new Map();
     const meshes = new Map();
     let nextMeshId = 1;
     function lookup(path) {
@@ -38,12 +39,35 @@ export function createAssetHandlers(options) {
         const bitmap = await createImageBitmap(blob);
         bitmaps.set(entry.id, bitmap);
     }
+    function decodeText(entry) {
+        if (texts.has(entry.path))
+            return texts.get(entry.path) ?? null;
+        if (!entry.embed)
+            return null;
+        try {
+            const text = atob(entry.embed);
+            texts.set(entry.path, text);
+            return text;
+        }
+        catch {
+            return null;
+        }
+    }
     return {
         async preloadAll() {
             if (!pack?.assets || typeof fetch === "undefined")
                 return;
-            const entries = Object.values(pack.assets).filter((e) => e.kind === "image");
-            await Promise.all(entries.map((e) => ensureBitmap(e)));
+            const entries = Object.values(pack.assets);
+            await Promise.all(entries.map(async (e) => {
+                if (e.kind === "image")
+                    await ensureBitmap(e);
+                else if (e.kind === "scene" ||
+                    e.kind === "tilemap" ||
+                    e.kind === "gltf" ||
+                    e.kind === "blob") {
+                    decodeText(e);
+                }
+            }));
         },
         asset_load_str(ptr) {
             const memory = memoryRef.current;
@@ -55,6 +79,9 @@ export function createAssetHandlers(options) {
                 return 0;
             if (entry.kind === "image") {
                 ensureBitmap(entry).catch(() => { });
+            }
+            else {
+                decodeText(entry);
             }
             return entry.id | 0;
         },
@@ -76,6 +103,18 @@ export function createAssetHandlers(options) {
             const id = entry?.id ?? nextMeshId++;
             meshes.set(id, { path });
             return id | 0;
+        },
+        getBitmap(handle) {
+            return bitmaps.get(handle | 0) ?? null;
+        },
+        getText(path) {
+            const cached = texts.get(path);
+            if (cached)
+                return cached;
+            const entry = lookup(path);
+            if (!entry)
+                return null;
+            return decodeText(entry);
         },
     };
 }

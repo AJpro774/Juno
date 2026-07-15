@@ -1,6 +1,6 @@
 # Physics
 
-Juni v5 includes axis-aligned bounding box (AABB) helpers for 2D game physics.
+Juni v6 includes axis-aligned bounding box (AABB) helpers for 2D game physics.
 
 ## `Aabb` struct
 

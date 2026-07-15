@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "gravity": 1200,
+  "entities": [
+    {
+      "id": 1,
+      "name": "Camera",
+      "tag": "camera",
+      "components": {
+        "camera2d": { "x": 160, "y": 100, "zoom": 1, "active": true }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Ground",
+      "tag": "ground",
+      "components": {
+        "transform2d": { "x": 160, "y": 220, "scale": [1, 1], "z_index": 0 },
+        "collider2d": { "type": "aabb", "w": 400, "h": 40, "solid": true }
+      }
+    },
+    {
+      "id": 3,
+      "name": "Player",
+      "tag": "player",
+      "components": {
+        "transform2d": { "x": 80, "y": 160, "scale": [1, 1], "z_index": 10 },
+        "sprite": { "asset": "sprites/player.png", "w": 32, "h": 32 },
+        "rigidbody2d": { "vx": 0, "vy": 0, "gravity": 1200 },
+        "collider2d": { "type": "aabb", "w": 28, "h": 28, "solid": true }
+      }
+    },
+    {
+      "id": 4,
+      "name": "Platform",
+      "tag": "plat1",
+      "components": {
+        "transform2d": { "x": 260, "y": 140, "scale": [1, 1], "z_index": 1 },
+        "collider2d": { "type": "aabb", "w": 80, "h": 16, "solid": true }
+      }
+    }
+  ]
+}

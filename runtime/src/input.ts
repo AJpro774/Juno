@@ -1,4 +1,4 @@
-/** Keyboard and mouse input for browser hosts. */
+/** Keyboard, mouse, and gamepad input for browser hosts. */
 
 import { fr } from "./math.js";
 import type { InputHandlers } from "./types.js";
@@ -18,6 +18,17 @@ const KEY_MAP: Record<number, string[]> = {
   6: ["KeyW", "w", "W"],
   7: ["KeyS", "s", "S"],
   8: ["Space", " "],
+  9: ["KeyZ", "z", "Z"],
+  10: ["KeyX", "x", "X"],
+  11: ["KeyC", "c", "C"],
+  12: ["KeyE", "e", "E"],
+  13: ["KeyQ", "q", "Q"],
+  14: ["ShiftLeft", "ShiftRight", "Shift"],
+  15: ["ControlLeft", "ControlRight", "Control"],
+  16: ["Enter"],
+  17: ["Escape"],
+  18: ["Digit1", "1"],
+  19: ["Digit2", "2"],
 };
 
 function onKeyDown(e: KeyboardEvent) {
@@ -52,17 +63,39 @@ export function bindMouse(canvas: HTMLCanvasElement): void {
   canvas.addEventListener("mouseup", (e) => mouseButtons.delete(e.button));
 }
 
+function readGamepad(padIndex: number): Gamepad | null {
+  if (typeof navigator === "undefined" || !navigator.getGamepads) return null;
+  const pads = navigator.getGamepads();
+  return pads[padIndex | 0] ?? null;
+}
+
 export function createInputHandlers(): InputHandlers {
   return {
     keyDown(code: number) {
-      const names = KEY_MAP[code | 0] ?? [];
-      for (const n of names) if (keys.has(n)) return 1;
+      const names = KEY_MAP[code | 0];
+      if (names) {
+        for (const n of names) if (keys.has(n)) return 1;
+        return 0;
+      }
+      // Fallback: treat unknown codes as KeyboardEvent.code ordinals is not useful;
+      // allow direct Digit/Key probing via common aliases above only.
       return 0;
     },
     mouseX: () => fr(mouseX),
     mouseY: () => fr(mouseY),
     mouseDown(button: number) {
       return mouseButtons.has(button | 0) ? 1 : 0;
+    },
+    gamepadAxis(pad: number, axis: number) {
+      const gp = readGamepad(pad);
+      if (!gp) return fr(0);
+      return fr(gp.axes[axis | 0] ?? 0);
+    },
+    gamepadButton(pad: number, button: number) {
+      const gp = readGamepad(pad);
+      if (!gp) return 0;
+      const b = gp.buttons[button | 0];
+      return b && b.pressed ? 1 : 0;
     },
   };
 }
