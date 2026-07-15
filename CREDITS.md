@@ -62,6 +62,16 @@ Built with **Cursor** (AI-assisted development) and the open-source toolchain li
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
 
+## Weekly maintenance — 2026-07-15
+
+- **Author:** Alexander J. Patton
+- **Built with:** Cursor (Cloud Agent / weekly maintenance automation)
+- **Models used:** Cursor Grok 4.5 (maintenance agent)
+- **Base:** `main` @ `169692fa` (sitemap fix); work on `chore/weekly-maintenance-2026-07-15`
+- **Bug fixes:** Restored flat repo layout after GitHub upload nesting (`1_root_crates` / `2_ide_runtime` / `3_docs_examples`); LSP unused assignment warning; root `.gitignore`; `check-projects.sh` trailing-slash paths; refreshed stale example `build.wasm` artifacts
+- **Dependency / framework bumps:** Vite 6→8, Monaco →0.55, marked →18, TypeScript →7 (ide + runtime); `dompurify` override 3.4.12; `@tauri-apps/cli` →2.11; Cargo `wasm-encoder` 0.221→0.253, `toml` 0.8→1.x; lockfile refreshes (clap, syn, bitflags, desktop Tauri lock)
+- **Software:** Rust 1.97, Cargo, wasm-pack, wasm-bindgen, Vite 8, Monaco Editor, marked, TypeScript 7, Node.js 22, Tauri 2
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.
