@@ -8,9 +8,9 @@ The repo root [`netlify.toml`](../../netlify.toml) builds the IDE:
 
 | Setting | Value |
 |---------|--------|
-| Base directory | `ide` |
-| Build command | `npm ci && npm run build` |
-| Publish directory | `ide/dist` (relative to repo: `dist` when base is `ide`) |
+| Base directory | *(empty)* |
+| Build command | `cd ide && npm ci && npm run build` |
+| Publish directory | `ide/dist` |
 | Asset base path | `/` (default Vite base) |
 
 ### Connect the repo

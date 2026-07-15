@@ -1,26 +1,19 @@
-# Netlify: deploy the Juni IDE (static Vite app).
-# Base path is "/" (unlike GitHub Pages which uses /Juno/ via GITHUB_PAGES=true).
-#
-# Prebuilt WASM lives in ide/public/pkg — rebuild locally with `npm run build:wasm`
-# when the compiler changes, then commit, or install Rust + wasm-pack in the build image.
+# Netlify: works with either a flat repo OR the nested github_upload_batches layout.
 
 [build]
-  base = "ide"
-  command = "npm ci && npm run build"
-  publish = "dist"
+  # Nested layout (1_root_crates / 2_ide_runtime / 3_docs_examples):
+  command = "cp -f 1_root_crates/CREDITS.md 2_ide_runtime/CREDITS.md && rm -rf 2_ide_runtime/docs && cp -R 3_docs_examples/docs 2_ide_runtime/docs && cd 2_ide_runtime/ide && npm install && npm run build"
+  publish = "2_ide_runtime/ide/dist"
 
 [build.environment]
   NODE_VERSION = "20"
-  # Ensure Vite uses root base (not GitHub Pages /Juno/)
   GITHUB_PAGES = "false"
 
-# SPA fallback for deep links / refresh
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Long-cache hashed assets; keep index fresh
 [[headers]]
   for = "/assets/*"
   [headers.values]

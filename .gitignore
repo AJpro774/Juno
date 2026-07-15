@@ -6,3 +6,8 @@ ide/dist/
 .cursor/
 debug-*.log
 *.wasm
+github_upload/
+github_upload_batches/
+
+# Local Netlify folder
+.netlify
