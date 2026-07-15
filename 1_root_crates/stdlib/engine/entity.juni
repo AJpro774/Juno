@@ -1,0 +1,18 @@
+# Optional ergonomic wrappers for the host ECS API.
+# Import with: from entity import *
+
+export fn spawn(tag: str) -> i32:
+    let id = entity_create()
+    entity_set_tag(id, tag)
+    return id
+
+export fn follow_cam(cam: i32, target: i32, smooth: f32) -> i32:
+    camera2d_follow(cam, target, smooth)
+    return 0
+
+export fn set_vel(id: i32, vx: f32, vy: f32) -> i32:
+    rigidbody2d_set_vel(id, vx, vy)
+    return 0
+
+export fn grounded(id: i32) -> i32:
+    return rigidbody2d_get_grounded(id)

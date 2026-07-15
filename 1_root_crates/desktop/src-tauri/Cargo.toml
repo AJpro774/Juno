@@ -1,0 +1,27 @@
+[workspace]
+
+[package]
+name = "juni-desktop"
+version = "6.0.0"
+description = "Juni desktop IDE shell"
+authors = ["Juni Contributors"]
+edition = "2021"
+
+[lib]
+name = "juni_desktop_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+juni-lsp = { path = "../../crates/juni-lsp", default-features = false }
+juni-driver = { path = "../../crates/juni-driver" }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
