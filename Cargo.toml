@@ -23,7 +23,7 @@ juni-check = { path = "crates/juni-check" }
 juni-codegen = { path = "crates/juni-codegen" }
 juni-driver = { path = "crates/juni-driver" }
 juni-lsp = { path = "crates/juni-lsp", default-features = false }
-wasm-encoder = "0.221"
+wasm-encoder = "0.253"
 clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 anyhow = "1"

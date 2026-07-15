@@ -11,12 +11,15 @@
   },
   "devDependencies": {
     "@webgpu/types": "^0.1.71",
-    "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.84",
-    "marked": "^15.0.12",
-    "monaco-editor": "^0.52.2"
+    "marked": "^18.0.6",
+    "monaco-editor": "^0.55.1"
+  },
+  "overrides": {
+    "dompurify": "3.4.12"
   }
 }
