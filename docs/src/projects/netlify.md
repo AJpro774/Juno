@@ -4,14 +4,14 @@ Host the **Juni IDE** (or a game export) as a static site on [Netlify](https://w
 
 ## IDE (recommended)
 
-The repo root [`netlify.toml`](../../netlify.toml) builds the IDE. It supports **two layouts**:
+The repo root [`netlify.toml`](../../netlify.toml) builds the IDE. It supports **two layouts** (flat wins when both exist):
 
 | Layout | When | Build | Publish |
 |--------|------|-------|---------|
-| **Flat** (local / full clone) | `ide/` at repo root | `cd ide && npm install && npm run build` | `ide/dist` |
-| **Nested** (GitHub upload batches) | `1_root_crates` / `2_ide_runtime` / `3_docs_examples` | Sync CREDITS + docs into `2_ide_runtime`, build that `ide/`, copy dist → `ide/dist` | `ide/dist` |
+| **Flat** (canonical) | `ide/package.json` at repo root | `cd ide && npm install && npm run build` | `ide/dist` |
+| **Nested** (legacy upload batches) | only if flat `ide/` is missing: `1_` / `2_` / `3_` folders | Sync CREDITS + docs into `2_ide_runtime`, build that `ide/`, copy dist → `ide/dist` | `ide/dist` |
 
-The build command detects which layout is present and always publishes **`ide/dist`**.
+Always publishes **`ide/dist`**. Prefer flat so Netlify does not ship a stale nested `2_ide_runtime` copy.
 
 | Setting | Value |
 |---------|--------|
