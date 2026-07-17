@@ -15,6 +15,7 @@ import engineLevel from "../../docs/src/engine/level.md?raw";
 import aiAssistant from "../../docs/src/projects/ai-assistant.md?raw";
 import netlifyDoc from "../../docs/src/projects/netlify.md?raw";
 import exportWebDoc from "../../docs/src/projects/export-web.md?raw";
+import tutorialsDoc from "../../docs/src/projects/tutorials.md?raw";
 import graphicsOverview from "../../docs/src/graphics/overview.md?raw";
 import graphics2d from "../../docs/src/graphics/2d.md?raw";
 import graphics3d from "../../docs/src/graphics/3d.md?raw";
@@ -42,6 +43,7 @@ export const DOC_PAGES: DocPage[] = [
   { id: "ai-assistant", title: "AI assistant", markdown: aiAssistant },
   { id: "netlify", title: "Deploy to Netlify", markdown: netlifyDoc },
   { id: "export-web", title: "Export for web", markdown: exportWebDoc },
+  { id: "tutorials", title: "Visual tutorials", markdown: tutorialsDoc },
   { id: "graphics-overview", title: "Graphics overview", markdown: graphicsOverview },
   { id: "graphics-2d", title: "Canvas2D", markdown: graphics2d },
   { id: "graphics-3d", title: "3D", markdown: graphics3d },

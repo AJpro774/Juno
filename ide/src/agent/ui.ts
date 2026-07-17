@@ -20,6 +20,7 @@ import {
   type DiagLike,
   type LoadProgress,
 } from "./agent";
+import { AI_MODEL_OPTIONS } from "./settings";
 import { unloadEngine } from "./webllm-engine";
 
 export type AiUiHooks = {
@@ -244,6 +245,14 @@ export function wireAiPanelDom(): void {
 
   const modelSel = document.getElementById("ai-model") as HTMLSelectElement | null;
   if (modelSel) {
+    modelSel.innerHTML = "";
+    for (const opt of AI_MODEL_OPTIONS) {
+      const o = document.createElement("option");
+      o.value = opt.id;
+      o.textContent = opt.label;
+      if (opt.note) o.title = opt.note;
+      modelSel.appendChild(o);
+    }
     modelSel.value = getAiModelId();
     modelSel.addEventListener("change", () => {
       setAiModelId(modelSel.value);

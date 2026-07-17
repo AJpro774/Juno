@@ -73,10 +73,13 @@ export function parseGltfJson(text, options = {}) {
             buffers.push(new ArrayBuffer(b.byteLength));
         }
     }
-    const mesh = gltf.meshes?.[0];
+    const meshIndex = gltf.scenes?.[gltf.scene ?? 0]?.nodes
+        ?.map((ni) => gltf.nodes?.[ni]?.mesh)
+        .find((m) => m !== undefined) ?? 0;
+    const mesh = gltf.meshes?.[meshIndex ?? 0] ?? gltf.meshes?.[0];
     if (!mesh?.primitives?.length)
         return unitCubeMesh();
-    // Merge all primitives into one mesh
+    // Merge all primitives into one mesh (supports multi-primitive + NORMAL-derived tint)
     const allPos = [];
     const allIdx = [];
     let vertBase = 0;
@@ -92,10 +95,23 @@ export function parseGltfJson(text, options = {}) {
             if (c && c.data instanceof Float32Array)
                 colors = c.data;
         }
+        let normals = null;
+        if (prim.attributes.NORMAL !== undefined) {
+            const n = readAccessor(gltf, buffers, prim.attributes.NORMAL);
+            if (n && n.data instanceof Float32Array)
+                normals = n.data;
+        }
         for (let i = 0; i < posAcc.count; i++) {
             allPos.push(posAcc.data[i * 3], posAcc.data[i * 3 + 1], posAcc.data[i * 3 + 2]);
             if (colors && colors.length >= (i + 1) * 3) {
                 allPos.push(colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2]);
+            }
+            else if (normals && normals.length >= (i + 1) * 3) {
+                // Derive a soft shade from normals when COLOR_0 is absent.
+                const ny = normals[i * 3 + 1];
+                const nz = normals[i * 3 + 2];
+                const shade = 0.45 + 0.35 * Math.max(0, ny) + 0.2 * Math.max(0, -nz);
+                allPos.push(0.55 + 0.25 * shade, 0.6 + 0.2 * shade, 0.7 + 0.15 * shade);
             }
             else {
                 allPos.push(0.75, 0.75, 0.8);
@@ -106,6 +122,10 @@ export function parseGltfJson(text, options = {}) {
             if (idx && idx.data instanceof Uint16Array) {
                 for (let i = 0; i < idx.count; i++)
                     allIdx.push(idx.data[i] + vertBase);
+            }
+            else if (idx && idx.data instanceof Float32Array) {
+                for (let i = 0; i < idx.count; i++)
+                    allIdx.push((idx.data[i] | 0) + vertBase);
             }
             else {
                 for (let i = 0; i < posAcc.count; i++)

@@ -5,16 +5,23 @@ let contacts = [];
 export function clearContacts() {
     contacts = [];
 }
-export function pushContact(a, b, nx, ny) {
+export function pushContact(a, b, nx, ny, trigger = false) {
     if (contacts.length >= MAX_CONTACTS)
         return;
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
     for (const c of contacts) {
-        if (c.a === lo && c.b === hi)
+        if (c.a === lo && c.b === hi) {
+            // Upgrade solid contact normals if a later resolve has better info.
+            if (!trigger && c.trigger) {
+                c.trigger = false;
+                c.nx = nx;
+                c.ny = ny;
+            }
             return;
+        }
     }
-    contacts.push({ a: lo, b: hi, nx, ny });
+    contacts.push({ a: lo, b: hi, nx, ny, trigger });
 }
 export function collisionCount() {
     return contacts.length;
@@ -24,6 +31,9 @@ export function collisionEntityA(i) {
 }
 export function collisionEntityB(i) {
     return contacts[i | 0]?.b ?? 0;
+}
+export function collisionIsTrigger(i) {
+    return contacts[i | 0]?.trigger ? 1 : 0;
 }
 export function readAabb(memory, ptr) {
     const view = new DataView(memory.buffer);
@@ -76,6 +86,21 @@ function circleOverlap(ax, ay, ar, bx, by, br) {
     const rr = ar + br;
     return dx * dx + dy * dy < rr * rr;
 }
+/** Walkable surface: normal points upward enough (ny < -0.35). */
+function isGroundNormal(_nx, ny) {
+    return ny < -0.35;
+}
+function applySlopeSlide(body, slopeDeg) {
+    if (!slopeDeg || !body.grounded)
+        return;
+    const rad = (slopeDeg * Math.PI) / 180;
+    // Slide along the slope (positive slope = rises to the right).
+    const alongX = Math.cos(rad);
+    const alongY = Math.sin(rad);
+    const g = 900 * 0.35;
+    body.vx += alongX * g * (1 / 60);
+    body.vy += alongY * g * (1 / 60);
+}
 function recordTriggerOverlaps(moving, other) {
     const mt = moving.transform2d;
     const ot = other.transform2d;
@@ -87,14 +112,21 @@ function recordTriggerOverlaps(moving, other) {
         return; // solids handled in resolvePair
     if (mc.kind === "circle" && oc.kind === "circle") {
         if (circleOverlap(mt.x, mt.y, mc.radius, ot.x, ot.y, oc.radius)) {
-            pushContact(moving.id, other.id, 0, 0);
+            pushContact(moving.id, other.id, 0, 0, true);
         }
         return;
     }
     const a = colliderAabb(moving);
     const b = colliderAabb(other);
     if (a && b && aabbOverlap(a, b))
-        pushContact(moving.id, other.id, 0, 0);
+        pushContact(moving.id, other.id, 0, 0, true);
+}
+function markGrounded(body, nx, ny, surface) {
+    if (!isGroundNormal(nx, ny))
+        return;
+    body.grounded = true;
+    if (surface?.slope)
+        applySlopeSlide(body, surface.slope);
 }
 function resolvePair(moving, other) {
     const body = moving.rigidbody2d;
@@ -104,7 +136,7 @@ function resolvePair(moving, other) {
     const oc = other.collider2d;
     if (!body || !mt || !ot || !mc || !oc)
         return;
-    // Triggers: overlap only
+    // Triggers: overlap only (never set grounded, never push)
     if (!oc.solid || !mc.solid) {
         recordTriggerOverlaps(moving, other);
         return;
@@ -125,9 +157,8 @@ function resolvePair(moving, other) {
             body.vx -= vn * nx;
             body.vy -= vn * ny;
         }
-        if (ny < -0.5)
-            body.grounded = true;
-        pushContact(moving.id, other.id, nx, ny);
+        markGrounded(body, nx, ny, oc);
+        pushContact(moving.id, other.id, nx, ny, false);
         return;
     }
     const a = colliderAabb(moving);
@@ -138,7 +169,9 @@ function resolvePair(moving, other) {
     const overlapY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
     let nx = 0;
     let ny = 0;
-    if (overlapX < overlapY) {
+    // Prefer Y separation when nearly equal (platformer feel / gentle slopes as stacked AABBs).
+    const preferY = overlapY <= overlapX * 1.05;
+    if (!preferY) {
         if (a.x + a.w / 2 < b.x + b.w / 2) {
             mt.x -= overlapX;
             nx = -1;
@@ -152,8 +185,13 @@ function resolvePair(moving, other) {
     else {
         if (a.y + a.h / 2 < b.y + b.h / 2) {
             mt.y -= overlapY;
-            body.grounded = true;
             ny = -1;
+            // Soften horizontal cancel when landing on a sloped surface.
+            if (oc.slope) {
+                const rad = (oc.slope * Math.PI) / 180;
+                nx = Math.sin(rad);
+                ny = -Math.cos(rad);
+            }
         }
         else {
             mt.y += overlapY;
@@ -161,7 +199,8 @@ function resolvePair(moving, other) {
         }
         body.vy = 0;
     }
-    pushContact(moving.id, other.id, nx, ny);
+    markGrounded(body, nx, ny, oc);
+    pushContact(moving.id, other.id, nx, ny, false);
 }
 export function stepWorldPhysics(world, dt) {
     clearContacts();
@@ -193,7 +232,7 @@ export function stepWorldPhysics(world, dt) {
             resolvePair(e, other);
         }
     }
-    // Static trigger pairs (no rigidbody) — e.g. player already resolved; also scan body vs all triggers
+    // Static trigger pairs (no rigidbody) — body vs all triggers
     for (const e of bodies) {
         for (const other of colliders) {
             if (other.id === e.id)

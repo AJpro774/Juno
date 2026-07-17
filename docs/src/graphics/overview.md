@@ -5,7 +5,7 @@ Juni ships usable graphics in the browser IDE:
 | Path | Status |
 |------|--------|
 | [Canvas2D](2d.md) | Implemented — `canvas_*` fill + stroke |
-| [3D](3d.md) | Small API — `scene3d_*` / `mesh3d_*` / `camera3d_*` |
+| [3D](3d.md) | WebGPU API + ECS editor slice — `world_draw3d`, Mesh3D / Light3D / Camera3D |
 | [WebGPU runtime](../webgpu/runtime.md) | Triangle sample + 3D host |
 
 ## Games & simulation

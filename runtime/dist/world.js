@@ -1,4 +1,5 @@
 /** Host-side ECS world for the Juno game engine. */
+import { dispatchEntityScripts } from "./scripts.js";
 export let activeWorld = null;
 export function createWorld() {
     const world = {
@@ -151,6 +152,7 @@ export function collider2dSet(id, kind, w, h, radius, solid, world = getWorld())
         h,
         radius,
         solid: solid !== 0,
+        slope: e.collider2d?.slope ?? 0,
     };
     if (!e.transform2d)
         e.transform2d = defaultTransform2D();
@@ -210,5 +212,7 @@ export function worldStep(dt, world = getWorld()) {
         cam.y += (target.transform2d.y - cam.y) * t;
     }
     physicsHooks?.syncMeshes?.(world);
+    // Entity script handlers (after physics so grounded / contacts are current).
+    dispatchEntityScripts(world, clamped);
 }
 //# sourceMappingURL=world.js.map

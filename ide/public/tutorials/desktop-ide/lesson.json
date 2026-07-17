@@ -1,0 +1,31 @@
+{
+  "id": "desktop-ide",
+  "title": "Desktop IDE",
+  "description": "Use the Tauri shell for reliable project FS and richer LSP.",
+  "steps": [
+    {
+      "image": "step-1.svg",
+      "caption": "Open with Tauri",
+      "narration": "Launch the desktop app from the desktop folder with npm run dev. Click Open Project — Tauri shows a native folder picker and loads every file under juni.toml, including assets as data URLs when needed.",
+      "highlight": "open-project"
+    },
+    {
+      "image": "step-2.svg",
+      "caption": "Save to disk",
+      "narration": "Edit a scene or Juni source, then Save Scene or save the file tab. Writes go through write_project_file to the real project root — no download fallback when the desktop root is open.",
+      "highlight": "save"
+    },
+    {
+      "image": "step-3.svg",
+      "caption": "Hover and diagnostics",
+      "narration": "Desktop Monaco talks to juni-lsp. Hover a symbol for kind and detail. Diagnostics from parse and type-check appear as Monaco markers while you type — beyond thin complete and goto.",
+      "highlight": "editor"
+    },
+    {
+      "image": "step-4.svg",
+      "caption": "External editors",
+      "narration": "For VS Code or other editors, run juni lsp from the project root. The same workspace provides completion, definition, hover, and pull diagnostics over stdio.",
+      "highlight": "docs"
+    }
+  ]
+}

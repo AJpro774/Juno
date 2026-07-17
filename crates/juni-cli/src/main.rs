@@ -44,7 +44,7 @@ enum Commands {
     },
     /// Run the Juni language server (stdio)
     Lsp,
-    /// Export a project as a static web folder (index.html + wasm + runtime)
+    /// Export a project as a self-contained static web folder (index + wasm + runtime)
     ExportWeb {
         /// Project root directory (contains juni.toml)
         #[arg(long)]
@@ -52,6 +52,9 @@ enum Commands {
         /// Output directory (default: dist/web)
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Also write a ZIP of the export folder (for itch HTML uploads)
+        #[arg(long)]
+        zip: bool,
     },
 }
 
@@ -70,7 +73,11 @@ fn run() -> Result<()> {
     match cli.command {
         Commands::Check { file, project } => check_cmd(file, project),
         Commands::Build { file, project, output } => build_cmd(file, project, output),
-        Commands::ExportWeb { project, output } => export_web_cmd(project, output),
+        Commands::ExportWeb {
+            project,
+            output,
+            zip,
+        } => export_web_cmd(project, output, zip),
         Commands::Lsp => {
             run_stdio_server();
             Ok(())
@@ -182,12 +189,16 @@ fn build_project_dir(root: &Path, output: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-fn export_web_cmd(project: Option<PathBuf>, output: Option<PathBuf>) -> Result<()> {
+fn export_web_cmd(project: Option<PathBuf>, output: Option<PathBuf>, zip: bool) -> Result<()> {
     let root = match project {
         Some(p) => p,
         None => env::current_dir().context("current directory")?,
     };
     let out_dir = output.unwrap_or_else(|| root.join("dist/web"));
+    if out_dir.exists() {
+        fs::remove_dir_all(&out_dir)
+            .with_context(|| format!("clearing {}", out_dir.display()))?;
+    }
     fs::create_dir_all(&out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
 
     let project = load_project(&root).map_err(driver_err)?;
@@ -236,7 +247,9 @@ fn export_web_cmd(project: Option<PathBuf>, output: Option<PathBuf>) -> Result<(
     );
     fs::write(out_dir.join("index.html"), index)?;
 
-    let play = r#"import { instantiateJuni, startFrameLoop } from "./runtime/browser.js";
+    // Relative paths only — suitable for itch HTML embeds and static hosts.
+    let play = r#"// Juni web player — self-contained (relative paths for itch / Netlify)
+import { instantiateJuni, startFrameLoop } from "./runtime/browser.js";
 const logEl = document.getElementById("log");
 const log = (t) => { if (logEl) logEl.textContent += t + "\n"; };
 const wasm = await (await fetch("./game.wasm")).arrayBuffer();
@@ -263,10 +276,16 @@ log("Running.");
 "#;
     fs::write(out_dir.join("play.js"), play)?;
 
-    // Copy runtime/dist → out_dir/runtime
+    // Copy runtime/dist/*.js → out_dir/runtime (ESM only; no .map / .d.ts)
     let runtime_src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/dist");
     let runtime_dst = out_dir.join("runtime");
-    copy_dir_recursive(&runtime_src, &runtime_dst)?;
+    copy_runtime_js(&runtime_src, &runtime_dst)?;
+    if !runtime_dst.join("browser.js").is_file() {
+        bail!(
+            "runtime browser.js missing after copy from {} — run `cd runtime && npm run build`",
+            runtime_src.display()
+        );
+    }
 
     let netlify = r#"[build]
   publish = "."
@@ -279,11 +298,41 @@ log("Running.");
 "#;
     fs::write(out_dir.join("netlify.toml"), netlify)?;
 
-    println!("exported web build → {}", out_dir.display());
+    println!("exported self-contained web build → {}", out_dir.display());
+
+    if zip {
+        let zip_path = out_dir
+            .parent()
+            .unwrap_or(Path::new("."))
+            .join(format!("{}-web.zip", sanitize_zip_stem(title)));
+        write_dir_zip(&out_dir, &zip_path)?;
+        println!("wrote itch-ready zip → {}", zip_path.display());
+    }
+
     Ok(())
 }
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
+fn sanitize_zip_stem(name: &str) -> String {
+    let s: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let trimmed = s.trim_matches('-');
+    if trimmed.is_empty() {
+        "juni-game".into()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// Copy only `*.js` files from runtime dist (flat).
+fn copy_runtime_js(src: &Path, dst: &Path) -> Result<()> {
     if !src.is_dir() {
         bail!(
             "runtime dist missing at {} — run `cd runtime && npm run build`",
@@ -291,17 +340,139 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
         );
     }
     fs::create_dir_all(dst)?;
+    let mut copied = 0usize;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
-        let ty = entry.file_type()?;
-        let to = dst.join(entry.file_name());
-        if ty.is_dir() {
-            copy_dir_recursive(&entry.path(), &to)?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if !name_str.ends_with(".js") {
+            continue;
+        }
+        fs::copy(entry.path(), dst.join(&name))?;
+        copied += 1;
+    }
+    if copied == 0 {
+        bail!(
+            "no .js files in runtime dist at {} — run `cd runtime && npm run build`",
+            src.display()
+        );
+    }
+    Ok(())
+}
+
+/// Minimal store-method ZIP of a directory (paths relative to `dir`, `/` separators).
+fn write_dir_zip(dir: &Path, zip_path: &Path) -> Result<()> {
+    let mut files: Vec<(String, Vec<u8>)> = Vec::new();
+    collect_files_for_zip(dir, dir, &mut files)?;
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+    let bytes = build_store_zip(&files);
+    if let Some(parent) = zip_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(zip_path, bytes).with_context(|| format!("writing {}", zip_path.display()))?;
+    Ok(())
+}
+
+fn collect_files_for_zip(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            collect_files_for_zip(root, &path, out)?;
         } else {
-            fs::copy(entry.path(), &to)?;
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            let data = fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
+            out.push((rel, data));
         }
     }
     Ok(())
+}
+
+fn crc32(data: &[u8]) -> u32 {
+    let mut c: u32 = 0xffff_ffff;
+    for &b in data {
+        c ^= u32::from(b);
+        for _ in 0..8 {
+            c = if c & 1 != 0 {
+                (c >> 1) ^ 0xedb8_8320
+            } else {
+                c >> 1
+            };
+        }
+    }
+    !c
+}
+
+fn build_store_zip(files: &[(String, Vec<u8>)]) -> Vec<u8> {
+    let mut locals = Vec::new();
+    let mut central = Vec::new();
+    let mut offset: u32 = 0;
+
+    for (name, data) in files {
+        let name_bytes = name.as_bytes();
+        let crc = crc32(data);
+        let local_header_len = 30 + name_bytes.len() as u32;
+
+        // Local file header
+        locals.extend_from_slice(&0x0403_4b50u32.to_le_bytes());
+        locals.extend_from_slice(&20u16.to_le_bytes()); // version needed
+        locals.extend_from_slice(&0u16.to_le_bytes()); // flags
+        locals.extend_from_slice(&0u16.to_le_bytes()); // method store
+        locals.extend_from_slice(&0u16.to_le_bytes()); // time
+        locals.extend_from_slice(&0u16.to_le_bytes()); // date
+        locals.extend_from_slice(&crc.to_le_bytes());
+        locals.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        locals.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        locals.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
+        locals.extend_from_slice(&0u16.to_le_bytes()); // extra
+        locals.extend_from_slice(name_bytes);
+        locals.extend_from_slice(data);
+
+        // Central directory header
+        central.extend_from_slice(&0x0201_4b50u32.to_le_bytes());
+        central.extend_from_slice(&20u16.to_le_bytes()); // version made by
+        central.extend_from_slice(&20u16.to_le_bytes()); // version needed
+        central.extend_from_slice(&0u16.to_le_bytes());
+        central.extend_from_slice(&0u16.to_le_bytes());
+        central.extend_from_slice(&0u16.to_le_bytes());
+        central.extend_from_slice(&0u16.to_le_bytes());
+        central.extend_from_slice(&crc.to_le_bytes());
+        central.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        central.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        central.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
+        central.extend_from_slice(&0u16.to_le_bytes()); // extra
+        central.extend_from_slice(&0u16.to_le_bytes()); // comment
+        central.extend_from_slice(&0u16.to_le_bytes()); // disk
+        central.extend_from_slice(&0u16.to_le_bytes()); // int attrs
+        central.extend_from_slice(&0u32.to_le_bytes()); // ext attrs
+        central.extend_from_slice(&offset.to_le_bytes());
+        central.extend_from_slice(name_bytes);
+
+        offset += local_header_len + data.len() as u32;
+    }
+
+    let central_offset = locals.len() as u32;
+    let central_len = central.len() as u32;
+    let count = files.len() as u16;
+
+    let mut out = locals;
+    out.extend_from_slice(&central);
+    out.extend_from_slice(&0x0605_4b50u32.to_le_bytes());
+    out.extend_from_slice(&0u16.to_le_bytes());
+    out.extend_from_slice(&0u16.to_le_bytes());
+    out.extend_from_slice(&count.to_le_bytes());
+    out.extend_from_slice(&count.to_le_bytes());
+    out.extend_from_slice(&central_len.to_le_bytes());
+    out.extend_from_slice(&central_offset.to_le_bytes());
+    out.extend_from_slice(&0u16.to_le_bytes());
+    out
 }
 
 fn check_loaded_project(project: &Project) -> juni_check::ProgramCheckResult {

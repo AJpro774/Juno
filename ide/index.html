@@ -16,7 +16,7 @@
       <header class="top">
         <div class="brand">
           <span class="brand-mark">Juni</span>
-          <span class="brand-tag">v7.5</span>
+          <span class="brand-tag">v8.2</span>
         </div>
         <div class="actions">
           <button type="button" id="open-project" class="ghost">Open Project</button>
@@ -44,6 +44,7 @@
           <button type="button" id="export-web" class="ghost">Export Web</button>
           <button type="button" id="ai-toggle" class="ghost">AI: Off</button>
           <button type="button" id="docs-toggle" class="ghost">Docs</button>
+          <button type="button" id="tutorials-toggle" class="ghost">Tutorials</button>
           <button type="button" id="credits-toggle" class="ghost">Credits</button>
           <button type="button" id="run" class="run">Run</button>
         </div>
@@ -94,6 +95,31 @@
           <nav id="docs-nav" class="docs-nav" aria-label="Documentation"></nav>
           <article id="docs-body" class="docs-body"></article>
         </aside>
+        <aside id="tutorials-panel" class="docs-panel tutorials-panel" aria-hidden="true">
+          <div class="docs-head">
+            <span>Tutorials</span>
+            <button type="button" id="tutorials-close" class="ghost tight" aria-label="Close tutorials">
+              Close
+            </button>
+          </div>
+          <div class="tutorials-controls">
+            <label class="tutorials-lesson-label">
+              Lesson
+              <select id="tutorial-lesson" aria-label="Tutorial lesson"></select>
+            </label>
+            <div class="tutorials-toolbar">
+              <button type="button" id="tutorial-prev" class="ghost tight">Prev</button>
+              <span id="tutorial-progress" class="tutorial-progress" aria-live="polite">0 / 0</span>
+              <button type="button" id="tutorial-next" class="ghost tight">Next</button>
+              <button type="button" id="tutorial-speak" class="run tight">Speak</button>
+              <button type="button" id="tutorial-stop" class="ghost tight">Stop</button>
+            </div>
+          </div>
+          <div class="tutorial-stage">
+            <img id="tutorial-image" class="tutorial-image" alt="" />
+            <p id="tutorial-caption" class="tutorial-caption"></p>
+          </div>
+        </aside>
         <aside id="ai-panel" class="docs-panel ai-panel" aria-hidden="true">
           <div class="docs-head">
             <span>Local AI</span>
@@ -114,9 +140,9 @@
             <label class="ai-model-label">
               Model
               <select id="ai-model" aria-label="AI model">
-                <option value="Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC">Coder 1.5B (default)</option>
-                <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Instruct 1.5B</option>
+                <option value="Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC" selected>Coder 1.5B (default)</option>
                 <option value="Qwen2.5-Coder-3B-Instruct-q4f16_1-MLC">Coder 3B</option>
+                <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Instruct 1.5B</option>
               </select>
             </label>
             <div id="ai-progress" class="ai-progress" hidden></div>

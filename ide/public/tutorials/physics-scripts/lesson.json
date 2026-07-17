@@ -1,0 +1,31 @@
+{
+  "id": "physics-scripts",
+  "title": "Physics and scripts",
+  "description": "Author colliders, use grounded/triggers, and bind entity scripts.",
+  "steps": [
+    {
+      "image": "step-1.svg",
+      "caption": "Add a collider",
+      "narration": "Select an entity in the Hierarchy. In the Inspector, enable Collider2D. Choose AABB or circle, set width height or radius, and leave Solid checked for platforms. Save Scene so the collider round-trips into your .jscene file.",
+      "highlight": "inspector"
+    },
+    {
+      "image": "step-2.svg",
+      "caption": "Triggers and slopes",
+      "narration": "Uncheck Solid to make a trigger — overlaps report contacts without pushing the body. For a walkable ramp, set Slope in degrees on a solid collider. Grounded is set when you land from above; query it with rigidbody2d_get_grounded in frame or a script.",
+      "highlight": "inspector"
+    },
+    {
+      "image": "step-3.svg",
+      "caption": "Bind a script",
+      "narration": "Enable Script on an entity. Set Module and Handler, for example module player and handler on_update. Each world_step the host looks up that handler — a JavaScript registration or a matching WASM export — and calls it with the entity id and delta time.",
+      "highlight": "inspector"
+    },
+    {
+      "image": "step-4.svg",
+      "caption": "Play and iterate",
+      "narration": "Switch to Play. Your frame loop still drives input; world_step runs physics then entity scripts. Use collision_count after the step for goals and hazards. Prefer Prefab path fields in the Inspector for spawn-point authoring, and prefab_spawn at runtime.",
+      "highlight": "play"
+    }
+  ]
+}

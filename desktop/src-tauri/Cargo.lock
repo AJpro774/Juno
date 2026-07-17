@@ -1588,8 +1588,9 @@ dependencies = [
 
 [[package]]
 name = "juni-desktop"
-version = "6.0.0"
+version = "8.2.0"
 dependencies = [
+ "base64 0.22.1",
  "juni-driver",
  "juni-lsp",
  "serde",

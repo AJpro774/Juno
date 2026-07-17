@@ -17,6 +17,7 @@
 - [Overview](engine/overview.md)
 - [Host intrinsics](engine/intrinsics.md)
 - [`.jscene` scenes](engine/jscene.md)
+- [Entity scripts](engine/scripts.md)
 - [Visual editor](engine/editor.md)
 - [Making a level](engine/level.md)
 
@@ -30,6 +31,7 @@
 - [AI assistant](projects/ai-assistant.md)
 - [Deploy to Netlify](projects/netlify.md)
 - [Export for web](projects/export-web.md)
+- [Visual tutorials](projects/tutorials.md)
 
 # Graphics
 

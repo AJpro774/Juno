@@ -1,5 +1,7 @@
 /** Persist project files to disk (Tauri / File System Access) or download fallback. */
 
+import { projectFromFiles, type ProjectState } from "./project-store.js";
+
 export type WritableProjectRoot = {
   kind: "fsa" | "tauri";
   /** FSA directory handle when kind is fsa */
@@ -24,10 +26,18 @@ function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
 }
 
-async function invokeTauri(cmd: string, args: Record<string, unknown>): Promise<unknown> {
-  const tauri = (window as unknown as { __TAURI__?: { core?: { invoke?: (c: string, a: Record<string, unknown>) => Promise<unknown> } } }).__TAURI__;
-  if (!tauri?.core?.invoke) throw new Error("Tauri invoke unavailable");
-  return tauri.core.invoke(cmd, args);
+async function invokeTauri(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
+  const tauri = (
+    window as unknown as {
+      __TAURI__?: {
+        invoke?: (c: string, a?: Record<string, unknown>) => Promise<unknown>;
+        core?: { invoke?: (c: string, a?: Record<string, unknown>) => Promise<unknown> };
+      };
+    }
+  ).__TAURI__;
+  const invoke = tauri?.core?.invoke ?? tauri?.invoke;
+  if (!invoke) throw new Error("Tauri invoke unavailable");
+  return invoke(cmd, args);
 }
 
 /** Ensure nested directories exist under an FSA root, return the file handle. */
@@ -52,7 +62,6 @@ export async function writeProjectFile(relativePath: string, contents: string): 
     return "disk";
   }
 
-  // Also try legacy save_scene_file for older desktop builds
   if (isTauri()) {
     try {
       await invokeTauri("write_project_file", { relativePath: path, contents });
@@ -97,6 +106,31 @@ export async function tryOpenTauriProject(): Promise<string | null> {
     if (!root) return null;
     writableRoot = { kind: "tauri" };
     return root;
+  } catch {
+    return null;
+  }
+}
+
+/** Open a project via Tauri folder picker + native FS read of all files. */
+export async function openProjectFromTauri(): Promise<ProjectState | null> {
+  const root = await tryOpenTauriProject();
+  if (!root) return null;
+  const filesRaw = (await invokeTauri("load_project_files", {})) as Record<string, string>;
+  const files = new Map<string, string>();
+  for (const [path, content] of Object.entries(filesRaw ?? {})) {
+    files.set(path.replace(/\\/g, "/"), content);
+  }
+  if (!files.has("juni.toml")) {
+    throw new Error("Selected folder must contain juni.toml at the project root.");
+  }
+  const name = root.replace(/\\/g, "/").split("/").filter(Boolean).pop() || "project";
+  return projectFromFiles(name, root, files);
+}
+
+export async function readProjectFileFromTauri(relativePath: string): Promise<string | null> {
+  if (!isTauri() || writableRoot?.kind !== "tauri") return null;
+  try {
+    return (await invokeTauri("read_project_file", { relativePath })) as string;
   } catch {
     return null;
   }

@@ -1,0 +1,31 @@
+{
+  "id": "ai-assistant",
+  "title": "AI assistant",
+  "description": "Enable local WebLLM with Juni-grounded defaults.",
+  "steps": [
+    {
+      "image": "step-1.svg",
+      "caption": "Open the AI panel",
+      "narration": "Click AI in the toolbar. The assistant is off by default and never downloads weights until you opt in. You need WebGPU — Chrome or Edge works best.",
+      "highlight": "ai"
+    },
+    {
+      "image": "step-2.svg",
+      "caption": "Pick the default model",
+      "narration": "Leave Coder 1.5B selected — it is the recommended default for Juni grounding. Use Coder 3B for stronger code help, or Instruct 1.5B for lighter chat. Old 0.5B ids upgrade automatically.",
+      "highlight": "ai"
+    },
+    {
+      "image": "step-3.svg",
+      "caption": "Enable and ask",
+      "narration": "Click Enable and download, wait for Ready, then ask about world_draw3d, colliders, or entity scripts. Docs RAG injects matching Juni API chunks so answers stay on the real host APIs.",
+      "highlight": "ai"
+    },
+    {
+      "image": "step-4.svg",
+      "caption": "Insert and explain",
+      "narration": "Use Insert into editor or Replace selection on fenced Juni replies. After a failed compile, Explain with AI summarizes diagnostics. Prefer juni check as the source of truth.",
+      "highlight": "ai"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-label="Play mode with physics and scripts">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d9efe6"/>
+      <stop offset="55%" stop-color="#f3efe6"/>
+      <stop offset="100%" stop-color="#f0e0c8"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <rect x="0" y="0" width="960" height="56" fill="#f7f3eb" stroke="#1c19151f"/>
+  <text x="20" y="36" font-family="Syne, sans-serif" font-size="28" font-weight="800" fill="#1c1915">Juni</text>
+  <text x="88" y="34" font-family="Syne, sans-serif" font-size="11" font-weight="700" fill="#0f6e56" letter-spacing="2">V8.1</text>
+  <rect x="520" y="12" width="72" height="32" rx="6" fill="#0f6e56"/>
+  <text x="556" y="33" text-anchor="middle" font-family="Syne, sans-serif" font-size="12" font-weight="700" fill="#f7fff9">Play</text>
+  <path d="M556 44 L556 72" stroke="#0f6e56" stroke-width="2"/>
+  <rect x="480" y="72" width="152" height="36" rx="6" fill="#0f6e56"/>
+  <text x="556" y="95" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#f7fff9">4 · Run the step</text>
+  <rect x="12" y="120" width="936" height="280" fill="#12110f" stroke="#1c19151f"/>
+  <text x="32" y="148" font-family="Syne, sans-serif" font-size="10" font-weight="700" fill="#e8e1d48c" letter-spacing="2">GAME VIEW</text>
+  <rect x="80" y="280" width="320" height="28" fill="#3d5a45"/>
+  <rect x="140" y="220" width="36" height="36" fill="#7dcea0"/>
+  <rect x="400" y="250" width="28" height="28" fill="#e8b86d" opacity="0.9"/>
+  <text x="480" y="200" font-family="JetBrains Mono, monospace" font-size="13" fill="#e8e1d473">world_step ’ physics ’ scripts</text>
+  <text x="480" y="228" font-family="JetBrains Mono, monospace" font-size="13" fill="#e8e1d473">collision_count / grounded</text>
+  <rect x="12" y="412" width="936" height="116" fill="#1c1915"/>
+  <text x="32" y="444" font-family="Syne, sans-serif" font-size="10" font-weight="700" fill="#e8e1d48c" letter-spacing="2">CONSOLE</text>
+  <text x="32" y="476" font-family="JetBrains Mono, monospace" font-size="12" fill="#7dcea0">grounded=1  contacts=2  scripts dispatched</text>
+</svg>

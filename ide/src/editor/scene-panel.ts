@@ -26,12 +26,28 @@ export function renderScenePanel(host: HTMLElement, store: SceneStore): void {
     const id = entity.id ?? 0;
     const li = document.createElement("li");
     li.className = "scene-hierarchy-item" + (selected.has(id) ? " is-selected" : "");
-    li.textContent = entity.name ?? `Entity_${id}`;
+    const label = document.createElement("span");
+    label.className = "scene-hierarchy-label";
+    label.textContent = entity.name ?? `Entity_${id}`;
+    li.appendChild(label);
     if (entity.tag) {
       const tag = document.createElement("span");
       tag.className = "scene-tag";
       tag.textContent = entity.tag;
       li.appendChild(tag);
+    }
+    const c = entity.components ?? {};
+    const badges: string[] = [];
+    if (c.mesh3d) badges.push("mesh");
+    if (c.light3d) badges.push("light");
+    if (c.camera3d) badges.push("cam3d");
+    if (c.camera2d) badges.push("cam2d");
+    if (c.sprite) badges.push("sprite");
+    for (const b of badges) {
+      const badge = document.createElement("span");
+      badge.className = "scene-badge";
+      badge.textContent = b;
+      li.appendChild(badge);
     }
     li.addEventListener("click", (e) => {
       store.select(id, e.shiftKey);

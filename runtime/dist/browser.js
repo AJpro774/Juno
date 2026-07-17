@@ -6,10 +6,12 @@ import { createAudioHandlers } from "./audio.js";
 import { attachInputListeners, bindMouse, createInputHandlers } from "./input.js";
 import { createCustomMeshFromData, createScene3dHandlers, ensureGpu, light3dDirectional, light3dPoint, material3dTexture, resetSceneTables, scene3dSetAmbient, scene3dSetFog, syncMeshPose, } from "./scene3d.js";
 import { createEngineImports, resetWorld } from "./engine.js";
+import { bindScriptWasm, resetScriptHost, } from "./scripts.js";
 export function startFrameLoop(instance, options = {}) {
     const frame = instance.exports.frame;
     if (typeof frame !== "function")
         return null;
+    bindScriptWasm(instance.exports);
     let alive = true;
     let last = performance.now();
     const tick = (t) => {
@@ -30,6 +32,7 @@ export function startFrameLoop(instance, options = {}) {
     return {
         stop() {
             alive = false;
+            resetScriptHost();
         },
     };
 }
@@ -62,7 +65,22 @@ export async function instantiateJuni(wasmBytes, options = {}) {
     });
     resetWorld();
     resetSceneTables();
+    resetScriptHost();
     const scene3dHandlers = createScene3dHandlers(gcanvas, memoryRef);
+    // GPU must be ready before materializing authored mesh/camera/light handles.
+    if (options.mode === "webgpu" && gcanvas) {
+        gcanvas.style.display = "block";
+        if (canvas)
+            canvas.style.display = "none";
+        const ok = await ensureGpu(gcanvas);
+        if (!ok)
+            write("WebGPU not available in this browser.");
+    }
+    else if (canvas) {
+        canvas.style.display = "block";
+        if (gcanvas)
+            gcanvas.style.display = "none";
+    }
     const engine = createEngineImports({
         memoryRef,
         assetPack: options.assetPack ?? null,
@@ -71,6 +89,11 @@ export async function instantiateJuni(wasmBytes, options = {}) {
         getAssetText: options.getAssetText ?? ((path) => assetHandlers.getText(path)),
         createCustomMesh: createCustomMeshFromData,
         syncMeshPose,
+        meshBox: (sx, sy, sz) => scene3dHandlers.meshBox?.(sx, sy, sz) ?? 0,
+        cameraPerspective: (fov, aspect, near, far) => scene3dHandlers.cameraPerspective?.(fov, aspect, near, far) ?? 0,
+        cameraOrbit: (cam, tx, ty, tz, yaw, pitch, dist) => scene3dHandlers.cameraOrbit?.(cam, tx, ty, tz, yaw, pitch, dist),
+        materialColor: (r, g, b, a) => scene3dHandlers.materialColor?.(r, g, b, a) ?? 0,
+        meshSetMaterial: (mesh, mat) => scene3dHandlers.meshSetMaterial?.(mesh, mat),
         materialTexture: material3dTexture,
         lightDirectional: light3dDirectional,
         lightPoint: light3dPoint,
@@ -92,25 +115,13 @@ export async function instantiateJuni(wasmBytes, options = {}) {
         engine,
         verbose: options.verbose,
     });
-    if (options.mode === "webgpu" && gcanvas) {
-        gcanvas.style.display = "block";
-        if (canvas)
-            canvas.style.display = "none";
-        const ok = await ensureGpu(gcanvas);
-        if (!ok)
-            write("WebGPU not available in this browser.");
-    }
-    else if (canvas) {
-        canvas.style.display = "block";
-        if (gcanvas)
-            gcanvas.style.display = "none";
-    }
     await assetHandlers.preloadAll();
     const result = await WebAssembly.instantiate(wasmBytes, { env });
     const instance = "instance" in result
         ? result.instance
         : result;
     envMemoryRef.current = instance.exports.memory;
+    bindScriptWasm(instance.exports);
     return instance;
 }
 //# sourceMappingURL=browser.js.map

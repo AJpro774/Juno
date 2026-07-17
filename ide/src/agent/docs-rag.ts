@@ -14,22 +14,61 @@ export const DOC_CHUNKS: DocChunk[] = [
     id: "engine-ecs",
     title: "ECS",
     path: "engine/overview",
-    text: "world_create entity_create transform2d_set sprite_set world_step world_draw scene_load",
-    keywords: ["ecs", "entity", "world", "scene", "sprite", "transform"],
+    text: "world_create entity_create transform2d_set sprite_set world_step world_draw scene_load entity_find_by_tag",
+    keywords: ["ecs", "entity", "world", "scene", "sprite", "transform", "tag"],
   },
   {
     id: "engine-3d",
     title: "3D",
+    path: "graphics/3d",
+    text: "scene3d_init mesh3d_box camera3d_perspective camera3d_orbit world_draw3d mesh_load_gltf scene3d_set_ambient fog light3d_directional light3d_point material3d_color mesh3d_attach transform3d_set",
+    keywords: [
+      "3d",
+      "mesh",
+      "gltf",
+      "webgpu",
+      "light",
+      "ambient",
+      "fog",
+      "draw3d",
+      "camera3d",
+      "orbit",
+    ],
+  },
+  {
+    id: "engine-intrinsics",
+    title: "Host intrinsics",
     path: "engine/intrinsics",
-    text: "scene3d_init mesh3d_box camera3d_perspective world_draw3d mesh_load_gltf scene3d_set_ambient fog",
-    keywords: ["3d", "mesh", "gltf", "webgpu", "light", "ambient", "fog", "draw3d"],
+    text: "print key_down mouse_x canvas_init world_draw3d prefab_spawn camera2d_follow rigidbody2d_set_vel collider2d_set",
+    keywords: ["intrinsic", "api", "host", "builtin", "print", "input"],
   },
   {
     id: "physics",
     title: "Physics",
     path: "projects/physics",
-    text: "rigidbody2d_set_vel grounded collision_count collider2d_set camera2d_follow prefab_spawn triggers",
-    keywords: ["physics", "collision", "rigidbody", "collider", "jump", "grounded", "prefab"],
+    text: "rigidbody2d_set_vel grounded collision_count collider2d_set camera2d_follow prefab_spawn triggers slope",
+    keywords: ["physics", "collision", "rigidbody", "collider", "jump", "grounded", "prefab", "slope"],
+  },
+  {
+    id: "scripts",
+    title: "Entity scripts",
+    path: "engine/scripts",
+    text: "script module handler on_update world_step registerEntityScript WASM export",
+    keywords: ["script", "handler", "on_update", "dispatch", "module"],
+  },
+  {
+    id: "desktop",
+    title: "Desktop IDE",
+    path: "projects/desktop",
+    text: "Tauri desktop Open Project write_project_file lsp_request hover diagnostics completion definition",
+    keywords: ["desktop", "tauri", "lsp", "hover", "diagnostic", "folder"],
+  },
+  {
+    id: "ai-assistant",
+    title: "AI assistant",
+    path: "projects/ai-assistant",
+    text: "WebLLM Qwen2.5-Coder local AI chat autocorrect Explain with AI model picker RAG",
+    keywords: ["ai", "webllm", "qwen", "chat", "model", "assistant"],
   },
   {
     id: "netlify",
@@ -39,26 +78,48 @@ export const DOC_CHUNKS: DocChunk[] = [
     keywords: ["netlify", "deploy", "host", "publish", "export"],
   },
   {
+    id: "assets",
+    title: "Assets",
+    path: "projects/assets",
+    text: "assets.pack.json sprite sheet cols rows fps mesh_load_gltf glTF sprite_draw asset_load_str",
+    keywords: ["asset", "spritesheet", "sheet", "gltf", "pack", "png"],
+  },
+  {
     id: "language",
     title: "Juni language",
     path: "language/syntax",
     text: "fn main frame state i32 f32 indentation modules import export wasm",
-    keywords: ["juni", "syntax", "fn", "state", "type", "module"],
+    keywords: ["juni", "syntax", "fn", "state", "type", "module", "import"],
   },
 ];
 
-export function retrieveDocContext(query: string, k = 3): string {
+const API_ALIASES: Record<string, string[]> = {
+  draw3d: ["world_draw3d", "3d"],
+  world_draw3d: ["draw3d", "mesh", "3d"],
+  gltf: ["mesh_load_gltf", "3d"],
+  spritesheet: ["sprite", "cols", "rows", "fps", "asset"],
+  lsp: ["desktop", "hover", "diagnostic"],
+};
+
+export function retrieveDocContext(query: string, k = 4): string {
   const tokens = query
     .toLowerCase()
     .split(/[^a-z0-9_]+/)
     .filter((t) => t.length > 2);
   if (!tokens.length) return "";
+
+  const expanded = new Set<string>(tokens);
+  for (const t of tokens) {
+    for (const a of API_ALIASES[t] ?? []) expanded.add(a);
+  }
+
   const scored = DOC_CHUNKS.map((chunk) => {
     let score = 0;
-    for (const t of tokens) {
+    for (const t of expanded) {
       if (chunk.keywords.includes(t)) score += 3;
       if (chunk.text.toLowerCase().includes(t)) score += 1;
       if (chunk.title.toLowerCase().includes(t)) score += 2;
+      if (chunk.id.includes(t)) score += 1;
     }
     return { chunk, score };
   })
@@ -67,6 +128,6 @@ export function retrieveDocContext(query: string, k = 3): string {
     .slice(0, k);
   if (!scored.length) return "";
   return scored
-    .map((s) => `[${s.chunk.title}] ${s.chunk.text}`)
+    .map((s) => `[${s.chunk.title} | ${s.chunk.path}] ${s.chunk.text}`)
     .join("\n");
 }

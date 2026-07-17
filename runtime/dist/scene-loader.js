@@ -89,8 +89,8 @@ function applyComponents(e, c, resolveAsset) {
             y: c.camera2d.y ?? 0,
             zoom: c.camera2d.zoom ?? 1,
             active: c.camera2d.active !== false,
-            followTarget: 0,
-            smooth: 1,
+            followTarget: c.camera2d.follow_target ?? 0,
+            smooth: c.camera2d.smooth ?? 1,
         };
     }
     if (c.camera3d) {
@@ -118,6 +118,7 @@ function applyComponents(e, c, resolveAsset) {
             h: c.collider2d.h ?? 32,
             radius: c.collider2d.radius ?? 16,
             solid: c.collider2d.solid !== false,
+            slope: c.collider2d.slope ?? 0,
         };
         e.collider2d = col;
     }
@@ -153,6 +154,13 @@ function applyComponents(e, c, resolveAsset) {
         e.script = {
             module: c.script.module ?? "",
             handler: c.script.handler ?? "on_update",
+        };
+    }
+    if (c.prefab?.path) {
+        e.prefab = {
+            path: c.prefab.path,
+            offsetX: c.prefab.offset?.[0] ?? c.prefab.x ?? 0,
+            offsetY: c.prefab.offset?.[1] ?? c.prefab.y ?? 0,
         };
     }
 }
@@ -194,6 +202,8 @@ export function serializeWorld(world = getWorld()) {
                 y: e.camera2d.y,
                 zoom: e.camera2d.zoom,
                 active: e.camera2d.active,
+                follow_target: e.camera2d.followTarget || undefined,
+                smooth: e.camera2d.smooth,
             };
         }
         if (e.camera3d) {
@@ -215,6 +225,7 @@ export function serializeWorld(world = getWorld()) {
                 h: e.collider2d.h,
                 radius: e.collider2d.radius,
                 solid: e.collider2d.solid,
+                slope: e.collider2d.slope || undefined,
             };
         }
         if (e.tilemap) {
@@ -237,6 +248,12 @@ export function serializeWorld(world = getWorld()) {
         }
         if (e.script) {
             components.script = { module: e.script.module, handler: e.script.handler };
+        }
+        if (e.prefab) {
+            components.prefab = {
+                path: e.prefab.path,
+                offset: [e.prefab.offsetX, e.prefab.offsetY],
+            };
         }
         entities.push({
             id: e.id,
@@ -302,5 +319,69 @@ export function prefabSpawn(scene, ox, oy, options = {}) {
             entitySetTag(e.id, raw.tag, world);
     }
     return firstId;
+}
+/** Returns the active camera3d handle (or 0). */
+export function materializeScene3d(scene, hooks, world = getWorld()) {
+    let activeCam = 0;
+    for (const raw of scene.entities) {
+        const id = raw.id && raw.id > 0 ? raw.id : 0;
+        const e = world.entities.get(id);
+        if (!e)
+            continue;
+        const c = raw.components ?? {};
+        if (c.camera3d) {
+            let cam = c.camera3d.cam ?? 0;
+            if (!cam) {
+                cam = hooks.cameraPerspective(c.camera3d.fov ?? 60, c.camera3d.aspect ?? 1.777, c.camera3d.near ?? 0.1, c.camera3d.far ?? 100);
+                const target = c.camera3d.target ?? [0, 0, 0];
+                hooks.cameraOrbit?.(cam, target[0], target[1], target[2], c.camera3d.orbit_yaw ?? 0.4, c.camera3d.orbit_pitch ?? 0.35, c.camera3d.orbit_distance ?? 6);
+            }
+            e.camera3d = { camHandle: cam, active: c.camera3d.active !== false };
+            if (e.camera3d.active)
+                activeCam = cam;
+        }
+        if (c.light3d) {
+            if (c.light3d.type === "point") {
+                hooks.lightPoint(c.light3d.position?.[0] ?? 0, c.light3d.position?.[1] ?? 0, c.light3d.position?.[2] ?? 0, c.light3d.color?.[0] ?? 1, c.light3d.color?.[1] ?? 1, c.light3d.color?.[2] ?? 1, c.light3d.range ?? 10);
+            }
+            else {
+                hooks.lightDirectional(c.light3d.direction?.[0] ?? 0.35, c.light3d.direction?.[1] ?? -1, c.light3d.direction?.[2] ?? -0.45, c.light3d.color?.[0] ?? 1, c.light3d.color?.[1] ?? 0.95, c.light3d.color?.[2] ?? 0.85);
+            }
+        }
+        if (c.mesh3d) {
+            let mesh = c.mesh3d.mesh ?? 0;
+            if (!mesh && c.mesh3d.gltf && hooks.loadGltf) {
+                mesh = hooks.loadGltf(c.mesh3d.gltf) || 0;
+            }
+            if (!mesh) {
+                const size = c.mesh3d.size ?? [1, 1, 1];
+                mesh = hooks.meshBox(size[0], size[1], size[2]);
+            }
+            if (mesh && c.mesh3d.color && hooks.materialColor && hooks.meshSetMaterial) {
+                const col = c.mesh3d.color;
+                const mat = hooks.materialColor(col[0], col[1], col[2], col[3] ?? 1);
+                hooks.meshSetMaterial(mesh, mat);
+            }
+            e.mesh3d = { meshHandle: mesh };
+            if (!e.transform3d)
+                e.transform3d = defaultTransform3D();
+            if (e.transform3d && hooks.syncMeshPose) {
+                const t = e.transform3d;
+                hooks.syncMeshPose(mesh, t.tx, t.ty, t.tz, t.rx, t.ry, t.rz);
+            }
+        }
+    }
+    return activeCam;
+}
+/** True when a `.jscene` has any 3D components worth WebGPU play. */
+export function sceneHas3d(scene) {
+    for (const e of scene.entities) {
+        const c = e.components;
+        if (!c)
+            continue;
+        if (c.transform3d || c.mesh3d || c.camera3d || c.light3d)
+            return true;
+    }
+    return false;
 }
 //# sourceMappingURL=scene-loader.js.map

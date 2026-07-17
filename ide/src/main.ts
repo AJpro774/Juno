@@ -11,6 +11,7 @@ import {
 } from "./juni-runtime";
 import { DOC_PAGES } from "./docs-index";
 import { CREDITS_MARKDOWN } from "./credits";
+import { wireTutorialPlayer, type TutorialPlayer } from "./tutorials";
 import { renderFileTree } from "./file-tree";
 import {
   buildCompilePayload,
@@ -32,6 +33,7 @@ import { attachSceneView } from "./editor/scene-view";
 import type { AssetPack } from "../../runtime/src/types";
 import { clearWritableRoot, writeProjectFile } from "./project-persist";
 import type { JScene } from "../../runtime/src/scene-loader";
+import { sceneHas3d } from "../../runtime/src/scene-loader";
 import {
   isAiEnabled,
   subscribeAiSettings,
@@ -268,11 +270,25 @@ const docsNav = document.getElementById("docs-nav") as HTMLElement;
 const docsBody = document.getElementById("docs-body") as HTMLElement;
 const sideTitle = document.getElementById("side-panel-title") as HTMLElement;
 const docsToggle = document.getElementById("docs-toggle") as HTMLButtonElement;
+const tutorialsToggle = document.getElementById("tutorials-toggle") as HTMLButtonElement;
 const creditsToggle = document.getElementById("credits-toggle") as HTMLButtonElement;
 const docsClose = document.getElementById("docs-close") as HTMLButtonElement;
+const tutorialsClose = document.getElementById("tutorials-close") as HTMLButtonElement;
+const tutorialsPanel = document.getElementById("tutorials-panel") as HTMLElement;
 const aiToggle = document.getElementById("ai-toggle") as HTMLButtonElement;
 const aiPanel = document.getElementById("ai-panel") as HTMLElement;
 const aiClose = document.getElementById("ai-close") as HTMLButtonElement;
+const tutorialPlayer: TutorialPlayer = wireTutorialPlayer({
+  panel: tutorialsPanel,
+  lessonSelect: document.getElementById("tutorial-lesson") as HTMLSelectElement,
+  image: document.getElementById("tutorial-image") as HTMLImageElement,
+  caption: document.getElementById("tutorial-caption") as HTMLElement,
+  progress: document.getElementById("tutorial-progress") as HTMLElement,
+  prevBtn: document.getElementById("tutorial-prev") as HTMLButtonElement,
+  nextBtn: document.getElementById("tutorial-next") as HTMLButtonElement,
+  speakBtn: document.getElementById("tutorial-speak") as HTMLButtonElement,
+  stopBtn: document.getElementById("tutorial-stop") as HTMLButtonElement,
+});
 const explainErrorsBtn = document.getElementById("explain-errors") as HTMLButtonElement;
 const aiFixModal = document.getElementById("ai-fix-modal") as HTMLElement;
 const aiFixOriginal = document.getElementById("ai-fix-original") as HTMLPreElement;
@@ -297,7 +313,7 @@ const hotReloadChk = document.getElementById("hot-reload") as HTMLInputElement;
 const exportWebBtn = document.getElementById("export-web") as HTMLButtonElement;
 
 let previewMode: PreviewMode = "canvas2d";
-let panelMode: "docs" | "credits" | "ai" | null = null;
+let panelMode: "docs" | "credits" | "ai" | "tutorials" | null = null;
 let activeDocId = DOC_PAGES[0]?.id ?? "intro";
 let frameCtl: FrameController | null = null;
 let runGeneration = 0;
@@ -532,14 +548,18 @@ function markPreviewUsed() {
   previewBody.classList.add("has-frame");
 }
 
-function setPanel(mode: "docs" | "credits" | "ai" | null) {
+function setPanel(mode: "docs" | "credits" | "ai" | "tutorials" | null) {
+  const prev = panelMode;
   panelMode = mode;
   const docsOpen = mode === "docs" || mode === "credits";
   const aiOpen = mode === "ai";
+  const tutorialsOpen = mode === "tutorials";
   workspace.classList.toggle("docs-open", docsOpen);
   workspace.classList.toggle("ai-open", aiOpen);
+  workspace.classList.toggle("tutorials-open", tutorialsOpen);
   docsPanel.setAttribute("aria-hidden", docsOpen ? "false" : "true");
   aiPanel.setAttribute("aria-hidden", aiOpen ? "false" : "true");
+  tutorialsPanel.setAttribute("aria-hidden", tutorialsOpen ? "false" : "true");
   if (mode === "docs") {
     sideTitle.textContent = "Docs";
     docsNav.style.display = "";
@@ -548,6 +568,9 @@ function setPanel(mode: "docs" | "credits" | "ai" | null) {
     sideTitle.textContent = "Credits";
     docsNav.style.display = "none";
     docsBody.innerHTML = marked.parse(CREDITS_MARKDOWN, { async: false }) as string;
+  }
+  if (tutorialsOpen !== (prev === "tutorials")) {
+    tutorialPlayer.setActive(tutorialsOpen);
   }
 }
 
@@ -614,14 +637,19 @@ function setupSidePanel() {
   docsToggle.addEventListener("click", () => {
     setPanel(panelMode === "docs" ? null : "docs");
   });
+  tutorialsToggle.addEventListener("click", () => {
+    setPanel(panelMode === "tutorials" ? null : "tutorials");
+  });
   creditsToggle.addEventListener("click", () => {
     setPanel(panelMode === "credits" ? null : "credits");
   });
   docsClose.addEventListener("click", () => setPanel(null));
+  tutorialsClose.addEventListener("click", () => setPanel(null));
   aiToggle.addEventListener("click", () => {
     setPanel(panelMode === "ai" ? null : "ai");
   });
   aiClose.addEventListener("click", () => setPanel(null));
+  void tutorialPlayer.init();
   explainErrorsBtn.addEventListener("click", () => {
     void explainLastDiagnostics();
   });
@@ -668,6 +696,14 @@ async function openProjectFolderFallback(): Promise<ProjectState | null> {
 
 async function handleOpenProject() {
   try {
+    // Desktop: native folder picker + full project FS load.
+    const { openProjectFromTauri } = await import("./project-persist");
+    const fromTauri = await openProjectFromTauri();
+    if (fromTauri) {
+      loadProject(fromTauri);
+      return;
+    }
+
     let next = await openProjectFromPicker();
     if (!next) {
       const useZip = window.confirm(
@@ -718,6 +754,9 @@ async function main() {
   });
   modePlayBtn.addEventListener("click", () => {
     prePlayScene = sceneStore.cloneScene();
+    if (sceneHas3d(sceneStore.getScene())) {
+      setPreviewMode("webgpu");
+    }
     setEditorMode("play");
     void run();
   });

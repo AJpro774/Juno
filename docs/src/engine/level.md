@@ -20,7 +20,7 @@ Build a playable Juni level with `.jscene`, ECS physics, and a short `frame` loo
 | `collision_count` / `collision_entity_a` / `collision_entity_b` | Poll contacts after `world_step` |
 | `world_step` / `world_draw` | Physics + 2D draw |
 
-Non-solid colliders act as **triggers** (overlap contacts, no resolution).
+Non-solid colliders act as **triggers** (overlap contacts, no resolution). Optional `slope` (degrees) on solid colliders adds a light slide when grounded. Entity **script** handlers run at the end of each `world_step` — see [Entity scripts](scripts.md).
 
 ## Example flow
 

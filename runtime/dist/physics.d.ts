@@ -13,12 +13,15 @@ export type Contact = {
     b: number;
     nx: number;
     ny: number;
+    /** True when at least one collider is non-solid (trigger overlap). */
+    trigger: boolean;
 };
 export declare function clearContacts(): void;
-export declare function pushContact(a: number, b: number, nx: number, ny: number): void;
+export declare function pushContact(a: number, b: number, nx: number, ny: number, trigger?: boolean): void;
 export declare function collisionCount(): number;
 export declare function collisionEntityA(i: number): number;
 export declare function collisionEntityB(i: number): number;
+export declare function collisionIsTrigger(i: number): number;
 export declare function readAabb(memory: WebAssembly.Memory, ptr: number): Aabb;
 export declare function aabbOverlap(a: Aabb, b: Aabb): boolean;
 export declare function aabbResolveX(moving: Aabb, other: Aabb, velX: number): number;

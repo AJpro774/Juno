@@ -4,6 +4,7 @@ import type { MemoryRef } from "./types.js";
 import {
   getWorld,
   setPhysicsHooks,
+  type Collider2D,
   type EntityRecord,
   type World,
 } from "./world.js";
@@ -21,6 +22,8 @@ export type Contact = {
   b: number;
   nx: number;
   ny: number;
+  /** True when at least one collider is non-solid (trigger overlap). */
+  trigger: boolean;
 };
 
 const MAX_CONTACTS = 64;
@@ -30,14 +33,28 @@ export function clearContacts(): void {
   contacts = [];
 }
 
-export function pushContact(a: number, b: number, nx: number, ny: number): void {
+export function pushContact(
+  a: number,
+  b: number,
+  nx: number,
+  ny: number,
+  trigger = false
+): void {
   if (contacts.length >= MAX_CONTACTS) return;
   const lo = Math.min(a, b);
   const hi = Math.max(a, b);
   for (const c of contacts) {
-    if (c.a === lo && c.b === hi) return;
+    if (c.a === lo && c.b === hi) {
+      // Upgrade solid contact normals if a later resolve has better info.
+      if (!trigger && c.trigger) {
+        c.trigger = false;
+        c.nx = nx;
+        c.ny = ny;
+      }
+      return;
+    }
   }
-  contacts.push({ a: lo, b: hi, nx, ny });
+  contacts.push({ a: lo, b: hi, nx, ny, trigger });
 }
 
 export function collisionCount(): number {
@@ -50,6 +67,10 @@ export function collisionEntityA(i: number): number {
 
 export function collisionEntityB(i: number): number {
   return contacts[i | 0]?.b ?? 0;
+}
+
+export function collisionIsTrigger(i: number): number {
+  return contacts[i | 0]?.trigger ? 1 : 0;
 }
 
 export function readAabb(memory: WebAssembly.Memory, ptr: number): Aabb {
@@ -111,6 +132,22 @@ function circleOverlap(
   return dx * dx + dy * dy < rr * rr;
 }
 
+/** Walkable surface: normal points upward enough (ny < -0.35). */
+function isGroundNormal(_nx: number, ny: number): boolean {
+  return ny < -0.35;
+}
+
+function applySlopeSlide(body: NonNullable<EntityRecord["rigidbody2d"]>, slopeDeg: number): void {
+  if (!slopeDeg || !body.grounded) return;
+  const rad = (slopeDeg * Math.PI) / 180;
+  // Slide along the slope (positive slope = rises to the right).
+  const alongX = Math.cos(rad);
+  const alongY = Math.sin(rad);
+  const g = 900 * 0.35;
+  body.vx += alongX * g * (1 / 60);
+  body.vy += alongY * g * (1 / 60);
+}
+
 function recordTriggerOverlaps(moving: EntityRecord, other: EntityRecord): void {
   const mt = moving.transform2d;
   const ot = other.transform2d;
@@ -121,13 +158,24 @@ function recordTriggerOverlaps(moving: EntityRecord, other: EntityRecord): void 
 
   if (mc.kind === "circle" && oc.kind === "circle") {
     if (circleOverlap(mt.x, mt.y, mc.radius, ot.x, ot.y, oc.radius)) {
-      pushContact(moving.id, other.id, 0, 0);
+      pushContact(moving.id, other.id, 0, 0, true);
     }
     return;
   }
   const a = colliderAabb(moving);
   const b = colliderAabb(other);
-  if (a && b && aabbOverlap(a, b)) pushContact(moving.id, other.id, 0, 0);
+  if (a && b && aabbOverlap(a, b)) pushContact(moving.id, other.id, 0, 0, true);
+}
+
+function markGrounded(
+  body: NonNullable<EntityRecord["rigidbody2d"]>,
+  nx: number,
+  ny: number,
+  surface: Collider2D | undefined
+): void {
+  if (!isGroundNormal(nx, ny)) return;
+  body.grounded = true;
+  if (surface?.slope) applySlopeSlide(body, surface.slope);
 }
 
 function resolvePair(moving: EntityRecord, other: EntityRecord): void {
@@ -138,7 +186,7 @@ function resolvePair(moving: EntityRecord, other: EntityRecord): void {
   const oc = other.collider2d;
   if (!body || !mt || !ot || !mc || !oc) return;
 
-  // Triggers: overlap only
+  // Triggers: overlap only (never set grounded, never push)
   if (!oc.solid || !mc.solid) {
     recordTriggerOverlaps(moving, other);
     return;
@@ -159,8 +207,8 @@ function resolvePair(moving: EntityRecord, other: EntityRecord): void {
       body.vx -= vn * nx;
       body.vy -= vn * ny;
     }
-    if (ny < -0.5) body.grounded = true;
-    pushContact(moving.id, other.id, nx, ny);
+    markGrounded(body, nx, ny, oc);
+    pushContact(moving.id, other.id, nx, ny, false);
     return;
   }
 
@@ -173,7 +221,10 @@ function resolvePair(moving: EntityRecord, other: EntityRecord): void {
   let nx = 0;
   let ny = 0;
 
-  if (overlapX < overlapY) {
+  // Prefer Y separation when nearly equal (platformer feel / gentle slopes as stacked AABBs).
+  const preferY = overlapY <= overlapX * 1.05;
+
+  if (!preferY) {
     if (a.x + a.w / 2 < b.x + b.w / 2) {
       mt.x -= overlapX;
       nx = -1;
@@ -185,15 +236,21 @@ function resolvePair(moving: EntityRecord, other: EntityRecord): void {
   } else {
     if (a.y + a.h / 2 < b.y + b.h / 2) {
       mt.y -= overlapY;
-      body.grounded = true;
       ny = -1;
+      // Soften horizontal cancel when landing on a sloped surface.
+      if (oc.slope) {
+        const rad = (oc.slope * Math.PI) / 180;
+        nx = Math.sin(rad);
+        ny = -Math.cos(rad);
+      }
     } else {
       mt.y += overlapY;
       ny = 1;
     }
     body.vy = 0;
   }
-  pushContact(moving.id, other.id, nx, ny);
+  markGrounded(body, nx, ny, oc);
+  pushContact(moving.id, other.id, nx, ny, false);
 }
 
 export function stepWorldPhysics(world: World, dt: number): void {
@@ -227,7 +284,7 @@ export function stepWorldPhysics(world: World, dt: number): void {
     }
   }
 
-  // Static trigger pairs (no rigidbody) — e.g. player already resolved; also scan body vs all triggers
+  // Static trigger pairs (no rigidbody) — body vs all triggers
   for (const e of bodies) {
     for (const other of colliders) {
       if (other.id === e.id) continue;

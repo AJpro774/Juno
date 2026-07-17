@@ -39,6 +39,26 @@ pub struct Location {
     pub end_col: u32,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct HoverInfo {
+    pub contents: String,
+    pub line: u32,
+    pub col: u32,
+    pub end_line: u32,
+    pub end_col: u32,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DiagnosticItem {
+    pub severity: String,
+    pub message: String,
+    pub line: u32,
+    pub col: u32,
+    pub end_line: u32,
+    pub end_col: u32,
+    pub file: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Workspace {
     pub root: PathBuf,
@@ -314,6 +334,131 @@ impl Workspace {
         None
     }
 
+    /// Hover info for the identifier under the cursor (symbol detail / kind).
+    pub fn hover(&self, file: &str, line: u32, col: u32) -> Option<HoverInfo> {
+        let mod_syms = self.module_for_file(file)?;
+        let (ident, span) = identifier_at(&mod_syms.source, line, col)?;
+        let module_name = self.file_to_module.get(file).cloned().unwrap_or_default();
+        let (end_line, end_col) = offset_line_col(&mod_syms.source, span.end);
+
+        let mut contents: Option<String> = None;
+
+        if let Some((module, name)) = ident.split_once('.') {
+            let resolved_module = self
+                .import_maps
+                .get(&module_name)
+                .and_then(|m| m.module_aliases.get(module).cloned())
+                .unwrap_or_else(|| module.to_string());
+            if let Some(target) = self.modules.get(&resolved_module) {
+                if let Some(sym) = target.exports.get(name).or_else(|| target.locals.get(name)) {
+                    contents = Some(format_symbol_hover(sym));
+                }
+            }
+        } else if let Some(sym) = mod_syms.locals.get(&ident) {
+            contents = Some(format_symbol_hover(sym));
+        } else if let Some(imports) = self.import_maps.get(&module_name) {
+            if let Some((target, sym_name)) = imports.from_imports.get(&ident) {
+                if let Some(target_mod) = self.modules.get(target) {
+                    if let Some(sym) = target_mod.exports.get(sym_name) {
+                        contents = Some(format!(
+                            "{}\n(from module `{target}`)",
+                            format_symbol_hover(sym)
+                        ));
+                    }
+                }
+            }
+            if contents.is_none() {
+                if let Some(resolved) = imports.module_aliases.get(&ident) {
+                    contents = Some(format!("module `{resolved}`"));
+                }
+            }
+        }
+
+        if contents.is_none() {
+            for b in builtins() {
+                if *b == ident {
+                    contents = Some(format!("`{ident}` — Juni host intrinsic / builtin"));
+                    break;
+                }
+            }
+        }
+        if contents.is_none() {
+            for k in keywords() {
+                if *k == ident {
+                    contents = Some(format!("keyword `{ident}`"));
+                    break;
+                }
+            }
+        }
+        if contents.is_none() {
+            for t in types() {
+                if *t == ident {
+                    contents = Some(format!("type `{ident}`"));
+                    break;
+                }
+            }
+        }
+
+        let contents = contents?;
+        Some(HoverInfo {
+            contents,
+            line: span.line,
+            col: span.col,
+            end_line,
+            end_col,
+        })
+    }
+
+    /// Parse + type-check diagnostics for a single workspace file.
+    pub fn diagnostics(&self, file: &str) -> Vec<DiagnosticItem> {
+        let Some(mod_syms) = self.module_for_file(file) else {
+            return Vec::new();
+        };
+        let source = &mod_syms.source;
+        match parse(source) {
+            Ok(module) => {
+                let result = juni_check::check(&module);
+                result
+                    .diagnostics
+                    .iter()
+                    .map(|d| {
+                        let json = d.to_json(source);
+                        DiagnosticItem {
+                            severity: json.severity,
+                            message: json.message,
+                            line: json.line,
+                            col: json.col,
+                            end_line: json.end_line,
+                            end_col: json.end_col,
+                            file: file.to_string(),
+                        }
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                let (line, col) = match &e {
+                    juni_syntax::ParseError::Unexpected { line, col, .. } => (*line, *col),
+                    juni_syntax::ParseError::Lex(lex) => match lex {
+                        juni_syntax::LexError::UnexpectedChar(_, l, c)
+                        | juni_syntax::LexError::InvalidNumber(l, c)
+                        | juni_syntax::LexError::UnterminatedString(l, c) => (*l, *c),
+                        juni_syntax::LexError::InconsistentIndent(l) => (*l, 1),
+                    },
+                    juni_syntax::ParseError::Message(_) => (1, 1),
+                };
+                vec![DiagnosticItem {
+                    severity: "error".into(),
+                    message: e.to_string(),
+                    line,
+                    col,
+                    end_line: line,
+                    end_col: col.saturating_add(1),
+                    file: file.to_string(),
+                }]
+            }
+        }
+    }
+
     pub fn update_file(&mut self, file: &str, source: &str) -> Result<(), WorkspaceError> {
         let module = parse(source).map_err(|e| WorkspaceError::Parse {
             file: file.to_string(),
@@ -366,6 +511,41 @@ fn location_from_symbol(file: &str, sym: &Symbol) -> Location {
         end_line: sym.span.line,
         end_col: sym.span.col + sym.name.len() as u32,
     }
+}
+
+fn format_symbol_hover(sym: &Symbol) -> String {
+    let kind = match sym.kind {
+        SymbolKind::Function => "function",
+        SymbolKind::Struct => "struct",
+        SymbolKind::Global => "global",
+        SymbolKind::Local => "local",
+        SymbolKind::Param => "parameter",
+        SymbolKind::Module => "module",
+        SymbolKind::Keyword => "keyword",
+        SymbolKind::Builtin => "builtin",
+    };
+    match &sym.detail {
+        Some(detail) => format!("**{}** (`{kind}`)\n{detail}", sym.name),
+        None => format!("**{}** (`{kind}`)", sym.name),
+    }
+}
+
+fn offset_line_col(source: &str, offset: usize) -> (u32, u32) {
+    let offset = offset.min(source.len());
+    let mut line = 1u32;
+    let mut col = 1u32;
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
 }
 
 fn prefix_at(source: &str, line: u32, col: u32) -> String {

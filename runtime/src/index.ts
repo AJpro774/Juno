@@ -45,6 +45,14 @@ export {
   entityCreate,
   entityDestroy,
 } from "./world.js";
-export { loadSceneIntoWorld, parseScene, serializeWorld, emptyScene } from "./scene-loader.js";
+export { loadSceneIntoWorld, parseScene, serializeWorld, emptyScene, materializeScene3d, sceneHas3d } from "./scene-loader.js";
 export { renderWorld2d, screenToWorld, worldToScreen } from "./render2d.js";
 export { createEngineImports, createEngineStubs } from "./engine.js";
+export {
+  bindScriptWasm,
+  registerScriptHandler,
+  unregisterScriptHandler,
+  clearScriptHandlers,
+  dispatchEntityScripts,
+  resetScriptHost,
+} from "./scripts.js";

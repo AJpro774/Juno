@@ -1,0 +1,31 @@
+{
+  "id": "ship-a-game",
+  "title": "Ship a game",
+  "description": "From empty IDE to a playable web build in four steps.",
+  "steps": [
+    {
+      "image": "step-1.svg",
+      "caption": "Open a project",
+      "narration": "Click Open Project in the toolbar to load a folder with juni.toml, or choose Demo Project for a ready-made starter. Your files appear in the Project pane on the left.",
+      "highlight": "open-project"
+    },
+    {
+      "image": "step-2.svg",
+      "caption": "Edit the scene",
+      "narration": "Stay in Edit mode. Use the Hierarchy to select entities and the Inspector to tweak transforms, sprites, and colliders. Changes show in the Scene preview.",
+      "highlight": "hierarchy"
+    },
+    {
+      "image": "step-3.svg",
+      "caption": "Play your game",
+      "narration": "Switch to Play mode, or press Run, to compile and run. The preview becomes the live game view. Toggle Hot reload if you want saves to recompile while playing.",
+      "highlight": "play"
+    },
+    {
+      "image": "step-4.svg",
+      "caption": "Export for the web",
+      "narration": "When you are happy with the game, click Export Web. Juni downloads a self-contained folder you can upload to itch.io, Netlify, or any static host.",
+      "highlight": "export-web"
+    }
+  ]
+}

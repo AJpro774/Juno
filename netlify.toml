@@ -1,18 +1,28 @@
-# Netlify: works with either a flat repo OR the nested github_upload_batches layout.
+# Netlify: supports flat local repo (`ide/`) and nested GitHub upload
+# (`1_root_crates` / `2_ide_runtime` / `3_docs_examples`).
+# Build detects which layout is present and always publishes `ide/dist`.
 
 [build]
-  # Nested layout (1_root_crates / 2_ide_runtime / 3_docs_examples):
-  command = "cp -f 1_root_crates/CREDITS.md 2_ide_runtime/CREDITS.md && rm -rf 2_ide_runtime/docs && cp -R 3_docs_examples/docs 2_ide_runtime/docs && cd 2_ide_runtime/ide && npm install && npm run build"
-  publish = "2_ide_runtime/ide/dist"
+  # Nested: sync CREDITS + docs into 2_ide_runtime, then build and copy dist → ide/dist.
+  # Flat: build ide/ in place. Optional root sitemap.xml → ide/public (SPA rewrite otherwise hides it).
+  command = "if [ -d 2_ide_runtime/ide ]; then cp -f 1_root_crates/CREDITS.md 2_ide_runtime/CREDITS.md && rm -rf 2_ide_runtime/docs && cp -R 3_docs_examples/docs 2_ide_runtime/docs && (cp -f sitemap.xml 2_ide_runtime/ide/public/sitemap.xml || true) && cd 2_ide_runtime/ide && npm install && npm run build && cd ../.. && mkdir -p ide && rm -rf ide/dist && cp -R 2_ide_runtime/ide/dist ide/dist; else (cp -f sitemap.xml ide/public/sitemap.xml || true) && cd ide && npm install && npm run build; fi"
+  publish = "ide/dist"
 
 [build.environment]
   NODE_VERSION = "20"
   GITHUB_PAGES = "false"
 
+# Static files in publish dir are served first; keep SPA fallback for app routes only.
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Content-Type = "application/xml; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
 
 [[headers]]
   for = "/assets/*"

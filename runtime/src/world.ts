@@ -1,5 +1,7 @@
 /** Host-side ECS world for the Juno game engine. */
 
+import { dispatchEntityScripts } from "./scripts.js";
+
 export type Transform2D = {
   x: number;
   y: number;
@@ -66,6 +68,14 @@ export type Collider2D = {
   h: number;
   radius: number;
   solid: boolean;
+  /** Degrees from horizontal; non-zero enables slope slide when grounded on this surface. */
+  slope: number;
+};
+
+export type PrefabComp = {
+  path: string;
+  offsetX: number;
+  offsetY: number;
 };
 
 export type TilemapComp = {
@@ -111,6 +121,7 @@ export type EntityRecord = {
   tilemap?: TilemapComp;
   light3d?: Light3DComp;
   script?: ScriptRef;
+  prefab?: PrefabComp;
 };
 
 export type World = {
@@ -316,6 +327,7 @@ export function collider2dSet(
     h,
     radius,
     solid: solid !== 0,
+    slope: e.collider2d?.slope ?? 0,
   };
   if (!e.transform2d) e.transform2d = defaultTransform2D();
 }
@@ -381,4 +393,7 @@ export function worldStep(dt: number, world: World = getWorld()): void {
   }
 
   physicsHooks?.syncMeshes?.(world);
+
+  // Entity script handlers (after physics so grounded / contacts are current).
+  dispatchEntityScripts(world, clamped);
 }

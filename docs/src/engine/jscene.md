@@ -17,14 +17,39 @@ Scenes are JSON documents (usually under `scenes/`) that describe entities and c
         "transform2d": { "x": 100, "y": 200, "rotation": 0, "scale": [1, 1], "z_index": 0 },
         "sprite": { "asset": "sprites/player.png", "w": 32, "h": 32 },
         "rigidbody2d": { "vx": 0, "vy": 0, "gravity": 1200 },
-        "collider2d": { "type": "aabb", "w": 28, "h": 28, "solid": true },
-        "camera2d": { "x": 0, "y": 0, "zoom": 1, "active": true },
-        "script": { "module": "player", "handler": "on_update" }
+        "collider2d": { "type": "aabb", "w": 28, "h": 28, "solid": true, "slope": 0 },
+        "camera2d": { "x": 0, "y": 0, "zoom": 1, "active": true, "follow_target": 0, "smooth": 0.12 },
+        "script": { "module": "player", "handler": "on_update" },
+        "prefab": { "path": "prefabs/coin.jscene", "offset": [0, 0] }
       }
     }
   ]
 }
 ```
+
+## Components (2D)
+
+| Component | Fields |
+|-----------|--------|
+| `transform2d` | `x`, `y`, `rotation`, `scale`, `z_index` |
+| `sprite` | `asset` / `tex`, `w`, `h`, `cols`, `rows`, `fps` |
+| `rigidbody2d` | `vx`, `vy`, `ax`, `ay`, `gravity` |
+| `collider2d` | `type` (`aabb`\|`circle`), `w`, `h`, `radius`, `solid`, `slope` (degrees) |
+| `camera2d` | `x`, `y`, `zoom`, `active`, `follow_target`, `smooth` |
+| `tilemap` | `tile_size`, `cols`, `rows`, `tiles`, `tileset` |
+| `script` | `module`, `handler` — see [Entity scripts](scripts.md) |
+| `prefab` | `path`, `offset` — spawn-point authoring; runtime spawn via `prefab_spawn` |
+
+## Components (3D)
+
+| Component | Fields |
+|-----------|--------|
+| `transform3d` | `position`, `rotation`, `scale` (each `[x,y,z]`) |
+| `mesh3d` | `primitive` (`box`\|`gltf`), `size`, `gltf`, `color`, optional `mesh` handle |
+| `camera3d` | `active`, `fov`, `aspect`, `near`, `far`, `orbit_yaw`, `orbit_pitch`, `orbit_distance`, `target` |
+| `light3d` | `type` (`directional`\|`point`), `direction`, `position`, `color`, `range` |
+
+Play mode materializes GPU mesh/camera/light handles and draws with `world_draw3d(cam)` — see [3D](../graphics/3d.md).
 
 ## Loading
 

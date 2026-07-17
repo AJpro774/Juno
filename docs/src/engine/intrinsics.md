@@ -35,11 +35,13 @@ Juni games call these as language builtins (no `import`). They map to WASM `env.
 | `scene_load(path)` | Load `.jscene` |
 | `prefab_spawn(path, x, y)` | Spawn prefab fragment |
 | `tilemap_load` / `tilemap_attach` | Tilemaps |
-| `world_step(dt)` | Physics + animation + camera follow |
+| `world_step(dt)` | Physics + animation + camera follow + entity script dispatch |
 | `world_draw(cam)` | Draw 2D world |
 | `rigidbody2d_set_vel` / `rigidbody2d_get_grounded` | Body control |
 | `collider2d_set(id, kind, w, h, radius, solid)` | kind 0=aabb, 1=circle |
 | `collision_count` / `collision_entity_a` / `collision_entity_b` | Contact poll |
+
+Entity `script` components are dispatched inside `world_step` — see [Entity scripts](scripts.md).
 
 ## 3D (WebGPU)
 

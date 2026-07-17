@@ -7,7 +7,8 @@ export { createEnvImports, createPrintImports, instantiateJuni } from "./env.js"
 export { createAssetHandlers, createAssetStubs } from "./assets.js";
 export { instantiateJuni as instantiateJuniBrowser, startFrameLoop } from "./browser.js";
 export { createWorld, getWorld, resetWorld, worldStep, entityCreate, entityDestroy, } from "./world.js";
-export { loadSceneIntoWorld, parseScene, serializeWorld, emptyScene } from "./scene-loader.js";
+export { loadSceneIntoWorld, parseScene, serializeWorld, emptyScene, materializeScene3d, sceneHas3d } from "./scene-loader.js";
 export { renderWorld2d, screenToWorld, worldToScreen } from "./render2d.js";
 export { createEngineImports, createEngineStubs } from "./engine.js";
+export { bindScriptWasm, registerScriptHandler, unregisterScriptHandler, clearScriptHandlers, dispatchEntityScripts, resetScriptHost, } from "./scripts.js";
 //# sourceMappingURL=index.js.map

@@ -1,0 +1,31 @@
+{
+  "id": "scene-3d",
+  "title": "3D scene slice",
+  "description": "Author mesh, light, and camera; Play uses world_draw3d.",
+  "steps": [
+    {
+      "image": "step-1.svg",
+      "caption": "Add a mesh",
+      "narration": "Create an entity. Enable Transform3D and Mesh3D in the Inspector. Choose box with a size, or glTF and pick an assets path. Optionally set a color tint.",
+      "highlight": "inspector"
+    },
+    {
+      "image": "step-2.svg",
+      "caption": "Light and camera",
+      "narration": "Enable Light3D — directional or point — and Camera3D with orbit yaw, pitch, and distance. Hierarchy badges show mesh, light, and cam3d so you can spot the setup quickly.",
+      "highlight": "hierarchy"
+    },
+    {
+      "image": "step-3.svg",
+      "caption": "Write world_draw3d",
+      "narration": "In main, call scene3d_init and world_create. In frame, call world_step then world_draw3d with your camera handle. Play re-applies the editor scene after world_create and materializes GPU handles.",
+      "highlight": "editor"
+    },
+    {
+      "image": "step-4.svg",
+      "caption": "Play on WebGPU",
+      "narration": "Click Play. Scenes with 3D components auto-switch to WebGPU preview. You should see authored boxes or glTF meshes lit in the scene view. Switch back to Edit to restore the snapshot.",
+      "highlight": "play"
+    }
+  ]
+}

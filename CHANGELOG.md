@@ -2,6 +2,57 @@
 
 All notable changes to Juni are documented here.
 
+## [8.2.0] — 2026-07-17
+
+Desktop IDE, 3D editor slice, and stronger local AI.
+
+### Desktop
+- Tauri: `load_project_files` / `read_project_file` for full project FS open; safer writes
+- LSP: hover + pull diagnostics (beyond completion / goto); Monaco markers on desktop
+- Docs: [Desktop IDE](docs/src/projects/desktop.md)
+
+### 3D editor
+- Inspector / hierarchy for Transform3D, Mesh3D (box|glTF), Light3D, Camera3D
+- Play auto-switches to WebGPU; materializes handles; `world_draw3d` draw path
+- Docs: [3D](docs/src/graphics/3d.md), `.jscene` 3D components
+
+### AI
+- Curated model picker defaults (Coder 1.5B default; legacy 0.5B upgraded)
+- Expanded docs RAG chunks (3D, scripts, desktop, assets, intrinsics)
+- Docs: [AI assistant](docs/src/projects/ai-assistant.md)
+
+### Assets
+- Sprite sheet cols/rows/fps in Inspector
+- Richer glTF load (multi-primitive, NORMAL tint, scene node mesh pick)
+
+### Tutorials
+- **Desktop IDE**, **3D scene slice**, **AI assistant** lesson packs
+
+## [8.1.0] — 2026-07-17
+
+2D editor completion, physics polish, and live entity scripts.
+
+### Editor
+- Inspector: Collider2D (shape/size/solid/slope), Camera2D, Tilemap, Prefab path/offset, Script enable
+- Component fields round-trip through `.jscene` save/load
+
+### Runtime
+- Entity `script` host ABI: dispatch handlers each `world_step` (JS registry or WASM export)
+- Physics: clearer grounded normals, triggers, optional collider `slope` slide
+- Docs: [Entity scripts](docs/src/engine/scripts.md)
+
+### Tutorials
+- Lesson pack **Physics and scripts** under `ide/public/tutorials/physics-scripts/`
+
+## [8.0.0] — TBD
+
+Ship a game + tutorials release (stub; fill on ship).
+
+### Planned
+- Self-contained `export-web` / itch / Netlify game packaging
+- In-IDE visual tutorial player (screenshots + captions + TTS)
+- CREDITS v8: Cursor Grok 4.5 High, Composer 2.5
+
 ## [7.5.0] — 2026-07-15
 
 Editor persistence, gameplay APIs, 3D polish, AI/DX, and Netlify deploy.

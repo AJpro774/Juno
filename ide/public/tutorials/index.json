@@ -1,0 +1,29 @@
+{
+  "lessons": [
+    {
+      "id": "ship-a-game",
+      "title": "Ship a game",
+      "description": "Open a project, edit a scene, play, then export for the web."
+    },
+    {
+      "id": "physics-scripts",
+      "title": "Physics and scripts",
+      "description": "Colliders, grounded/triggers/slopes, and entity script dispatch."
+    },
+    {
+      "id": "desktop-ide",
+      "title": "Desktop IDE",
+      "description": "Open projects natively, save to disk, and use hover + diagnostics LSP."
+    },
+    {
+      "id": "scene-3d",
+      "title": "3D scene slice",
+      "description": "Author mesh, light, and camera — Play draws with world_draw3d."
+    },
+    {
+      "id": "ai-assistant",
+      "title": "AI assistant",
+      "description": "Enable the local model, pick defaults, and ask Juni API questions."
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 /** Engine ECS host imports for WASM env. */
 import { readStr } from "./memory.js";
 import { camera2dFollow, camera2dSet, collider2dSet, createWorld, entityCreate, entityDestroy, entityFindByTag, entitySetTag, getWorld, mesh3dAttach, resetWorld, rigidbody2dGetGrounded, rigidbody2dSetVel, spriteSet, transform2dSet, transform3dSet, worldStep, } from "./world.js";
-import { loadSceneIntoWorld, parseScene, prefabSpawn, } from "./scene-loader.js";
+import { loadSceneIntoWorld, materializeScene3d, parseScene, prefabSpawn, } from "./scene-loader.js";
 import { parseTilemapJson, renderWorld2d, tilemapAttach, tilemapGet } from "./render2d.js";
 import { collisionCount, collisionEntityA, collisionEntityB, ensurePhysicsInstalled, } from "./physics.js";
 import { parseGltfJson } from "./gltf.js";
@@ -29,15 +29,70 @@ export function createEngineImports(options) {
         }
         return text;
     }
+    function materializeHooks() {
+        if (!options.meshBox || !options.cameraPerspective)
+            return null;
+        if (!options.lightDirectional || !options.lightPoint)
+            return null;
+        return {
+            meshBox: options.meshBox,
+            cameraPerspective: options.cameraPerspective,
+            cameraOrbit: options.cameraOrbit,
+            lightDirectional: options.lightDirectional,
+            lightPoint: options.lightPoint,
+            materialColor: options.materialColor,
+            meshSetMaterial: options.meshSetMaterial,
+            loadGltf: (path) => {
+                const text = loadSceneText(path) ?? loadSceneText(`assets/${path}`);
+                if (!text || !options.createCustomMesh)
+                    return 0;
+                const data = parseGltfJson(text, {
+                    getBufferBytes: (uri) => {
+                        const bin = loadSceneText(uri) ?? loadSceneText(`assets/${uri}`);
+                        if (!bin)
+                            return null;
+                        if (bin.startsWith("data:")) {
+                            const idx = bin.indexOf("base64,");
+                            if (idx < 0)
+                                return null;
+                            const raw = atob(bin.slice(idx + 7));
+                            const out = new Uint8Array(raw.length);
+                            for (let i = 0; i < raw.length; i++)
+                                out[i] = raw.charCodeAt(i);
+                            return out.buffer;
+                        }
+                        return null;
+                    },
+                });
+                if (!data)
+                    return 0;
+                return options.createCustomMesh(data.positions, data.indices);
+            },
+            syncMeshPose: options.syncMeshPose,
+        };
+    }
+    let playScene = null;
     if (options.initialScene) {
-        const scene = typeof options.initialScene === "string"
-            ? parseScene(options.initialScene)
-            : options.initialScene;
-        loadSceneIntoWorld(scene, { resolveAsset, reset: true });
+        playScene =
+            typeof options.initialScene === "string"
+                ? parseScene(options.initialScene)
+                : options.initialScene;
+    }
+    function applyScene(scene, reset) {
+        loadSceneIntoWorld(scene, { resolveAsset, reset });
+        const hooks = materializeHooks();
+        if (hooks)
+            materializeScene3d(scene, hooks);
+    }
+    if (playScene) {
+        applyScene(playScene, true);
     }
     return {
         world_create() {
             createWorld();
+            if (playScene) {
+                applyScene(playScene, true);
+            }
             return 1;
         },
         entity_create() {
@@ -96,7 +151,7 @@ export function createEngineImports(options) {
                 return 0;
             try {
                 const scene = parseScene(text);
-                loadSceneIntoWorld(scene, { resolveAsset, reset: true });
+                applyScene(scene, true);
                 const handle = nextSceneHandle++;
                 scenes.set(handle, scene);
                 return handle;

@@ -10,6 +10,11 @@ export type EngineHostOptions = {
     getAssetText?: (path: string) => string | null;
     createCustomMesh?: (positions: Float32Array, indices: Uint16Array) => number;
     syncMeshPose?: (meshHandle: number, tx: number, ty: number, tz: number, rx: number, ry: number, rz: number) => void;
+    meshBox?: (sx: number, sy: number, sz: number) => number;
+    cameraPerspective?: (fov: number, aspect: number, near: number, far: number) => number;
+    cameraOrbit?: (cam: number, tx: number, ty: number, tz: number, yaw: number, pitch: number, dist: number) => void;
+    materialColor?: (r: number, g: number, b: number, a: number) => number;
+    meshSetMaterial?: (mesh: number, mat: number) => void;
     materialTexture?: (assetHandle: number) => number;
     lightDirectional?: (dx: number, dy: number, dz: number, r: number, g: number, b: number) => number;
     lightPoint?: (x: number, y: number, z: number, r: number, g: number, b: number, range: number) => number;
@@ -17,6 +22,7 @@ export type EngineHostOptions = {
     scene3dDraw?: (mesh: number, cam: number) => void;
     scene3dSetAmbient?: (r: number, g: number, b: number) => void;
     scene3dSetFog?: (density: number) => void;
+    /** When set, loaded before `main` and re-applied after `world_create`. */
     initialScene?: JScene | string | null;
 };
 export declare function createEngineImports(options: EngineHostOptions): {

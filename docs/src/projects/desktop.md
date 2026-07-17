@@ -1,6 +1,6 @@
 # Desktop IDE
 
-Juni v6 ships a **Tauri 2** desktop shell around the same Vite + Monaco IDE used in the browser.
+Juni ships a **Tauri 2** desktop shell around the same Vite + Monaco IDE used in the browser. On desktop, project open/save and language services use native filesystem + `juni-lsp` instead of browser Folder Access / WASM completion-lite.
 
 ## Location
 
@@ -22,8 +22,13 @@ cd ../desktop && npm install && npm run dev
 ## Features
 
 - Native **Open Project** via `tauri-plugin-dialog`
-- **LSP client hook** — desktop Monaco talks to `juni-lsp` through Tauri commands (`lsp_request`)
-- Browser fallback uses **completion-lite** from in-browser WASM (`complete_source` / `goto_def_source`)
+- **Reliable project FS** — `load_project_files` / `read_project_file` / `write_project_file` read and write the whole tree (text + common binary assets as data URLs)
+- **Richer LSP** through Tauri `lsp_request`:
+  - `textDocument/completion`
+  - `textDocument/definition`
+  - `textDocument/hover`
+  - `textDocument/diagnostic` (parse + type-check markers in Monaco)
+- Browser fallback still uses **completion-lite** from in-browser WASM (`complete_source` / `goto_def_source`)
 
 ## Build
 
@@ -41,4 +46,4 @@ For external editors, run the stdio server from a project root:
 juni lsp
 ```
 
-The server loads `juni.toml`, indexes `src/`, and provides `textDocument/completion` and `textDocument/definition`.
+The server loads `juni.toml`, indexes `src/`, and provides completion, go-to-definition, **hover**, and **pull diagnostics**.

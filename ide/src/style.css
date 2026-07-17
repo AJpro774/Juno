@@ -661,6 +661,16 @@ select {
   letter-spacing: 0.04em;
 }
 
+.scene-badge {
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  padding: 0.05rem 0.28rem;
+  border-radius: 3px;
+  background: rgba(15, 110, 86, 0.14);
+  color: var(--accent);
+}
+
 .inspector-empty {
   margin: 0.5rem;
   color: var(--muted);
@@ -695,6 +705,11 @@ select {
   margin-bottom: 0.3rem;
   font-size: 0.72rem;
   font-family: var(--font-mono);
+}
+
+.inspector-field-check input[type="checkbox"] {
+  width: auto;
+  justify-self: start;
 }
 
 .inspector-field input,
@@ -776,8 +791,107 @@ select {
   display: grid;
 }
 
-.workspace.ai-open #docs-panel {
+.workspace.ai-open #docs-panel,
+.workspace.ai-open #tutorials-panel {
   display: none;
+}
+
+.workspace.tutorials-open {
+  grid-template-columns: 1fr var(--docs-w);
+}
+
+.workspace.tutorials-open .tutorials-panel {
+  position: relative;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  width: auto;
+  box-shadow: none;
+  display: grid;
+}
+
+.workspace.tutorials-open #docs-panel,
+.workspace.tutorials-open #ai-panel {
+  display: none;
+}
+
+.workspace.docs-open #tutorials-panel,
+.workspace.docs-open #ai-panel {
+  display: none;
+}
+
+.tutorials-panel {
+  grid-template-rows: auto auto 1fr;
+}
+
+.tutorials-controls {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.tutorials-lesson-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tutorials-lesson-label select {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.tutorials-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.tutorial-progress {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-width: 3.2rem;
+  text-align: center;
+}
+
+.tutorial-stage {
+  overflow: auto;
+  padding: 0.75rem 0.85rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.tutorial-image {
+  width: 100%;
+  height: auto;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+  background: #12110f;
+  display: block;
+}
+
+.tutorial-caption {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  color: var(--ink);
 }
 
 .ai-controls {
@@ -1001,12 +1115,14 @@ select {
   }
 
   .workspace.docs-open,
-  .workspace.ai-open {
+  .workspace.ai-open,
+  .workspace.tutorials-open {
     grid-template-columns: 1fr;
   }
 
   .workspace.docs-open .docs-panel,
-  .workspace.ai-open .ai-panel {
+  .workspace.ai-open .ai-panel,
+  .workspace.tutorials-open .tutorials-panel {
     position: absolute;
     width: var(--docs-w);
   }

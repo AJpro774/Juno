@@ -8,6 +8,7 @@ debug-*.log
 *.wasm
 github_upload/
 github_upload_batches/
+itchupload/
 
 # Local Netlify folder
 .netlify

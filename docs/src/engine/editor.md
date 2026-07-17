@@ -2,11 +2,11 @@
 
 The Juni IDE includes an engine editor shell:
 
-- **Hierarchy** — create / delete / select entities
-- **Inspector** — edit name, tag, Transform2D, Sprite, RigidBody2D, Script
+- **Hierarchy** — create / delete / select entities (badges for mesh / light / cam3d / sprite)
+- **Inspector** — name, tag, Transform2D/3D, Sprite (incl. sheet cols/rows/fps), Mesh3D, Light3D, Camera3D, RigidBody2D, Collider2D, Camera2D, Tilemap, Prefab, Script
 - **Asset browser** — drag images onto the scene view to spawn sprites
 - **Scene view** — grid viewport; drag entities to move them (one undo step per drag)
-- **Edit / Play** — Edit mutates `.jscene`; Play snapshots the scene, compiles WASM, and runs `frame`. **Edit** restores the pre-play snapshot.
+- **Edit / Play** — Edit mutates `.jscene`; Play snapshots the scene, compiles WASM, and runs `frame`. Scenes with 3D components auto-switch to WebGPU and materialize meshes for `world_draw3d`. **Edit** restores the pre-play snapshot.
 - **Undo / Redo** — toolbar or ⌘Z / ⌘⇧Z in edit mode (when focus is not in Monaco)
 
 ## Workflow
@@ -16,11 +16,11 @@ The Juni IDE includes an engine editor shell:
 3. Click **Save Scene** — writes to disk when a writable root is available, otherwise downloads the `.jscene`
 4. Press **Play** (or **Run**) to execute Juni against the scene
 5. Optional: enable **Hot reload** to recompile on ⌘S while playing
-6. **Export Web** downloads a static `index.html` + WASM payload for hosting
+6. **Export Web** downloads a self-contained `*-web.zip` (HTML + WASM + `runtime/`) for itch / Netlify
 
 A ● indicator appears beside Save Scene when the scene has unsaved edits.
 
-Script binding fields are stored on entities; game logic typically lives in the entry `frame` using `entity_find_by_tag`.
+Collider / camera / tilemap / prefab / script fields round-trip through Save Scene. Entity **Script** bindings are dispatched each `world_step` — see [Entity scripts](scripts.md). Game input often still lives in entry `frame` with `entity_find_by_tag`.
 
 ## Optional local AI
 

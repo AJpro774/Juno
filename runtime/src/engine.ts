@@ -24,9 +24,11 @@ import {
 } from "./world.js";
 import {
   loadSceneIntoWorld,
+  materializeScene3d,
   parseScene,
   prefabSpawn,
   type JScene,
+  type Scene3dMaterializeHooks,
 } from "./scene-loader.js";
 import { parseTilemapJson, renderWorld2d, tilemapAttach, tilemapGet } from "./render2d.js";
 import {
@@ -53,6 +55,19 @@ export type EngineHostOptions = {
     ry: number,
     rz: number
   ) => void;
+  meshBox?: (sx: number, sy: number, sz: number) => number;
+  cameraPerspective?: (fov: number, aspect: number, near: number, far: number) => number;
+  cameraOrbit?: (
+    cam: number,
+    tx: number,
+    ty: number,
+    tz: number,
+    yaw: number,
+    pitch: number,
+    dist: number
+  ) => void;
+  materialColor?: (r: number, g: number, b: number, a: number) => number;
+  meshSetMaterial?: (mesh: number, mat: number) => void;
   materialTexture?: (assetHandle: number) => number;
   lightDirectional?: (
     dx: number,
@@ -75,6 +90,7 @@ export type EngineHostOptions = {
   scene3dDraw?: (mesh: number, cam: number) => void;
   scene3dSetAmbient?: (r: number, g: number, b: number) => void;
   scene3dSetFog?: (density: number) => void;
+  /** When set, loaded before `main` and re-applied after `world_create`. */
   initialScene?: JScene | string | null;
 };
 
@@ -105,17 +121,66 @@ export function createEngineImports(options: EngineHostOptions) {
     return text;
   }
 
+  function materializeHooks(): Scene3dMaterializeHooks | null {
+    if (!options.meshBox || !options.cameraPerspective) return null;
+    if (!options.lightDirectional || !options.lightPoint) return null;
+    return {
+      meshBox: options.meshBox,
+      cameraPerspective: options.cameraPerspective,
+      cameraOrbit: options.cameraOrbit,
+      lightDirectional: options.lightDirectional,
+      lightPoint: options.lightPoint,
+      materialColor: options.materialColor,
+      meshSetMaterial: options.meshSetMaterial,
+      loadGltf: (path: string) => {
+        const text = loadSceneText(path) ?? loadSceneText(`assets/${path}`);
+        if (!text || !options.createCustomMesh) return 0;
+        const data = parseGltfJson(text, {
+          getBufferBytes: (uri) => {
+            const bin = loadSceneText(uri) ?? loadSceneText(`assets/${uri}`);
+            if (!bin) return null;
+            if (bin.startsWith("data:")) {
+              const idx = bin.indexOf("base64,");
+              if (idx < 0) return null;
+              const raw = atob(bin.slice(idx + 7));
+              const out = new Uint8Array(raw.length);
+              for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+              return out.buffer;
+            }
+            return null;
+          },
+        });
+        if (!data) return 0;
+        return options.createCustomMesh!(data.positions, data.indices);
+      },
+      syncMeshPose: options.syncMeshPose,
+    };
+  }
+
+  let playScene: JScene | null = null;
   if (options.initialScene) {
-    const scene =
+    playScene =
       typeof options.initialScene === "string"
         ? parseScene(options.initialScene)
         : options.initialScene;
-    loadSceneIntoWorld(scene, { resolveAsset, reset: true });
+  }
+
+  function applyScene(scene: JScene, reset: boolean): void {
+    loadSceneIntoWorld(scene, { resolveAsset, reset });
+    const hooks = materializeHooks();
+    if (hooks) materializeScene3d(scene, hooks);
+  }
+
+  if (playScene) {
+    applyScene(playScene, true);
   }
 
   return {
     world_create(): number {
       createWorld();
+      if (playScene) {
+        applyScene(playScene, true);
+      }
       return 1;
     },
     entity_create(): number {
@@ -181,7 +246,7 @@ export function createEngineImports(options: EngineHostOptions) {
       if (!text) return 0;
       try {
         const scene = parseScene(text);
-        loadSceneIntoWorld(scene, { resolveAsset, reset: true });
+        applyScene(scene, true);
         const handle = nextSceneHandle++;
         scenes.set(handle, scene);
         return handle;

@@ -62,6 +62,16 @@ Built with **Cursor** (AI-assisted development) and the open-source toolchain li
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
 
+## v8 — Ship a game + tutorials
+
+- **Author:** Alexander J. Patton
+- **Deliverable:** Self-contained export-web / itch·Netlify packaging, in-IDE visual tutorial player (screenshots + captions + TTS); phased `v8.0.0` / `v8.1.0` / `v8.2.0`
+- **v8.1:** Inspector completeness (collider/camera/tilemap/prefab/script), 2D physics polish (grounded/triggers/slopes), entity script dispatch host ABI, physics+scripts tutorial
+- **v8.2:** Tauri project FS + LSP hover/diagnostics, 3D editor slice (mesh/light/camera + `world_draw3d` Play), AI model defaults / docs RAG, spritesheet + richer glTF, desktop/3D/AI tutorials
+- **Built with:** Cursor
+- **Models used:** Cursor Grok 4.5 High, Composer 2.5
+- **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2, WebLLM
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.

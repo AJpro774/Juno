@@ -4,12 +4,19 @@ Host the **Juni IDE** (or a game export) as a static site on [Netlify](https://w
 
 ## IDE (recommended)
 
-The repo root [`netlify.toml`](../../netlify.toml) builds the IDE:
+The repo root [`netlify.toml`](../../netlify.toml) builds the IDE. It supports **two layouts**:
+
+| Layout | When | Build | Publish |
+|--------|------|-------|---------|
+| **Flat** (local / full clone) | `ide/` at repo root | `cd ide && npm install && npm run build` | `ide/dist` |
+| **Nested** (GitHub upload batches) | `1_root_crates` / `2_ide_runtime` / `3_docs_examples` | Sync CREDITS + docs into `2_ide_runtime`, build that `ide/`, copy dist → `ide/dist` | `ide/dist` |
+
+The build command detects which layout is present and always publishes **`ide/dist`**.
 
 | Setting | Value |
 |---------|--------|
 | Base directory | *(empty)* |
-| Build command | `cd ide && npm ci && npm run build` |
+| Build command | *(see `netlify.toml` — layout-aware)* |
 | Publish directory | `ide/dist` |
 | Asset base path | `/` (default Vite base) |
 
@@ -19,7 +26,7 @@ The repo root [`netlify.toml`](../../netlify.toml) builds the IDE:
 2. Netlify reads `netlify.toml` automatically
 3. Deploy
 
-Or CLI:
+Or CLI (flat layout, from a full local clone):
 
 ```bash
 # from repo root
@@ -37,7 +44,7 @@ Do **not** set `GITHUB_PAGES=true` on Netlify.
 
 ### WASM package
 
-`ide/public/pkg` must contain a current `juni_wasm` build. The Netlify build does **not** run `wasm-pack` (keeps deploys fast). After compiler changes:
+`ide/public/pkg` must contain a current `juni_wasm` build (under nested upload: `2_ide_runtime/ide/public/pkg`). The Netlify build does **not** run `wasm-pack` (keeps deploys fast). After compiler changes:
 
 ```bash
 cd ide && npm run build:wasm
@@ -48,15 +55,15 @@ GitHub Pages CI still runs `build:wasm` on every deploy — see [`.github/workfl
 
 ### SPA redirects
 
-`netlify.toml` includes a `/* → /index.html` rewrite so refreshes on deep paths still serve the IDE shell.
+`netlify.toml` includes a `/* → /index.html` rewrite so refreshes on deep paths still serve the IDE shell. If you add a root `sitemap.xml`, the build copies it into `ide/public` so `/sitemap.xml` is a real static file (not swallowed by the SPA rewrite).
 
 ---
 
 ## Game export on Netlify
 
-1. In the IDE, open a `juni.toml` project → **Export Web** (downloads `index.html`, `play.js`, `game.wasm.json`), **or** run `juni export-web` (writes `dist/web/`).
-2. Copy the Juni runtime next to the export (`runtime/dist` → `./runtime`), or use the CLI export which stages it.
-3. Create a Netlify site with **publish directory** = that folder (no build command), **or** drag-and-drop the folder in the Netlify UI.
+1. In the IDE, open a `juni.toml` project → **Export Web** (downloads a self-contained `*-web.zip` with `runtime/` included), **or** run `juni export-web` (writes `dist/web/` with runtime copied).
+2. Unzip if needed. Create a Netlify site with **publish directory** = that folder (no build command), **or** drag-and-drop the folder in the Netlify UI.
+3. For itch HTML game uploads (not the IDE), see [Export for web](export-web.md).
 
 Minimal `netlify.toml` for a game-only site:
 
@@ -76,5 +83,6 @@ Minimal `netlify.toml` for a game-only site:
 ## Troubleshooting
 
 - **Blank IDE / wrong asset URLs** — confirm `GITHUB_PAGES` is not `true` in Netlify env.
+- **Build can't find `ide/`** — flat clones need root `ide/`; batch uploads need the three `*_` folders so the nested branch of `netlify.toml` can run.
 - **Compile fails in browser** — refresh `ide/public/pkg` with `npm run build:wasm`.
 - **WebGPU / AI** — Chrome/Edge required; Netlify only hosts static files (inference still runs in the visitor’s browser).

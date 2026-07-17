@@ -76,6 +76,15 @@ impl LanguageServer for JuniLanguageServer {
                     ..Default::default()
                 }),
                 definition_provider: Some(OneOf::Left(true)),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
+                diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
+                    DiagnosticOptions {
+                        identifier: Some("juni".into()),
+                        inter_file_dependencies: false,
+                        workspace_diagnostics: false,
+                        ..Default::default()
+                    },
+                )),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -213,6 +222,104 @@ impl LanguageServer for JuniLanguageServer {
                 },
             },
         })))
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let pos = params.text_document_position_params.position;
+        let line = pos.line + 1;
+        let col = pos.character + 1;
+
+        let root = self.root.read().await.clone();
+        let ws_guard = self.workspace.read().await;
+        let ws = match ws_guard.as_ref() {
+            Some(ws) => ws,
+            None => return Ok(None),
+        };
+
+        let rel = root
+            .as_ref()
+            .and_then(|r| Self::url_to_rel_path(r, &uri))
+            .unwrap_or_else(|| uri.path().to_string());
+
+        let Some(h) = ws.hover(&rel, line, col) else {
+            return Ok(None);
+        };
+
+        Ok(Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: h.contents,
+            }),
+            range: Some(Range {
+                start: Position {
+                    line: h.line.saturating_sub(1),
+                    character: h.col.saturating_sub(1),
+                },
+                end: Position {
+                    line: h.end_line.saturating_sub(1),
+                    character: h.end_col.saturating_sub(1),
+                },
+            }),
+        }))
+    }
+
+    async fn diagnostic(
+        &self,
+        params: DocumentDiagnosticParams,
+    ) -> Result<DocumentDiagnosticReportResult> {
+        let uri = params.text_document.uri;
+        let root = self.root.read().await.clone();
+        let ws_guard = self.workspace.read().await;
+        let empty = DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Full(
+            RelatedFullDocumentDiagnosticReport {
+                related_documents: None,
+                full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                    result_id: None,
+                    items: vec![],
+                },
+            },
+        ));
+        let Some(ws) = ws_guard.as_ref() else {
+            return Ok(empty);
+        };
+        let rel = root
+            .as_ref()
+            .and_then(|r| Self::url_to_rel_path(r, &uri))
+            .unwrap_or_else(|| uri.path().to_string());
+        let items: Vec<Diagnostic> = ws
+            .diagnostics(&rel)
+            .into_iter()
+            .map(|d| Diagnostic {
+                range: Range {
+                    start: Position {
+                        line: d.line.saturating_sub(1),
+                        character: d.col.saturating_sub(1),
+                    },
+                    end: Position {
+                        line: d.end_line.saturating_sub(1),
+                        character: d.end_col.saturating_sub(1),
+                    },
+                },
+                severity: Some(if d.severity == "warning" {
+                    DiagnosticSeverity::WARNING
+                } else {
+                    DiagnosticSeverity::ERROR
+                }),
+                message: d.message,
+                source: Some("juni".into()),
+                ..Default::default()
+            })
+            .collect();
+        Ok(DocumentDiagnosticReportResult::Report(
+            DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
+                related_documents: None,
+                full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                    result_id: None,
+                    items,
+                },
+            }),
+        ))
     }
 }
 

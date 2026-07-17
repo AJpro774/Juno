@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-label="Triggers and slope fields">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d9efe6"/>
+      <stop offset="55%" stop-color="#f3efe6"/>
+      <stop offset="100%" stop-color="#f0e0c8"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <rect x="0" y="0" width="960" height="56" fill="#f7f3eb" stroke="#1c19151f"/>
+  <text x="20" y="36" font-family="Syne, sans-serif" font-size="28" font-weight="800" fill="#1c1915">Juni</text>
+  <text x="88" y="34" font-family="Syne, sans-serif" font-size="11" font-weight="700" fill="#0f6e56" letter-spacing="2">V8.1</text>
+  <rect x="12" y="68" width="200" height="460" fill="#f7f3eb" stroke="#1c19151f"/>
+  <text x="24" y="92" font-family="Syne, sans-serif" font-size="10" font-weight="700" fill="#6b645a" letter-spacing="2">HIERARCHY</text>
+  <text x="36" y="128" font-family="JetBrains Mono, monospace" font-size="12" fill="#1c191580">Player</text>
+  <rect x="24" y="148" width="176" height="28" rx="4" fill="#0f6e5622" stroke="#0f6e56"/>
+  <text x="36" y="167" font-family="JetBrains Mono, monospace" font-size="12" fill="#1c1915">Goal</text>
+  <text x="36" y="205" font-family="JetBrains Mono, monospace" font-size="12" fill="#1c191580">Ramp</text>
+  <rect x="220" y="68" width="420" height="460" fill="#faf7f1" stroke="#1c19151f"/>
+  <rect x="280" y="240" width="40" height="40" fill="#c45c26" opacity="0.7"/>
+  <text x="300" y="230" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#c45c26">trigger</text>
+  <polygon points="360,300 520,300 520,260" fill="#1c191540"/>
+  <text x="440" y="320" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#6b645a">slope°</text>
+  <rect x="656" y="68" width="292" height="460" fill="#f7f3eb" stroke="#0f6e56" stroke-width="2"/>
+  <text x="672" y="96" font-family="Syne, sans-serif" font-size="10" font-weight="700" fill="#0f6e56" letter-spacing="2">INSPECTOR</text>
+  <text x="672" y="128" font-family="Syne, sans-serif" font-size="14" font-weight="700" fill="#1c1915">Goal</text>
+  <text x="672" y="168" font-family="Syne, sans-serif" font-size="11" font-weight="700" fill="#6b645a" letter-spacing="1">COLLIDER2D</text>
+  <text x="672" y="196" font-family="JetBrains Mono, monospace" font-size="12" fill="#1c1915">Solid      (trigger)</text>
+  <text x="672" y="232" font-family="Syne, sans-serif" font-size="11" font-weight="700" fill="#6b645a" letter-spacing="1">RAMP</text>
+  <text x="672" y="260" font-family="JetBrains Mono, monospace" font-size="12" fill="#1c1915">Solid    </text>
+  <text x="672" y="286" font-family="JetBrains Mono, monospace" font-size="12" fill="#1c1915">Slope °  18</text>
+  <rect x="700" y="340" width="200" height="36" rx="6" fill="#0f6e56"/>
+  <text x="800" y="363" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#f7fff9">2 · Triggers &amp; slopes</text>
+</svg>

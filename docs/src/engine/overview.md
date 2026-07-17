@@ -33,15 +33,18 @@ fn frame(dt: f32) -> i32:
 | `camera2d_set(id, x, y, zoom)` | Active 2D camera |
 | `scene_load(path)` | Load a `.jscene` into the world |
 | `tilemap_load` / `tilemap_attach` | Tilemap assets |
-| `world_step(dt)` | Physics + sprite animation tick |
+| `world_step(dt)` | Physics + animation + camera follow + entity script dispatch |
 | `world_draw(cam)` | Draw all 2D sprites / tilemaps |
+
+See [Entity scripts](scripts.md) for the host ABI (`module` / `handler` → WASM or JS).
 
 ## 2D systems
 
 - **Camera2D** — pan/zoom via `camera2d_set`; `world_draw` transforms sprites into screen space
 - **Sprites** — textured quads with optional sheet animation (`cols` / `rows` / `fps` on ECS components)
 - **Tilemaps** — JSON grids via `tilemap_load` + `tilemap_attach`
-- **Physics** — `world_step` integrates `rigidbody2d` + resolves `collider2d` (AABB / circle)
+- **Physics** — `world_step` integrates `rigidbody2d` + resolves `collider2d` (AABB / circle; triggers + optional slope)
+- **Scripts** — entity `script` handlers dispatched each `world_step`
 
 ## 3D systems
 
@@ -60,5 +63,6 @@ fn frame(dt: f32) -> i32:
 
 - Full intrinsic table: [intrinsics](intrinsics.md)
 - Scenes: [`.jscene`](jscene.md)
+- Scripts: [entity scripts](scripts.md)
 - Editor: [visual editor](editor.md)
 - Optional IDE AI: [AI assistant](../projects/ai-assistant.md)

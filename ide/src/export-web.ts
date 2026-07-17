@@ -1,8 +1,8 @@
-/** Export a playable static web build (HTML + WASM + assets). */
+/** Export a self-contained playable static web build (ZIP with runtime). */
 
 import type { AssetPack } from "../../runtime/src/types";
 import type { ProjectState } from "./project-store";
-import { downloadTextFile } from "./project-persist";
+import { buildZip, downloadBlob, textToBytes, type ZipEntry } from "./zip-write";
 
 export type ExportWebArgs = {
   project: ProjectState | null;
@@ -10,13 +10,35 @@ export type ExportWebArgs = {
   logLine: (text: string, cls?: string) => void;
 };
 
+/** Built runtime ESM modules (from runtime/dist) — bundled into the IDE for export. */
+const runtimeDistModules = import.meta.glob("../../runtime/dist/*.js", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
+function runtimeZipEntries(): ZipEntry[] {
+  const entries: ZipEntry[] = [];
+  for (const [modPath, source] of Object.entries(runtimeDistModules)) {
+    const base = modPath.split("/").pop();
+    if (!base || !base.endsWith(".js")) continue;
+    entries.push({ path: `runtime/${base}`, data: textToBytes(source) });
+  }
+  if (!entries.some((e) => e.path === "runtime/browser.js")) {
+    throw new Error(
+      "Export runtime missing (runtime/dist/browser.js). Run `cd runtime && npm run build`."
+    );
+  }
+  return entries;
+}
+
 function buildIndexHtml(title: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
     html, body { margin: 0; height: 100%; background: #0e0f12; color: #e8e1d4; font-family: system-ui, sans-serif; }
     #wrap { display: grid; place-items: center; min-height: 100%; padding: 1rem; }
@@ -36,8 +58,12 @@ function buildIndexHtml(title: string): string {
 `;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function buildPlayJs(): string {
-  return `// Minimal Juni web player — loads game.wasm + assets.pack.json
+  return `// Juni web player — self-contained (relative paths for itch / Netlify)
 import { instantiateJuni, startFrameLoop } from "./runtime/browser.js";
 
 const logEl = document.getElementById("log");
@@ -75,20 +101,47 @@ log("Running.");
 `;
 }
 
-/** Trigger downloads for a minimal static export bundle. */
+function buildNetlifyToml(): string {
+  return `[build]
+  publish = "."
+  command = "echo static"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+`;
+}
+
+function safeZipName(name: string): string {
+  const base = (name || "juni-game").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${base || "juni-game"}-web.zip`;
+}
+
+/** Download a self-contained ZIP (index + play + wasm + runtime/). */
 export async function exportProjectWeb(args: ExportWebArgs): Promise<void> {
   if (!args.project) throw new Error("Open a juni.toml project first.");
   args.logLine("Exporting web build…", "meta");
   const { wasmB64, assetPack } = await args.compileProject();
   const title = args.project.name || "Juni Game";
-  downloadTextFile("index.html", buildIndexHtml(title));
-  downloadTextFile("play.js", buildPlayJs());
-  downloadTextFile(
-    "game.wasm.json",
-    JSON.stringify({ wasm: wasmB64, assets: assetPack }, null, 2)
-  );
+  const runtimeEntries = runtimeZipEntries();
+
+  const entries: ZipEntry[] = [
+    { path: "index.html", data: textToBytes(buildIndexHtml(title)) },
+    { path: "play.js", data: textToBytes(buildPlayJs()) },
+    {
+      path: "game.wasm.json",
+      data: textToBytes(JSON.stringify({ wasm: wasmB64, assets: assetPack }, null, 2)),
+    },
+    { path: "netlify.toml", data: textToBytes(buildNetlifyToml()) },
+    ...runtimeEntries,
+  ];
+
+  const zip = await buildZip(entries);
+  const filename = safeZipName(title);
+  downloadBlob(filename, zip);
   args.logLine(
-    "Downloaded index.html, play.js, game.wasm.json. Copy runtime/dist as ./runtime next to them (or use `juni export-web`).",
+    `Downloaded ${filename} (${entries.length} files, runtime included). Upload the ZIP to itch (HTML) or unzip for Netlify.`,
     "meta"
   );
 }

@@ -58,6 +58,13 @@ export type Collider2D = {
     h: number;
     radius: number;
     solid: boolean;
+    /** Degrees from horizontal; non-zero enables slope slide when grounded on this surface. */
+    slope: number;
+};
+export type PrefabComp = {
+    path: string;
+    offsetX: number;
+    offsetY: number;
 };
 export type TilemapComp = {
     tileSize: number;
@@ -99,6 +106,7 @@ export type EntityRecord = {
     tilemap?: TilemapComp;
     light3d?: Light3DComp;
     script?: ScriptRef;
+    prefab?: PrefabComp;
 };
 export type World = {
     entities: Map<number, EntityRecord>;
