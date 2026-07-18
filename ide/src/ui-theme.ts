@@ -11,7 +11,7 @@ export function getUiAppearance(): UiAppearance {
   } catch {
     /* ignore */
   }
-  return "modern";
+  return "classic";
 }
 
 export function setUiAppearance(appearance: UiAppearance): void {

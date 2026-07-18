@@ -7,10 +7,10 @@ All notable changes to Juni are documented here.
 Modern / Classic UI appearance.
 
 ### IDE
-- **Settings** panel with **UI appearance** toggle: Modern (default) or Classic
+- Settings panel with **UI appearance** toggle: Classic (default) or Modern
 - Preference persisted in `localStorage` (`juni.ui.appearance`)
 - Modern: cooler dark chrome (DM Sans), grouped toolbar, Scene-forward workspace order
-- Classic: original warm parchment layout (Syne)
+- Classic: original warm parchment layout (Syne) — default for new visitors
 
 ## [8.2.0] — 2026-07-17
 

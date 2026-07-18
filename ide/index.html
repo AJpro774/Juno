@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-ui="modern">
+<html lang="en" data-ui="classic">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,6 +8,7 @@
       try {
         var u = localStorage.getItem("juni.ui.appearance");
         if (u === "classic" || u === "modern") document.documentElement.dataset.ui = u;
+        else document.documentElement.dataset.ui = "classic";
       } catch (e) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,7 +19,7 @@
     />
   </head>
   <body>
-    <div id="app" data-ui="modern">
+    <div id="app" data-ui="classic">
       <header class="top">
         <div class="brand">
           <span class="brand-mark">Juni</span>
@@ -182,13 +183,13 @@
           <div class="settings-body">
             <h3 class="settings-heading">Appearance</h3>
             <p class="settings-blurb">
-              Modern rearranges the workspace and uses a cooler chrome. Classic keeps the original warm layout.
+              Modern rearranges the workspace and uses a cooler chrome. Classic (default) keeps the original warm layout.
             </p>
             <label class="settings-field">
               UI appearance
               <select id="ui-appearance" aria-label="UI appearance">
-                <option value="modern">Modern (default)</option>
-                <option value="classic">Classic</option>
+                <option value="classic" selected>Classic (default)</option>
+                <option value="modern">Modern</option>
               </select>
             </label>
           </div>
