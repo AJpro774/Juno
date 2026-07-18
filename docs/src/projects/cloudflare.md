@@ -26,7 +26,8 @@ npx wrangler deploy
 
 ## SPA / download hub
 
-[`ide/public/_redirects`](../../ide/public/_redirects) is copied into `ide/dist` by Vite. Workers also use `assets.not_found_handling = "single-page-application"` in `wrangler.toml`.
+SPA fallback is set in `wrangler.toml` via `assets.not_found_handling = "single-page-application"`.  
+[`ide/public/_redirects`](../../ide/public/_redirects) only handles `/download` (do **not** add a `/* → /index.html` rule — Workers rejects it as an infinite loop).
 
 ## Alongside Netlify
 

@@ -1,4 +1,4 @@
-# Cloudflare / static hosts: keep download hub as real files; SPA fallback elsewhere.
+# Keep download hub as real files. SPA fallback is handled by wrangler.toml
+# assets.not_found_handling = "single-page-application" (do not add /* → index.html here).
 /download    /download/   301
 /download/*  /download/:splat   200
-/*    /index.html   200
