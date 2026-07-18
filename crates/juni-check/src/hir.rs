@@ -581,6 +581,22 @@ pub enum HirExpr {
         radius: Box<HirExpr>,
         solid: Box<HirExpr>,
     },
+    Rigidbody3dSetVel {
+        id: Box<HirExpr>,
+        vx: Box<HirExpr>,
+        vy: Box<HirExpr>,
+        vz: Box<HirExpr>,
+    },
+    Rigidbody3dGetGrounded(Box<HirExpr>),
+    Collider3dSet {
+        id: Box<HirExpr>,
+        kind: Box<HirExpr>,
+        w: Box<HirExpr>,
+        h: Box<HirExpr>,
+        d: Box<HirExpr>,
+        solid: Box<HirExpr>,
+    },
+    Transform3dSyncFrom2d(Box<HirExpr>),
     Camera2dFollow {
         cam: Box<HirExpr>,
         target: Box<HirExpr>,
@@ -598,6 +614,11 @@ pub enum HirExpr {
         b: Box<HirExpr>,
     },
     Scene3dSetFog(Box<HirExpr>),
+    AnimPlay {
+        id: Box<HirExpr>,
+        clip: Box<HirExpr>,
+    },
+    AnimStop(Box<HirExpr>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

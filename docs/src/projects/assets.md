@@ -27,6 +27,8 @@ On a Sprite component (Inspector or `.jscene`):
 
 The 2D renderer samples `frame = floor(time * fps)` across `cols * rows` cells.
 
+For **named clips** (frame lists / discrete keys) and `anim_play` / `anim_stop`, see [Animation](../engine/animation.md). The IDE **Anim** panel writes `assets/anims/*.json` and attaches a `sprite_animator` component.
+
 ## glTF / GLB
 
 `mesh_load_gltf(path)` and Mesh3D authoring (`primitive: "gltf"`) accept:

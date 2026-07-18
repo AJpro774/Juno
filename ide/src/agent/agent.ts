@@ -19,8 +19,10 @@ import {
   type ChatMessage,
 } from "./prompts";
 import {
+  cancelPending,
   completeChat,
   ensureEngine,
+  isEngineBusy,
   isEngineReady,
   unloadEngine,
   type LoadProgress,
@@ -35,8 +37,10 @@ export {
   subscribeAiSettings,
   hasWebGpu,
   isEngineReady,
+  isEngineBusy,
 };
 export { stripCodeFences, hasCodeFence } from "./prompts";
+export { cancelPending, unloadEngine };
 
 export type DiagLike = {
   severity?: string;

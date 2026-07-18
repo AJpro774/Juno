@@ -3,9 +3,11 @@
 The Juni IDE includes an engine editor shell:
 
 - **Hierarchy** — create / delete / select entities (badges for mesh / light / cam3d / sprite)
-- **Inspector** — name, tag, Transform2D/3D, Sprite (incl. sheet cols/rows/fps), Mesh3D, Light3D, Camera3D, RigidBody2D, Collider2D, Camera2D, Tilemap, Prefab, Script
+- **Inspector** — name, tag, Transform2D/3D, Sprite (incl. sheet cols/rows/fps), SpriteAnimator, Mesh3D, Light3D, Camera3D, RigidBody2D, Collider2D, Camera2D, Tilemap, Prefab, Script
+- **Anim panel** — sprite-sheet / keyframe clips → `assets/anims/*.json` + entity `sprite_animator` (not skeletal)
 - **Asset browser** — drag images onto the scene view to spawn sprites
 - **Scene view** — grid viewport; drag sprites to move them; **tilemap paint** (click = brush, Alt/right-click = erase, ⌘/Ctrl-drag = move); one undo step per gesture
+- **Code Search** — query + token category filters across project `.juni` files; jump results in Monaco
 - **Edit / Play** — Edit mutates `.jscene`; Play snapshots the scene, compiles WASM, and runs `frame`. Scenes with 3D components auto-switch to WebGPU and materialize meshes for `world_draw3d`. **Edit** restores the pre-play snapshot.
 - **Undo / Redo** — toolbar or ⌘Z / ⌘⇧Z in edit mode (when focus is not in Monaco)
 

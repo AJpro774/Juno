@@ -39,7 +39,10 @@ use wasm_encoder::{
 /// 100 scene3d_set_ambient 101 scene3d_set_fog
 /// 102 audio_stop 103 audio_set_bus_volume
 /// 104 collision_is_trigger
-const IMPORT_COUNT: u32 = 105;
+/// 105 rigidbody3d_set_vel 106 rigidbody3d_get_grounded 107 collider3d_set
+/// 108 transform3d_sync_from_2d
+/// 109 anim_play 110 anim_stop
+const IMPORT_COUNT: u32 = 111;
 
 /// Emit a single-module program (backward compatible).
 pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
@@ -246,6 +249,10 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
         ],
         &[],
     );
+    let t_i_3f_void = add_fn(
+        &[ValType::I32, ValType::F32, ValType::F32, ValType::F32],
+        &[],
+    );
     let t_3f_void = add_fn(&[ValType::F32, ValType::F32, ValType::F32], &[]);
 
     let mut func_type_indices = Vec::new();
@@ -366,6 +373,12 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
     imports.import("env", "audio_stop", EntityType::Function(t_i32_void));
     imports.import("env", "audio_set_bus_volume", EntityType::Function(t_f32_void));
     imports.import("env", "collision_is_trigger", EntityType::Function(t_i32_i32));
+    imports.import("env", "rigidbody3d_set_vel", EntityType::Function(t_i_3f_void));
+    imports.import("env", "rigidbody3d_get_grounded", EntityType::Function(t_i32_i32));
+    imports.import("env", "collider3d_set", EntityType::Function(t_collider_set));
+    imports.import("env", "transform3d_sync_from_2d", EntityType::Function(t_i32_void));
+    imports.import("env", "anim_play", EntityType::Function(t_2i_i32));
+    imports.import("env", "anim_stop", EntityType::Function(t_i32_void));
     module.section(&imports);
 
     let mut functions = FunctionSection::new();
@@ -471,10 +484,14 @@ fn is_void_expr(expr: &HirExpr) -> bool {
             | HirExpr::AudioSetBusVolume(_)
             | HirExpr::Rigidbody2dSetVel { .. }
             | HirExpr::Collider2dSet { .. }
+            | HirExpr::Rigidbody3dSetVel { .. }
+            | HirExpr::Collider3dSet { .. }
+            | HirExpr::Transform3dSyncFrom2d(_)
             | HirExpr::Camera2dFollow { .. }
             | HirExpr::WorldDraw3d(_)
             | HirExpr::Scene3dSetAmbient { .. }
             | HirExpr::Scene3dSetFog(_)
+            | HirExpr::AnimStop(_)
     )
 }
 
@@ -1570,6 +1587,37 @@ impl<'a> EmitCtx<'a> {
                 self.emit_expr(f, solid);
                 f.instruction(&Instruction::Call(96));
             }
+            HirExpr::Rigidbody3dSetVel { id, vx, vy, vz } => {
+                self.emit_expr(f, id);
+                as_f32_expr(f, vx, self);
+                as_f32_expr(f, vy, self);
+                as_f32_expr(f, vz, self);
+                f.instruction(&Instruction::Call(105));
+            }
+            HirExpr::Rigidbody3dGetGrounded(id) => {
+                self.emit_expr(f, id);
+                f.instruction(&Instruction::Call(106));
+            }
+            HirExpr::Collider3dSet {
+                id,
+                kind,
+                w,
+                h,
+                d,
+                solid,
+            } => {
+                self.emit_expr(f, id);
+                self.emit_expr(f, kind);
+                as_f32_expr(f, w, self);
+                as_f32_expr(f, h, self);
+                as_f32_expr(f, d, self);
+                self.emit_expr(f, solid);
+                f.instruction(&Instruction::Call(107));
+            }
+            HirExpr::Transform3dSyncFrom2d(id) => {
+                self.emit_expr(f, id);
+                f.instruction(&Instruction::Call(108));
+            }
             HirExpr::Camera2dFollow { cam, target, smooth } => {
                 self.emit_expr(f, cam);
                 self.emit_expr(f, target);
@@ -1595,6 +1643,15 @@ impl<'a> EmitCtx<'a> {
             HirExpr::Scene3dSetFog(d) => {
                 as_f32_expr(f, d, self);
                 f.instruction(&Instruction::Call(101));
+            }
+            HirExpr::AnimPlay { id, clip } => {
+                self.emit_expr(f, id);
+                self.emit_expr(f, clip);
+                f.instruction(&Instruction::Call(109));
+            }
+            HirExpr::AnimStop(id) => {
+                self.emit_expr(f, id);
+                f.instruction(&Instruction::Call(110));
             }
         }
     }
@@ -1770,7 +1827,9 @@ fn expr_ty(expr: &HirExpr) -> Type {
         | HirExpr::CollisionEntityB(_)
         | HirExpr::CollisionIsTrigger(_)
         | HirExpr::Rigidbody2dGetGrounded(_)
-        | HirExpr::PrefabSpawn { .. } => Type::Builtin(Builtin::I32),
+        | HirExpr::Rigidbody3dGetGrounded(_)
+        | HirExpr::PrefabSpawn { .. }
+        | HirExpr::AnimPlay { .. } => Type::Builtin(Builtin::I32),
         HirExpr::AabbOverlap { .. } => Type::Builtin(Builtin::Bool),
         HirExpr::AabbResolveX { .. } | HirExpr::AabbResolveY { .. } | HirExpr::GamepadAxis { .. } => {
             Type::Builtin(Builtin::F32)

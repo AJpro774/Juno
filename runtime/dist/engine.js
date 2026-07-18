@@ -1,6 +1,6 @@
 /** Engine ECS host imports for WASM env. */
 import { readStr } from "./memory.js";
-import { camera2dFollow, camera2dSet, collider2dSet, createWorld, entityCreate, entityDestroy, entityFindByTag, entitySetTag, getWorld, mesh3dAttach, resetWorld, rigidbody2dGetGrounded, rigidbody2dSetVel, spriteSet, transform2dSet, transform3dSet, worldStep, } from "./world.js";
+import { camera2dFollow, camera2dSet, collider2dSet, collider3dSet, createWorld, entityCreate, entityDestroy, entityFindByTag, entitySetTag, getWorld, mesh3dAttach, resetWorld, rigidbody2dGetGrounded, rigidbody2dSetVel, rigidbody3dGetGrounded, rigidbody3dSetVel, spriteSet, transform2dSet, transform3dSet, transform3dSyncFrom2d, animPlay, animStop, worldStep, } from "./world.js";
 import { loadSceneIntoWorld, materializeScene3d, parseScene, prefabSpawn, } from "./scene-loader.js";
 import { parseTilemapJson, renderWorld2d, tilemapAttach, tilemapGet } from "./render2d.js";
 import { collisionCount, collisionEntityA, collisionEntityB, collisionIsTrigger, ensurePhysicsInstalled, } from "./physics.js";
@@ -130,7 +130,11 @@ export function createEngineImports(options) {
                 : options.initialScene;
     }
     function applyScene(scene, reset) {
-        loadSceneIntoWorld(scene, { resolveAsset, reset });
+        loadSceneIntoWorld(scene, {
+            resolveAsset,
+            getAssetText: (path) => loadSceneText(path),
+            reset,
+        });
         const hooks = materializeHooks();
         if (hooks)
             materializeScene3d(scene, hooks);
@@ -283,6 +287,18 @@ export function createEngineImports(options) {
         collider2d_set(id, kind, w, h, radius, solid) {
             collider2dSet(id, kind, w, h, radius, solid);
         },
+        rigidbody3d_set_vel(id, vx, vy, vz) {
+            rigidbody3dSetVel(id, vx, vy, vz);
+        },
+        rigidbody3d_get_grounded(id) {
+            return rigidbody3dGetGrounded(id);
+        },
+        collider3d_set(id, kind, w, h, d, solid) {
+            collider3dSet(id, kind, w, h, d, solid);
+        },
+        transform3d_sync_from_2d(id) {
+            transform3dSyncFrom2d(id);
+        },
         camera2d_follow(cam, target, smooth) {
             camera2dFollow(cam, target, smooth);
         },
@@ -295,11 +311,23 @@ export function createEngineImports(options) {
             if (!text)
                 return 0;
             try {
-                return prefabSpawn(parseScene(text), x, y, { resolveAsset });
+                return prefabSpawn(parseScene(text), x, y, {
+                    resolveAsset,
+                    getAssetText: (p) => loadSceneText(p),
+                });
             }
             catch {
                 return 0;
             }
+        },
+        anim_play(id, clipPtr) {
+            const memory = memoryRef.current;
+            if (!memory)
+                return 0;
+            return animPlay(id, readStr(memory, clipPtr));
+        },
+        anim_stop(id) {
+            animStop(id);
         },
         world_draw3d(cam) {
             const world = getWorld();
@@ -350,8 +378,14 @@ export function createEngineStubs() {
         rigidbody2d_set_vel: () => { },
         rigidbody2d_get_grounded: () => 0,
         collider2d_set: () => { },
+        rigidbody3d_set_vel: () => { },
+        rigidbody3d_get_grounded: () => 0,
+        collider3d_set: () => { },
+        transform3d_sync_from_2d: () => { },
         camera2d_follow: () => { },
         prefab_spawn: () => 0,
+        anim_play: () => 0,
+        anim_stop: () => { },
         world_draw3d: () => { },
         scene3d_set_ambient: () => { },
         scene3d_set_fog: () => { },

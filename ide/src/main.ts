@@ -2,7 +2,9 @@ import "./style.css";
 import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { marked } from "marked";
-import { registerJuniLanguage, JUNI_LANGUAGE_ID } from "./juni-lang";
+import { registerJuniLanguage, JUNI_LANGUAGE_ID, applyJuniEditorTheme } from "./juni-lang";
+import { wireCodeSearchPanel } from "./code-search";
+import { wireAnimEditorPanel } from "./anim-editor";
 import {
   instantiateJuni,
   startFrameLoop,
@@ -22,7 +24,7 @@ import { wireTutorialPlayer, type TutorialPlayer } from "./tutorials";
 import { renderFileTree } from "./file-tree";
 import {
   buildCompilePayload,
-  createDemoProject,
+  createPlatformer3dDemoProject,
   isProjectMode,
   openProjectFromFileInput,
   openProjectFromPicker,
@@ -54,7 +56,11 @@ import {
   wireAiPanelDom,
 } from "./agent/ui";
 import { setupAiAutocorrect } from "./agent/autocorrect";
-import { wireUiAppearanceSettings } from "./ui-theme";
+import {
+  getUiAppearance,
+  onUiAppearanceChange,
+  wireUiAppearanceSettings,
+} from "./ui-theme";
 import { onCleanCompileSuccess, wireCatCoffeePanel } from "./cat-coffee";
 import init, {
   compile,
@@ -287,11 +293,17 @@ const docsNav = document.getElementById("docs-nav") as HTMLElement;
 const docsBody = document.getElementById("docs-body") as HTMLElement;
 const sideTitle = document.getElementById("side-panel-title") as HTMLElement;
 const docsToggle = document.getElementById("docs-toggle") as HTMLButtonElement;
+const searchToggle = document.getElementById("search-toggle") as HTMLButtonElement;
+const animToggle = document.getElementById("anim-toggle") as HTMLButtonElement;
 const tutorialsToggle = document.getElementById("tutorials-toggle") as HTMLButtonElement;
 const creditsToggle = document.getElementById("credits-toggle") as HTMLButtonElement;
 const docsClose = document.getElementById("docs-close") as HTMLButtonElement;
+const searchClose = document.getElementById("search-close") as HTMLButtonElement;
+const animClose = document.getElementById("anim-close") as HTMLButtonElement;
 const tutorialsClose = document.getElementById("tutorials-close") as HTMLButtonElement;
 const tutorialsPanel = document.getElementById("tutorials-panel") as HTMLElement;
+const searchPanel = document.getElementById("search-panel") as HTMLElement;
+const animPanel = document.getElementById("anim-panel") as HTMLElement;
 const aiToggle = document.getElementById("ai-toggle") as HTMLButtonElement;
 const aiPanel = document.getElementById("ai-panel") as HTMLElement;
 const aiClose = document.getElementById("ai-close") as HTMLButtonElement;
@@ -348,6 +360,8 @@ let panelMode:
   | "tutorials"
   | "settings"
   | "cat-coffee"
+  | "search"
+  | "anim"
   | null = null;
 let activeDocId = DOC_PAGES[0]?.id ?? "intro";
 let frameCtl: FrameController | null = null;
@@ -362,6 +376,8 @@ let lastDiagnostics: DiagLike[] = [];
 let pendingFixApply: (() => void) | null = null;
 let prePlayScene: JScene | null = null;
 let hotReloadEnabled = false;
+let codeSearchCtl: ReturnType<typeof wireCodeSearchPanel> | null = null;
+let animEditorCtl: ReturnType<typeof wireAnimEditorPanel> | null = null;
 
 function getSceneAssetText(path: string): string | null {
   if (!project) return null;
@@ -769,6 +785,8 @@ function setPanel(
     | "tutorials"
     | "settings"
     | "cat-coffee"
+    | "search"
+    | "anim"
     | null,
 ) {
   const prev = panelMode;
@@ -779,16 +797,22 @@ function setPanel(
   const tutorialsOpen = mode === "tutorials";
   const settingsOpen = mode === "settings";
   const catCoffeeOpen = mode === "cat-coffee";
+  const searchOpen = mode === "search";
+  const animOpen = mode === "anim";
   workspace.classList.toggle("docs-open", docsOpen);
   workspace.classList.toggle("ai-open", aiOpen);
   workspace.classList.toggle("tutorials-open", tutorialsOpen);
   workspace.classList.toggle("settings-open", settingsOpen);
   workspace.classList.toggle("cat-coffee-open", catCoffeeOpen);
+  workspace.classList.toggle("search-open", searchOpen);
+  workspace.classList.toggle("anim-open", animOpen);
   docsPanel.setAttribute("aria-hidden", docsOpen ? "false" : "true");
   aiPanel.setAttribute("aria-hidden", aiOpen ? "false" : "true");
   tutorialsPanel.setAttribute("aria-hidden", tutorialsOpen ? "false" : "true");
   settingsPanel.setAttribute("aria-hidden", settingsOpen ? "false" : "true");
   catCoffeePanel.setAttribute("aria-hidden", catCoffeeOpen ? "false" : "true");
+  searchPanel.setAttribute("aria-hidden", searchOpen ? "false" : "true");
+  animPanel.setAttribute("aria-hidden", animOpen ? "false" : "true");
   if (mode === "docs") {
     sideTitle.textContent = "Docs";
     docsNav.style.display = "";
@@ -808,6 +832,10 @@ function setPanel(
     docsBody.innerHTML = marked.parse(EULA_MARKDOWN, { async: false }) as string;
   } else if (mode === "cat-coffee") {
     wireCatCoffeePanel();
+  } else if (mode === "search") {
+    codeSearchCtl?.setOpen(true);
+  } else if (mode === "anim") {
+    animEditorCtl?.setOpen(true);
   }
   if (tutorialsOpen !== (prev === "tutorials")) {
     tutorialPlayer.setActive(tutorialsOpen);
@@ -867,10 +895,34 @@ function currentSource(): string {
   return tabEditor?.getModel(path)?.getValue() ?? "";
 }
 
+function truncateForAi(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max) + "\n…(truncated)";
+}
+
+function currentSelectionText(): string {
+  const ed = tabEditor?.editor;
+  if (!ed) return "";
+  const sel = ed.getSelection();
+  if (!sel || sel.isEmpty()) return "";
+  return ed.getModel()?.getValueInRange(sel) ?? "";
+}
+
+/** Project-aware chat context: open file path + contents + diagnostics + selection. */
 function currentExtraContext(): string {
   const path = tabEditor?.getActivePath() ?? SCRATCH_FILE;
+  const source = tabEditor?.getModel(path)?.getValue() ?? "";
   const diags = formatDiagnosticsBrief(lastDiagnostics);
-  return `Active file: ${path}\nLast diagnostics:\n${diags || "(none)"}`;
+  const selection = currentSelectionText();
+  const parts = [
+    `Active file: ${path}`,
+    `Diagnostics:\n${diags || "(none)"}`,
+  ];
+  if (selection.trim()) {
+    parts.push("Selected code:\n```juni\n" + truncateForAi(selection, 1200) + "\n```");
+  }
+  parts.push("Open file:\n```juni\n" + truncateForAi(source, 2500) + "\n```");
+  return parts.join("\n\n");
 }
 
 function formatDiagnosticsBrief(diags: DiagLike[]): string {
@@ -913,6 +965,12 @@ function setupSidePanel() {
   docsToggle.addEventListener("click", () => {
     setPanel(panelMode === "docs" ? null : "docs");
   });
+  searchToggle.addEventListener("click", () => {
+    setPanel(panelMode === "search" ? null : "search");
+  });
+  animToggle?.addEventListener("click", () => {
+    setPanel(panelMode === "anim" ? null : "anim");
+  });
   tutorialsToggle.addEventListener("click", () => {
     setPanel(panelMode === "tutorials" ? null : "tutorials");
   });
@@ -920,6 +978,8 @@ function setupSidePanel() {
     setPanel(panelMode === "credits" ? null : "credits");
   });
   docsClose.addEventListener("click", () => setPanel(null));
+  searchClose.addEventListener("click", () => setPanel(null));
+  animClose?.addEventListener("click", () => setPanel(null));
   tutorialsClose.addEventListener("click", () => setPanel(null));
   aiToggle.addEventListener("click", () => {
     setPanel(panelMode === "ai" ? null : "ai");
@@ -1054,6 +1114,7 @@ async function main() {
   sceneStore.subscribe(() => {
     refreshEnginePanels();
     updateSceneDirtyUi();
+    animEditorCtl?.refresh();
     if (getEditorMode() !== "edit") return;
     const has3d = sceneHas3d(sceneStore.getScene());
     if (has3d !== editViewportIs3d) syncEditViewport();
@@ -1127,6 +1188,7 @@ async function main() {
     showCollidersChk.addEventListener("change", () => {
       setShowColliders(!!showCollidersChk.checked);
       sceneView?.redraw();
+      sceneView3d?.redraw();
       logLine(
         showCollidersChk.checked ? "Collider overlays on." : "Collider overlays off.",
         "meta"
@@ -1139,12 +1201,82 @@ async function main() {
 
   await init();
   registerJuniLanguage(monaco);
+  applyJuniEditorTheme(monaco, getUiAppearance());
+  onUiAppearanceChange((appearance) => {
+    applyJuniEditorTheme(monaco, appearance);
+  });
 
   tabEditor = new TabEditor({
     host: editorHost,
     tabBar,
     onDirtyChange: () => refreshFileTree(),
     onActiveChange: () => refreshFileTree(),
+  });
+
+  codeSearchCtl = wireCodeSearchPanel({
+    getJuniFiles: () => {
+      const files = new Map<string, string>();
+      if (project) {
+        for (const [path, file] of project.files) {
+          if (!path.endsWith(".juni")) continue;
+          const live = tabEditor?.getModel(path)?.getValue();
+          files.set(path, live ?? file.content);
+        }
+      }
+      if (tabEditor) {
+        for (const path of tabEditor.getOpenPaths()) {
+          if (!path.endsWith(".juni") || files.has(path)) continue;
+          const live = tabEditor.getModel(path)?.getValue();
+          if (live != null) files.set(path, live);
+        }
+      }
+      return files;
+    },
+    jumpTo: (path, line, col, endCol) => {
+      if (!tabEditor) return;
+      let model = tabEditor.getModel(path);
+      if (!model) {
+        const content =
+          project?.files.get(path)?.content ??
+          (path === SCRATCH_FILE ? currentSource() : null);
+        if (content == null) {
+          logLine(`File not found: ${path}`, "err");
+          return;
+        }
+        tabEditor.openFile(path, content, true);
+        model = tabEditor.getModel(path);
+      } else {
+        tabEditor.activateTab(path);
+      }
+      if (!model) return;
+      const range = new monaco.Range(line, col, line, endCol);
+      tabEditor.editor.setSelection(range);
+      tabEditor.editor.revealRangeInCenter(range);
+      tabEditor.editor.focus();
+    },
+  });
+
+  animEditorCtl = wireAnimEditorPanel({
+    getProject: () => project,
+    getSceneStore: () => sceneStore,
+    writeProjectFile: (path, content) => {
+      if (!project) {
+        logLine("Open a project before saving animation clips.", "err");
+        return;
+      }
+      const existing = project.files.get(path);
+      if (existing) {
+        existing.content = content;
+        existing.dirty = true;
+      } else {
+        project.files.set(path, { path, content, dirty: true });
+      }
+      refreshFileTree();
+      void writeProjectFile(path, content).catch(() => {
+        /* in-memory project is enough for Play */
+      });
+    },
+    logLine,
   });
 
   setupEditorIntelliSense(
@@ -1205,7 +1337,7 @@ async function main() {
   });
 
   demoProjectBtn.addEventListener("click", () => {
-    loadProject(createDemoProject());
+    loadProject(createPlatformer3dDemoProject());
   });
 
   examplesSel.addEventListener("change", () => {

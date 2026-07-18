@@ -181,6 +181,12 @@ export function createEnvImports(options: EnvOptions = {}) {
       scene3d_set_fog: engine.scene3d_set_fog ?? stub,
       audio_stop: audio.audio_stop ?? stub,
       audio_set_bus_volume: audio.audio_set_bus_volume ?? stub,
+      rigidbody3d_set_vel: engine.rigidbody3d_set_vel ?? stub,
+      rigidbody3d_get_grounded: engine.rigidbody3d_get_grounded ?? stub0,
+      collider3d_set: engine.collider3d_set ?? stub,
+      transform3d_sync_from_2d: engine.transform3d_sync_from_2d ?? stub,
+      anim_play: engine.anim_play ?? stub0,
+      anim_stop: engine.anim_stop ?? stub,
     },
     memoryRef,
   };

@@ -7,8 +7,8 @@ export { createScene3dHandlers, ensureGpu, initScene3d, resetSceneTables, scene3
 export { createEnvImports, createPrintImports, instantiateJuni } from "./env.js";
 export { createAssetHandlers, createAssetStubs } from "./assets.js";
 export { instantiateJuni as instantiateJuniBrowser, startFrameLoop } from "./browser.js";
-export { createWorld, getWorld, resetWorld, worldStep, entityCreate, entityDestroy, } from "./world.js";
-export { loadSceneIntoWorld, parseScene, serializeWorld, emptyScene, materializeScene3d, sceneHas3d } from "./scene-loader.js";
+export { createWorld, getWorld, resetWorld, worldStep, entityCreate, entityDestroy, animPlay, animStop, } from "./world.js";
+export { loadSceneIntoWorld, parseScene, serializeWorld, emptyScene, materializeScene3d, sceneHas3d, parseAnimClipJson, } from "./scene-loader.js";
 export { renderWorld2d, screenToWorld, worldToScreen } from "./render2d.js";
 export { createEngineImports, createEngineStubs } from "./engine.js";
 export { bindScriptWasm, registerScriptHandler, unregisterScriptHandler, clearScriptHandlers, dispatchEntityScripts, dispatchCollisionScripts, resetScriptHost, } from "./scripts.js";

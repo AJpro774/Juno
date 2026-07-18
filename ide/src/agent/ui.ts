@@ -3,6 +3,7 @@
  */
 
 import {
+  cancelPending,
   chat,
   disableAndUnload,
   ensureReady,
@@ -11,6 +12,7 @@ import {
   hasCodeFence,
   hasWebGpu,
   isAiEnabled,
+  isEngineBusy,
   isEngineReady,
   setAiEnabled,
   setAiModelId,
@@ -20,7 +22,8 @@ import {
   type DiagLike,
   type LoadProgress,
 } from "./agent";
-import { AI_MODEL_OPTIONS } from "./settings";
+import { ensureDocsIndexLoaded } from "./docs-rag";
+import { AI_MODEL_OPTIONS, DEFAULT_MODEL_ID, modelOptionNote } from "./settings";
 import { unloadEngine } from "./webllm-engine";
 
 export type AiUiHooks = {
@@ -36,6 +39,7 @@ export type AiUiHooks = {
 
 let hooks: AiUiHooks | null = null;
 let history: ChatMessage[] = [];
+let opInFlight = false;
 
 export function setAiUiHooks(h: AiUiHooks): void {
   hooks = h;
@@ -59,6 +63,38 @@ function progressEl(): HTMLElement | null {
   return document.getElementById("ai-progress");
 }
 
+function cancelBtn(): HTMLButtonElement | null {
+  return document.getElementById("ai-cancel") as HTMLButtonElement | null;
+}
+
+function sendBtn(): HTMLButtonElement | null {
+  return document.getElementById("ai-send") as HTMLButtonElement | null;
+}
+
+function enableBtn(): HTMLButtonElement | null {
+  return document.getElementById("ai-enable") as HTMLButtonElement | null;
+}
+
+function modelNoteEl(): HTMLElement | null {
+  return document.getElementById("ai-model-note");
+}
+
+function updateModelNote(): void {
+  const el = modelNoteEl();
+  if (!el) return;
+  const note = modelOptionNote(getAiModelId());
+  el.textContent = note || "Coder 1.5B is the recommended default.";
+}
+
+function setBusyUi(busy: boolean): void {
+  const cancel = cancelBtn();
+  if (cancel) cancel.hidden = !busy;
+  const send = sendBtn();
+  if (send) send.disabled = busy || !isEngineReady();
+  const enable = enableBtn();
+  if (enable) enable.disabled = busy;
+}
+
 export function updateAiStatusLabel(): void {
   const el = statusEl();
   const btn = document.getElementById("ai-toggle") as HTMLButtonElement | null;
@@ -66,20 +102,32 @@ export function updateAiStatusLabel(): void {
   if (!hasWebGpu()) {
     el.textContent = "No WebGPU";
     if (btn) btn.textContent = "AI";
+    setBusyUi(false);
     return;
   }
   if (!isAiEnabled()) {
     el.textContent = "Off";
     if (btn) btn.textContent = "AI: Off";
+    setBusyUi(false);
+    return;
+  }
+  if (opInFlight || isEngineBusy()) {
+    el.textContent = isEngineReady() ? "Working…" : "Downloading…";
+    if (btn) btn.textContent = "AI: Busy";
+    setBusyUi(true);
     return;
   }
   if (isEngineReady()) {
     el.textContent = "Ready";
     if (btn) btn.textContent = "AI: Ready";
+    setBusyUi(false);
     return;
   }
-  el.textContent = "Enabled";
+  el.textContent = "Enabled — download needed";
   if (btn) btn.textContent = "AI: On";
+  setBusyUi(false);
+  const send = sendBtn();
+  if (send) send.disabled = true;
 }
 
 function setProgress(p: LoadProgress | null): void {
@@ -93,37 +141,6 @@ function setProgress(p: LoadProgress | null): void {
   el.hidden = false;
   const pct = Math.round(p.progress * 100);
   el.textContent = `${p.text} (${pct}%)`;
-}
-
-export async function enableAiWithDownload(): Promise<void> {
-  if (!hasWebGpu()) {
-    hooks?.logLine("AI requires WebGPU (Chrome/Edge).", "err");
-    updateAiStatusLabel();
-    return;
-  }
-  setAiEnabled(true);
-  clearChatHistory();
-  updateAiStatusLabel();
-  try {
-    await ensureReady((p) => {
-      setProgress(p);
-      updateAiStatusLabel();
-    });
-    setProgress(null);
-    hooks?.logLine("Local AI ready (Qwen2.5-Coder-1.5B).", "meta");
-  } catch (e) {
-    setProgress(null);
-    setAiEnabled(false);
-    hooks?.logLine(String(e), "err");
-  }
-  updateAiStatusLabel();
-}
-
-export async function disableAi(): Promise<void> {
-  await disableAndUnload();
-  setProgress(null);
-  updateAiStatusLabel();
-  hooks?.logLine("Local AI disabled.", "meta");
 }
 
 function appendChatBubble(role: "user" | "assistant" | "system", text: string): void {
@@ -172,10 +189,75 @@ function appendChatBubble(role: "user" | "assistant" | "system", text: string): 
   log.scrollTop = log.scrollHeight;
 }
 
+export async function enableAiWithDownload(): Promise<void> {
+  if (!hasWebGpu()) {
+    hooks?.logLine("AI requires WebGPU (Chrome/Edge).", "err");
+    updateAiStatusLabel();
+    return;
+  }
+  ensureDocsIndexLoaded();
+  setAiEnabled(true);
+  clearChatHistory();
+  opInFlight = true;
+  updateAiStatusLabel();
+  const modelId = getAiModelId() || DEFAULT_MODEL_ID;
+  try {
+    await ensureReady((p) => {
+      setProgress(p);
+      updateAiStatusLabel();
+    });
+    setProgress(null);
+    hooks?.logLine(`Local AI ready (${modelId.split("-Instruct")[0] ?? "model"}).`, "meta");
+    appendChatBubble(
+      "system",
+      "Ready. Chat is project-aware: open file, selection, and diagnostics are included when you ask coding questions."
+    );
+  } catch (e) {
+    setProgress(null);
+    const msg = String(e);
+    if (/cancell?ed/i.test(msg)) {
+      hooks?.logLine("AI download cancelled.", "meta");
+    } else {
+      setAiEnabled(false);
+      hooks?.logLine(msg, "err");
+    }
+  } finally {
+    opInFlight = false;
+  }
+  updateAiStatusLabel();
+}
+
+export async function disableAi(): Promise<void> {
+  opInFlight = false;
+  await disableAndUnload();
+  setProgress(null);
+  updateAiStatusLabel();
+  hooks?.logLine("Local AI disabled and unloaded.", "meta");
+}
+
+export async function cancelAiWork(): Promise<void> {
+  await cancelPending();
+  if (!isEngineReady()) {
+    setAiEnabled(false);
+    await unloadEngine();
+  }
+  opInFlight = false;
+  setProgress(null);
+  updateAiStatusLabel();
+  hooks?.logLine("AI cancelled.", "meta");
+  appendChatBubble("system", "Cancelled.");
+}
+
 export async function sendChatMessage(text: string): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed || !hooks) return;
+  if (!isAiEnabled() || !isEngineReady()) {
+    hooks.logLine("Enable & download the local model first.", "meta");
+    return;
+  }
   appendChatBubble("user", trimmed);
+  opInFlight = true;
+  updateAiStatusLabel();
   try {
     const reply = await chat(history, trimmed, hooks.getExtraContext(), (p) => setProgress(p));
     setProgress(null);
@@ -184,8 +266,16 @@ export async function sendChatMessage(text: string): Promise<void> {
     appendChatBubble("assistant", reply);
   } catch (e) {
     setProgress(null);
-    appendChatBubble("system", String(e));
-    hooks.logLine(String(e), "err");
+    const msg = String(e);
+    if (/cancell?ed/i.test(msg)) {
+      appendChatBubble("system", "Cancelled.");
+    } else {
+      appendChatBubble("system", msg);
+      hooks.logLine(msg, "err");
+    }
+  } finally {
+    opInFlight = false;
+    updateAiStatusLabel();
   }
 }
 
@@ -197,6 +287,8 @@ export async function explainLastDiagnostics(): Promise<void> {
     return;
   }
   hooks.openPanel();
+  opInFlight = true;
+  updateAiStatusLabel();
   try {
     const reply = await explainDiagnostic(hooks.getSource(), diags, (p) => setProgress(p));
     setProgress(null);
@@ -206,25 +298,35 @@ export async function explainLastDiagnostics(): Promise<void> {
     hooks.logLine(reply, "ai");
   } catch (e) {
     setProgress(null);
-    hooks.logLine(String(e), "err");
+    const msg = String(e);
+    if (!/cancell?ed/i.test(msg)) hooks.logLine(msg, "err");
+  } finally {
+    opInFlight = false;
+    updateAiStatusLabel();
   }
 }
 
 export function wireAiPanelDom(): void {
-  const enableBtn = document.getElementById("ai-enable") as HTMLButtonElement | null;
+  ensureDocsIndexLoaded();
+
+  const enableBtnEl = document.getElementById("ai-enable") as HTMLButtonElement | null;
   const disableBtn = document.getElementById("ai-disable") as HTMLButtonElement | null;
-  const sendBtn = document.getElementById("ai-send") as HTMLButtonElement | null;
+  const cancelBtnEl = document.getElementById("ai-cancel") as HTMLButtonElement | null;
+  const sendBtnEl = document.getElementById("ai-send") as HTMLButtonElement | null;
   const input = document.getElementById("ai-input") as HTMLTextAreaElement | null;
   const clearBtn = document.getElementById("ai-clear") as HTMLButtonElement | null;
   const explainBtn = document.getElementById("ai-explain") as HTMLButtonElement | null;
 
-  enableBtn?.addEventListener("click", () => {
+  enableBtnEl?.addEventListener("click", () => {
     void enableAiWithDownload();
   });
   disableBtn?.addEventListener("click", () => {
     void disableAi();
   });
-  sendBtn?.addEventListener("click", () => {
+  cancelBtnEl?.addEventListener("click", () => {
+    void cancelAiWork();
+  });
+  sendBtnEl?.addEventListener("click", () => {
     if (!input) return;
     const v = input.value;
     input.value = "";
@@ -253,11 +355,21 @@ export function wireAiPanelDom(): void {
       if (opt.note) o.title = opt.note;
       modelSel.appendChild(o);
     }
-    modelSel.value = getAiModelId();
+    const current = getAiModelId();
+    modelSel.value = current;
+    if (modelSel.value !== current) {
+      setAiModelId(DEFAULT_MODEL_ID);
+      modelSel.value = DEFAULT_MODEL_ID;
+    }
+    updateModelNote();
     modelSel.addEventListener("change", () => {
       setAiModelId(modelSel.value);
+      updateModelNote();
       void unloadEngine().then(() => {
-        hooks?.logLine(`AI model set to ${modelSel.value}. Re-enable to download.`, "meta");
+        hooks?.logLine(
+          `Model set to ${modelSel.value}. Click Enable & download to load it.`,
+          "meta"
+        );
         updateAiStatusLabel();
       });
     });

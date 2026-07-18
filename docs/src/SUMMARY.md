@@ -6,6 +6,7 @@
 
 - [Syntax](language/syntax.md)
 - [Types](language/types.md)
+- [Generics](language/generics.md)
 - [Memory](language/memory.md)
 - [Module state](language/state.md)
 - [Modules and imports](language/modules.md)
@@ -18,6 +19,7 @@
 - [Host intrinsics](engine/intrinsics.md)
 - [`.jscene` scenes](engine/jscene.md)
 - [Entity scripts](engine/scripts.md)
+- [Animation](engine/animation.md)
 - [Visual editor](engine/editor.md)
 - [Making a level](engine/level.md)
 

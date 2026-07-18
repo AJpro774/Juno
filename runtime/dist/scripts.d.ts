@@ -10,6 +10,7 @@
  *
  *   {module}_on_collision(entity_id, other_id, dt) -> i32   — each frame, solid contacts
  *   {module}_on_trigger_enter(entity_id, other_id, dt) -> i32 — once when a trigger pair appears
+ *   {module}_on_trigger_exit(entity_id, other_id, dt) -> i32  — once when a prior trigger pair disappears
  *
  * Resolution order for `module="player"`, `handler="on_update"`:
  * 1. JS registry key `player:on_update` (then bare `on_update`)
@@ -39,8 +40,9 @@ export declare function setScriptDispatchEnabled(enabled: boolean): void;
  */
 export declare function dispatchEntityScripts(world: World, dt: number): void;
 /**
- * After physics: fire `on_collision` for solid contacts each frame, and
- * `on_trigger_enter` when a trigger pair first appears. Both entities with a
+ * After physics: fire `on_collision` for solid contacts each frame,
+ * `on_trigger_enter` when a trigger pair first appears, and
+ * `on_trigger_exit` when a prior trigger pair is gone. Both entities with a
  * `script` component are called when the matching export/JS handler exists.
  */
 export declare function dispatchCollisionScripts(world: World, dt: number): void;

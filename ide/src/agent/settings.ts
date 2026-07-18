@@ -74,12 +74,17 @@ export function getAiModelId(): string {
 }
 
 export function setAiModelId(modelId: string): void {
+  const next = KNOWN_MODEL_IDS.has(modelId) ? modelId : DEFAULT_MODEL_ID;
   try {
-    localStorage.setItem(AI_MODEL_KEY, modelId);
+    localStorage.setItem(AI_MODEL_KEY, next);
   } catch {
     /* ignore */
   }
   notify();
+}
+
+export function modelOptionNote(modelId: string): string {
+  return AI_MODEL_OPTIONS.find((m) => m.id === modelId)?.note ?? "";
 }
 
 export function hasWebGpu(): boolean {

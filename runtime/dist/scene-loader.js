@@ -1,5 +1,82 @@
 /** Load / serialize `.jscene` JSON into the ECS world. */
 import { createWorld, defaultTransform2D, defaultTransform3D, entitySetTag, getWorld, } from "./world.js";
+function parseAnimKey(raw) {
+    const key = { t: raw.t ?? 0 };
+    if (raw.frame !== undefined)
+        key.frame = raw.frame | 0;
+    if (raw.x !== undefined)
+        key.x = raw.x;
+    if (raw.y !== undefined)
+        key.y = raw.y;
+    if (raw.rotation !== undefined)
+        key.rotation = raw.rotation;
+    if (raw.tx !== undefined)
+        key.tx = raw.tx;
+    if (raw.ty !== undefined)
+        key.ty = raw.ty;
+    if (raw.tz !== undefined)
+        key.tz = raw.tz;
+    if (raw.rx !== undefined)
+        key.rx = raw.rx;
+    if (raw.ry !== undefined)
+        key.ry = raw.ry;
+    if (raw.rz !== undefined)
+        key.rz = raw.rz;
+    return key;
+}
+/** Parse a clip JSON asset (`assets/anims/*.json`). */
+export function parseAnimClipJson(text, fallbackName = "clip") {
+    try {
+        const data = JSON.parse(text);
+        if (!data || typeof data !== "object")
+            return null;
+        const clip = {
+            name: data.name || fallbackName,
+            fps: data.fps ?? 0,
+            loop: data.loop !== false,
+        };
+        if (Array.isArray(data.frames))
+            clip.frames = data.frames.map((n) => n | 0);
+        if (Array.isArray(data.keys))
+            clip.keys = data.keys.map(parseAnimKey);
+        return clip;
+    }
+    catch {
+        return null;
+    }
+}
+function resolveAnimClip(raw, getAssetText) {
+    const name = raw.name?.trim() || "";
+    if (raw.asset && getAssetText) {
+        const path = raw.asset;
+        const text = getAssetText(path) ??
+            getAssetText(`assets/${path}`) ??
+            getAssetText(path.replace(/^assets\//, ""));
+        if (text) {
+            const fromFile = parseAnimClipJson(text, name || "clip");
+            if (fromFile) {
+                if (name)
+                    fromFile.name = name;
+                fromFile.asset = path;
+                return fromFile;
+            }
+        }
+    }
+    if (!name && !raw.frames && !raw.keys)
+        return null;
+    const clip = {
+        name: name || "clip",
+        fps: raw.fps ?? 0,
+        loop: raw.loop !== false,
+    };
+    if (Array.isArray(raw.frames))
+        clip.frames = raw.frames.map((n) => n | 0);
+    if (Array.isArray(raw.keys))
+        clip.keys = raw.keys.map(parseAnimKey);
+    if (raw.asset)
+        clip.asset = raw.asset;
+    return clip;
+}
 export function emptyScene() {
     return { version: 1, entities: [] };
 }
@@ -27,7 +104,7 @@ export function loadSceneIntoWorld(scene, options = {}) {
             tag: raw.tag ?? "",
             parent: raw.parent ?? 0,
         };
-        applyComponents(e, raw.components ?? {}, options.resolveAsset);
+        applyComponents(e, raw.components ?? {}, options.resolveAsset, options.getAssetText);
         world.entities.set(id, e);
         if (e.tag)
             world.tags.set(e.tag, id);
@@ -35,7 +112,7 @@ export function loadSceneIntoWorld(scene, options = {}) {
     world.nextId = maxId + 1;
     return world;
 }
-function applyComponents(e, c, resolveAsset) {
+function applyComponents(e, c, resolveAsset, getAssetText) {
     if (c.transform2d) {
         const t = defaultTransform2D();
         t.x = c.transform2d.x ?? 0;
@@ -122,6 +199,28 @@ function applyComponents(e, c, resolveAsset) {
         };
         e.collider2d = col;
     }
+    if (c.rigidbody3d) {
+        const body = {
+            vx: c.rigidbody3d.vx ?? 0,
+            vy: c.rigidbody3d.vy ?? 0,
+            vz: c.rigidbody3d.vz ?? 0,
+            gravity: c.rigidbody3d.gravity ?? 0,
+            grounded: false,
+        };
+        e.rigidbody3d = body;
+    }
+    if (c.collider3d) {
+        const col = {
+            kind: "aabb",
+            w: c.collider3d.w ?? 1,
+            h: c.collider3d.h ?? 1,
+            d: c.collider3d.d ?? 1,
+            solid: c.collider3d.solid !== false,
+        };
+        e.collider3d = col;
+        if (!e.transform3d)
+            e.transform3d = defaultTransform3D();
+    }
     if (c.tilemap) {
         const tm = {
             tileSize: c.tilemap.tile_size ?? 32,
@@ -162,6 +261,26 @@ function applyComponents(e, c, resolveAsset) {
             offsetX: c.prefab.offset?.[0] ?? c.prefab.x ?? 0,
             offsetY: c.prefab.offset?.[1] ?? c.prefab.y ?? 0,
         };
+    }
+    if (c.sprite_animator) {
+        const clips = [];
+        for (const raw of c.sprite_animator.clips ?? []) {
+            const clip = resolveAnimClip(raw, getAssetText);
+            if (clip)
+                clips.push(clip);
+        }
+        const defaultClip = c.sprite_animator.default ?? clips[0]?.name ?? "";
+        const autoplay = c.sprite_animator.autoplay !== false;
+        const playing = c.sprite_animator.playing ??
+            (autoplay && defaultClip ? defaultClip : "");
+        const anim = {
+            clips,
+            defaultClip,
+            autoplay,
+            playing,
+            time: 0,
+        };
+        e.spriteAnimator = anim;
     }
 }
 export function serializeWorld(world = getWorld()) {
@@ -228,6 +347,23 @@ export function serializeWorld(world = getWorld()) {
                 slope: e.collider2d.slope || undefined,
             };
         }
+        if (e.rigidbody3d) {
+            components.rigidbody3d = {
+                vx: e.rigidbody3d.vx,
+                vy: e.rigidbody3d.vy,
+                vz: e.rigidbody3d.vz,
+                gravity: e.rigidbody3d.gravity,
+            };
+        }
+        if (e.collider3d) {
+            components.collider3d = {
+                type: e.collider3d.kind,
+                w: e.collider3d.w,
+                h: e.collider3d.h,
+                d: e.collider3d.d,
+                solid: e.collider3d.solid,
+            };
+        }
         if (e.tilemap) {
             components.tilemap = {
                 tile_size: e.tilemap.tileSize,
@@ -253,6 +389,39 @@ export function serializeWorld(world = getWorld()) {
             components.prefab = {
                 path: e.prefab.path,
                 offset: [e.prefab.offsetX, e.prefab.offsetY],
+            };
+        }
+        if (e.spriteAnimator) {
+            components.sprite_animator = {
+                default: e.spriteAnimator.defaultClip || undefined,
+                autoplay: e.spriteAnimator.autoplay,
+                clips: e.spriteAnimator.clips.map((clip) => {
+                    const out = {
+                        name: clip.name,
+                        fps: clip.fps,
+                        loop: clip.loop,
+                    };
+                    if (clip.frames)
+                        out.frames = clip.frames.slice();
+                    if (clip.keys) {
+                        out.keys = clip.keys.map((k) => ({
+                            t: k.t,
+                            ...(k.frame !== undefined ? { frame: k.frame } : {}),
+                            ...(k.x !== undefined ? { x: k.x } : {}),
+                            ...(k.y !== undefined ? { y: k.y } : {}),
+                            ...(k.rotation !== undefined ? { rotation: k.rotation } : {}),
+                            ...(k.tx !== undefined ? { tx: k.tx } : {}),
+                            ...(k.ty !== undefined ? { ty: k.ty } : {}),
+                            ...(k.tz !== undefined ? { tz: k.tz } : {}),
+                            ...(k.rx !== undefined ? { rx: k.rx } : {}),
+                            ...(k.ry !== undefined ? { ry: k.ry } : {}),
+                            ...(k.rz !== undefined ? { rz: k.rz } : {}),
+                        }));
+                    }
+                    if (clip.asset)
+                        out.asset = clip.asset;
+                    return out;
+                }),
             };
         }
         entities.push({
@@ -313,7 +482,7 @@ export function prefabSpawn(scene, ox, oy, options = {}) {
             tag: "",
             parent: raw.parent ?? 0,
         };
-        applyComponents(e, raw.components ?? {}, options.resolveAsset);
+        applyComponents(e, raw.components ?? {}, options.resolveAsset, options.getAssetText);
         world.entities.set(e.id, e);
         if (raw.tag)
             entitySetTag(e.id, raw.tag, world);
@@ -379,7 +548,7 @@ export function sceneHas3d(scene) {
         const c = e.components;
         if (!c)
             continue;
-        if (c.transform3d || c.mesh3d || c.camera3d || c.light3d)
+        if (c.transform3d || c.mesh3d || c.camera3d || c.light3d || c.rigidbody3d || c.collider3d)
             return true;
     }
     return false;

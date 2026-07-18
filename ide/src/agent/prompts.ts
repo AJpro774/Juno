@@ -1,6 +1,7 @@
 /** Prompt templates for the optional local Juni AI assistant. */
 
 import juniContext from "./juni-context.md?raw";
+import { retrieveDocContext } from "./docs-rag";
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -16,6 +17,7 @@ Hard rules:
   - Greetings / chit-chat → one short friendly sentence. No code.
   - "Who are you" → one short sentence about Juni Assist. No code.
   - Coding / build / fix / explain → short Juni answer; use a \`\`\`juni fence when showing code.
+- Prefer project editor context (open file, selection, diagnostics) when present.
 - Use only APIs from the cheat sheet. If something is impossible, say so and give the closest Juni sketch.
 
 ${juniContext}`;
@@ -88,12 +90,10 @@ const CHAT_SHOTS: ChatMessage[] = [
 ];
 
 function looksLikeCodingRequest(text: string): boolean {
-  return /\b(code|build|make|create|write|fix|spin|mesh|scene|fn |frame|compile|error|implement|example|script|program)\b/i.test(
+  return /\b(code|build|make|create|write|fix|spin|mesh|scene|fn |frame|compile|error|implement|example|script|program|borrow|ref |physics|rigidbody|collider|search|anim)\b/i.test(
     text
   );
 }
-
-import { retrieveDocContext } from "./docs-rag";
 
 export function chatPrompt(
   history: ChatMessage[],
@@ -104,15 +104,16 @@ export function chatPrompt(
   let system = systemPrompt();
   const rag = retrieveDocContext(userText);
   if (rag) system += `\n\nRetrieved docs:\n${rag}`;
-  if (extraContext.trim() && looksLikeCodingRequest(userText)) {
-    system += `\n\nCurrent editor buffer (Juni):\n${truncate(extraContext, 2000)}`;
+  if (extraContext.trim()) {
+    const budget = looksLikeCodingRequest(userText) ? 3500 : 1800;
+    system += `\n\nProject editor context:\n${truncate(extraContext, budget)}`;
   }
   const msgs: ChatMessage[] = [{ role: "system", content: system }, ...CHAT_SHOTS];
   for (const m of history.slice(-6)) {
     if (m.role === "user" || m.role === "assistant") msgs.push(m);
   }
   const reminder = looksLikeCodingRequest(userText)
-    ? "Reply with Juni/Juno only (no Unity/C#). Show code only if it helps.\n\n"
+    ? "Reply with Juni/Juno only (no Unity/C#). Use open file / selection / diagnostics when relevant. Show code only if it helps.\n\n"
     : "Reply briefly. Do not paste example programs unless asked for code.\n\n";
   msgs.push({
     role: "user",

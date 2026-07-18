@@ -16,6 +16,9 @@ const STORAGE_KEY = "juni.ui.appearance";
 
 const APPEARANCE_SET = new Set<string>(UI_APPEARANCES);
 
+type AppearanceListener = (appearance: UiAppearance) => void;
+const listeners = new Set<AppearanceListener>();
+
 export function isUiAppearance(value: string | null | undefined): value is UiAppearance {
   return !!value && APPEARANCE_SET.has(value);
 }
@@ -49,6 +52,13 @@ export function applyUiAppearance(appearance: UiAppearance = getUiAppearance()):
   if (app) app.dataset.ui = next;
   const sel = document.getElementById("ui-appearance") as HTMLSelectElement | null;
   if (sel && sel.value !== next) sel.value = next;
+  for (const fn of listeners) fn(next);
+}
+
+/** Subscribe to appearance changes (e.g. sync Monaco Juni themes). */
+export function onUiAppearanceChange(fn: AppearanceListener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
 }
 
 export function wireUiAppearanceSettings(): void {

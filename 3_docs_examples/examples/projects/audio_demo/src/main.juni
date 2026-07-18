@@ -1,8 +1,0 @@
-import audio
-
-fn main() -> i32:
-    audio.init()
-    audio.play_note("C4")
-    audio.play_note("E4")
-    audio.play_note("G4")
-    return 0

@@ -15,8 +15,9 @@ During each `world_step`, after physics and camera follow, the host **dispatches
 | `{handler}` (usually `on_update`) | Every `world_step`, after collision events | `(entity_id: i32, dt: f32) -> i32` |
 | `on_collision` | Each frame while a **solid** contact involves the entity | `(entity_id: i32, other_id: i32, dt: f32) -> i32` |
 | `on_trigger_enter` | Once when a **trigger** contact pair first appears | `(entity_id: i32, other_id: i32, dt: f32) -> i32` |
+| `on_trigger_exit` | Once when a prior **trigger** pair is no longer overlapping | `(entity_id: i32, other_id: i32, dt: f32) -> i32` |
 
-`on_collision` / `on_trigger_enter` are **fixed additive names** — they do not replace the inspector `handler` field. Both entities in a contact are called when they have a `script` component and a matching WASM export or JS handler exists.
+`on_collision` / `on_trigger_enter` / `on_trigger_exit` are **fixed additive names** — they do not replace the inspector `handler` field. Both entities in a contact are called when they have a `script` component and a matching WASM export or JS handler exists. Events apply to **2D and 3D** contacts (shared buffer).
 
 Return values are ignored today (reserved for future stop/error codes).
 
@@ -27,7 +28,7 @@ For `module = "player"` and `handler = "on_update"`:
 1. **JS registry** — `registerScriptHandler("player", "on_update", fn)` (key `player:on_update`, then bare `on_update`)
 2. **WASM export** — `player_on_update`, then bare `on_update`
 
-Same order for `player_on_collision` / `player_on_trigger_enter` (and bare `on_collision` / `on_trigger_enter`).
+Same order for `player_on_collision` / `player_on_trigger_enter` / `player_on_trigger_exit` (and bare `on_collision` / `on_trigger_enter` / `on_trigger_exit`).
 
 Missing handlers are skipped (no throw). Bind WASM after instantiate:
 
@@ -59,6 +60,10 @@ export fn coin_on_trigger_enter(entity_id: i32, other_id: i32, dt: f32) -> i32:
     # first frame of a trigger overlap
     return 0
 
+export fn coin_on_trigger_exit(entity_id: i32, other_id: i32, dt: f32) -> i32:
+    # first frame after a trigger overlap ends
+    return 0
+
 fn main() -> i32:
     world_create()
     let _ = scene_load("scenes/level1.jscene")
@@ -88,13 +93,13 @@ After `world_step`, scripts and `frame` can also poll:
 
 Inspector → **Script**: enable, set **Module** and **Handler**. Use **Stub** to append a missing `export fn {module}_{handler}` in the project entry `.juni`, then **Open** to jump to it. Values round-trip through Save Scene / `.jscene`.
 
-**Authoring loop:** Stub the export → set a trigger/solid collider → **Show colliders** in Edit to confirm the shape → Play / Export Web. Collision and trigger events (`on_collision` / `on_trigger_enter`) use the same Stub/Open path with those fixed names.
+**Authoring loop:** Stub the export → set a trigger/solid collider → **Show colliders** in Edit to confirm the shape → Play / Export Web. Collision and trigger events (`on_collision` / `on_trigger_enter` / `on_trigger_exit`) use the same Stub/Open path with those fixed names.
 
-Game input can still live in entry `frame`. Use entity scripts for per-entity ticks and collision/trigger reactions that should run whenever `world_step` runs. The [platformer](../../examples/projects/platformer) sample collects the coin via `coin_on_trigger_enter`; goal and hazard still poll contacts after `world_step`.
+Game input can still live in entry `frame`. Use entity scripts for per-entity ticks and collision/trigger reactions that should run whenever `world_step` runs. The [platformer](../../examples/projects/platformer) sample collects the coin via `coin_on_trigger_enter`; goal and hazard still poll contacts after `world_step`. The [platformer_3d](../../examples/projects/platformer_3d) sample demos `coin_on_trigger_enter` / `coin_on_trigger_exit` with native 3D physics.
 
 ## Notes
 
-- Scripts run **after** physics so `rigidbody2d_get_grounded` and collision polls reflect the current step.
-- Dispatch order inside `world_step`: physics → `on_collision` / `on_trigger_enter` → inspector `handler` (`on_update`).
+- Scripts run **after** physics so `rigidbody2d_get_grounded` / `rigidbody3d_get_grounded` and collision polls reflect the current step.
+- Dispatch order inside `world_step`: physics (2D → hybrid sync → 3D) → `on_collision` / `on_trigger_enter` / `on_trigger_exit` → inspector `handler` (`on_update`).
 - JS handlers remain useful for tests and host extensions; Juni WASM handlers are the in-engine path.
 - See [`.jscene`](jscene.md), [Physics](../projects/physics.md), and [Visual editor](editor.md).

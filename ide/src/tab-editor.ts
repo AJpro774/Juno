@@ -1,6 +1,11 @@
 import * as monaco from "monaco-editor";
-import { JUNI_LANGUAGE_ID } from "./juni-lang";
+import {
+  JUNI_LANGUAGE_ID,
+  JUNI_THEME_CLASSIC,
+  juniThemeForAppearance,
+} from "./juni-lang";
 import type { ProjectState } from "./project-store";
+import { getUiAppearance } from "./ui-theme";
 
 export type TabEditorOptions = {
   host: HTMLElement;
@@ -11,7 +16,7 @@ export type TabEditorOptions = {
 
 const EDITOR_OPTS: monaco.editor.IStandaloneEditorConstructionOptions = {
   language: JUNI_LANGUAGE_ID,
-  theme: "vs",
+  theme: JUNI_THEME_CLASSIC,
   fontFamily: "'JetBrains Mono', monospace",
   fontSize: 14,
   minimap: { enabled: false },
@@ -41,6 +46,7 @@ export class TabEditor {
     this.onActiveChange = opts.onActiveChange;
     this.editor = monaco.editor.create(this.host, {
       ...EDITOR_OPTS,
+      theme: juniThemeForAppearance(getUiAppearance()),
       value: "",
     });
   }

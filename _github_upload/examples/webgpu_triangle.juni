@@ -1,5 +1,0 @@
-fn main() -> i32:
-    gpu_clear(0.05, 0.06, 0.1, 1.0)
-    gpu_draw_triangle()
-    print("WebGPU triangle requested")
-    return 0

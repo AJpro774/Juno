@@ -6,10 +6,15 @@ import {
   defaultTransform3D,
   entitySetTag,
   getWorld,
+  type AnimClip,
+  type AnimKey,
   type Collider2D,
+  type Collider3D,
   type EntityRecord,
   type Light3DComp,
   type RigidBody2D,
+  type RigidBody3D,
+  type SpriteAnimatorComp,
   type SpriteComp,
   type TilemapComp,
   type World,
@@ -71,6 +76,15 @@ export type JSceneComponents = {
     solid?: boolean;
     slope?: number;
   };
+  rigidbody3d?: { vx?: number; vy?: number; vz?: number; gravity?: number };
+  collider3d?: {
+    type?: string;
+    kind?: string;
+    w?: number;
+    h?: number;
+    d?: number;
+    solid?: boolean;
+  };
   tilemap?: {
     tile_size?: number;
     cols?: number;
@@ -88,6 +102,32 @@ export type JSceneComponents = {
   script?: { module?: string; handler?: string };
   /** Prefab spawn authoring: path + optional offset from entity transform. */
   prefab?: { path?: string; offset?: [number, number]; x?: number; y?: number };
+  /** Sprite / keyframe animation clips (not skeletal). */
+  sprite_animator?: {
+    default?: string;
+    autoplay?: boolean;
+    playing?: string;
+    clips?: Array<{
+      name?: string;
+      fps?: number;
+      loop?: boolean;
+      frames?: number[];
+      keys?: Array<{
+        t?: number;
+        frame?: number;
+        x?: number;
+        y?: number;
+        rotation?: number;
+        tx?: number;
+        ty?: number;
+        tz?: number;
+        rx?: number;
+        ry?: number;
+        rz?: number;
+      }>;
+      asset?: string;
+    }>;
+  };
 };
 
 export type JSceneEntity = {
@@ -107,6 +147,92 @@ export type JScene = {
 /** Resolve asset path → handle via optional lookup (asset pack id). */
 export type AssetResolver = (path: string) => number;
 
+/** Optional text asset loader (clip JSON under assets/). */
+export type TextAssetLoader = (path: string) => string | null;
+
+function parseAnimKey(raw: {
+  t?: number;
+  frame?: number;
+  x?: number;
+  y?: number;
+  rotation?: number;
+  tx?: number;
+  ty?: number;
+  tz?: number;
+  rx?: number;
+  ry?: number;
+  rz?: number;
+}): AnimKey {
+  const key: AnimKey = { t: raw.t ?? 0 };
+  if (raw.frame !== undefined) key.frame = raw.frame | 0;
+  if (raw.x !== undefined) key.x = raw.x;
+  if (raw.y !== undefined) key.y = raw.y;
+  if (raw.rotation !== undefined) key.rotation = raw.rotation;
+  if (raw.tx !== undefined) key.tx = raw.tx;
+  if (raw.ty !== undefined) key.ty = raw.ty;
+  if (raw.tz !== undefined) key.tz = raw.tz;
+  if (raw.rx !== undefined) key.rx = raw.rx;
+  if (raw.ry !== undefined) key.ry = raw.ry;
+  if (raw.rz !== undefined) key.rz = raw.rz;
+  return key;
+}
+
+/** Parse a clip JSON asset (`assets/anims/*.json`). */
+export function parseAnimClipJson(text: string, fallbackName = "clip"): AnimClip | null {
+  try {
+    const data = JSON.parse(text) as {
+      name?: string;
+      fps?: number;
+      loop?: boolean;
+      frames?: number[];
+      keys?: Array<Parameters<typeof parseAnimKey>[0]>;
+    };
+    if (!data || typeof data !== "object") return null;
+    const clip: AnimClip = {
+      name: data.name || fallbackName,
+      fps: data.fps ?? 0,
+      loop: data.loop !== false,
+    };
+    if (Array.isArray(data.frames)) clip.frames = data.frames.map((n) => n | 0);
+    if (Array.isArray(data.keys)) clip.keys = data.keys.map(parseAnimKey);
+    return clip;
+  } catch {
+    return null;
+  }
+}
+
+function resolveAnimClip(
+  raw: NonNullable<NonNullable<JSceneComponents["sprite_animator"]>["clips"]>[number],
+  getAssetText?: TextAssetLoader
+): AnimClip | null {
+  const name = raw.name?.trim() || "";
+  if (raw.asset && getAssetText) {
+    const path = raw.asset;
+    const text =
+      getAssetText(path) ??
+      getAssetText(`assets/${path}`) ??
+      getAssetText(path.replace(/^assets\//, ""));
+    if (text) {
+      const fromFile = parseAnimClipJson(text, name || "clip");
+      if (fromFile) {
+        if (name) fromFile.name = name;
+        fromFile.asset = path;
+        return fromFile;
+      }
+    }
+  }
+  if (!name && !raw.frames && !raw.keys) return null;
+  const clip: AnimClip = {
+    name: name || "clip",
+    fps: raw.fps ?? 0,
+    loop: raw.loop !== false,
+  };
+  if (Array.isArray(raw.frames)) clip.frames = raw.frames.map((n) => n | 0);
+  if (Array.isArray(raw.keys)) clip.keys = raw.keys.map(parseAnimKey);
+  if (raw.asset) clip.asset = raw.asset;
+  return clip;
+}
+
 export function emptyScene(): JScene {
   return { version: 1, entities: [] };
 }
@@ -121,7 +247,12 @@ export function parseScene(json: string | JScene): JScene {
 
 export function loadSceneIntoWorld(
   scene: JScene,
-  options: { world?: World; resolveAsset?: AssetResolver; reset?: boolean } = {}
+  options: {
+    world?: World;
+    resolveAsset?: AssetResolver;
+    getAssetText?: TextAssetLoader;
+    reset?: boolean;
+  } = {}
 ): World {
   const world = options.reset === false ? options.world ?? getWorld() : createWorld();
   if (typeof scene.gravity === "number") world.gravity = scene.gravity;
@@ -136,7 +267,7 @@ export function loadSceneIntoWorld(
       tag: raw.tag ?? "",
       parent: raw.parent ?? 0,
     };
-    applyComponents(e, raw.components ?? {}, options.resolveAsset);
+    applyComponents(e, raw.components ?? {}, options.resolveAsset, options.getAssetText);
     world.entities.set(id, e);
     if (e.tag) world.tags.set(e.tag, id);
   }
@@ -147,7 +278,8 @@ export function loadSceneIntoWorld(
 function applyComponents(
   e: EntityRecord,
   c: JSceneComponents,
-  resolveAsset?: AssetResolver
+  resolveAsset?: AssetResolver,
+  getAssetText?: TextAssetLoader
 ): void {
   if (c.transform2d) {
     const t = defaultTransform2D();
@@ -232,6 +364,27 @@ function applyComponents(
     };
     e.collider2d = col;
   }
+  if (c.rigidbody3d) {
+    const body: RigidBody3D = {
+      vx: c.rigidbody3d.vx ?? 0,
+      vy: c.rigidbody3d.vy ?? 0,
+      vz: c.rigidbody3d.vz ?? 0,
+      gravity: c.rigidbody3d.gravity ?? 0,
+      grounded: false,
+    };
+    e.rigidbody3d = body;
+  }
+  if (c.collider3d) {
+    const col: Collider3D = {
+      kind: "aabb",
+      w: c.collider3d.w ?? 1,
+      h: c.collider3d.h ?? 1,
+      d: c.collider3d.d ?? 1,
+      solid: c.collider3d.solid !== false,
+    };
+    e.collider3d = col;
+    if (!e.transform3d) e.transform3d = defaultTransform3D();
+  }
   if (c.tilemap) {
     const tm: TilemapComp = {
       tileSize: c.tilemap.tile_size ?? 32,
@@ -271,6 +424,26 @@ function applyComponents(
       offsetX: c.prefab.offset?.[0] ?? c.prefab.x ?? 0,
       offsetY: c.prefab.offset?.[1] ?? c.prefab.y ?? 0,
     };
+  }
+  if (c.sprite_animator) {
+    const clips: AnimClip[] = [];
+    for (const raw of c.sprite_animator.clips ?? []) {
+      const clip = resolveAnimClip(raw, getAssetText);
+      if (clip) clips.push(clip);
+    }
+    const defaultClip = c.sprite_animator.default ?? clips[0]?.name ?? "";
+    const autoplay = c.sprite_animator.autoplay !== false;
+    const playing =
+      c.sprite_animator.playing ??
+      (autoplay && defaultClip ? defaultClip : "");
+    const anim: SpriteAnimatorComp = {
+      clips,
+      defaultClip,
+      autoplay,
+      playing,
+      time: 0,
+    };
+    e.spriteAnimator = anim;
   }
 }
 
@@ -337,6 +510,23 @@ export function serializeWorld(world: World = getWorld()): JScene {
         slope: e.collider2d.slope || undefined,
       };
     }
+    if (e.rigidbody3d) {
+      components.rigidbody3d = {
+        vx: e.rigidbody3d.vx,
+        vy: e.rigidbody3d.vy,
+        vz: e.rigidbody3d.vz,
+        gravity: e.rigidbody3d.gravity,
+      };
+    }
+    if (e.collider3d) {
+      components.collider3d = {
+        type: e.collider3d.kind,
+        w: e.collider3d.w,
+        h: e.collider3d.h,
+        d: e.collider3d.d,
+        solid: e.collider3d.solid,
+      };
+    }
     if (e.tilemap) {
       components.tilemap = {
         tile_size: e.tilemap.tileSize,
@@ -362,6 +552,39 @@ export function serializeWorld(world: World = getWorld()): JScene {
       components.prefab = {
         path: e.prefab.path,
         offset: [e.prefab.offsetX, e.prefab.offsetY],
+      };
+    }
+    if (e.spriteAnimator) {
+      components.sprite_animator = {
+        default: e.spriteAnimator.defaultClip || undefined,
+        autoplay: e.spriteAnimator.autoplay,
+        clips: e.spriteAnimator.clips.map((clip) => {
+          const out: NonNullable<
+            NonNullable<JSceneComponents["sprite_animator"]>["clips"]
+          >[number] = {
+            name: clip.name,
+            fps: clip.fps,
+            loop: clip.loop,
+          };
+          if (clip.frames) out.frames = clip.frames.slice();
+          if (clip.keys) {
+            out.keys = clip.keys.map((k) => ({
+              t: k.t,
+              ...(k.frame !== undefined ? { frame: k.frame } : {}),
+              ...(k.x !== undefined ? { x: k.x } : {}),
+              ...(k.y !== undefined ? { y: k.y } : {}),
+              ...(k.rotation !== undefined ? { rotation: k.rotation } : {}),
+              ...(k.tx !== undefined ? { tx: k.tx } : {}),
+              ...(k.ty !== undefined ? { ty: k.ty } : {}),
+              ...(k.tz !== undefined ? { tz: k.tz } : {}),
+              ...(k.rx !== undefined ? { rx: k.rx } : {}),
+              ...(k.ry !== undefined ? { ry: k.ry } : {}),
+              ...(k.rz !== undefined ? { rz: k.rz } : {}),
+            }));
+          }
+          if (clip.asset) out.asset = clip.asset;
+          return out;
+        }),
       };
     }
     entities.push({
@@ -400,7 +623,11 @@ export function prefabSpawn(
   scene: JScene,
   ox: number,
   oy: number,
-  options: { resolveAsset?: AssetResolver; world?: World } = {}
+  options: {
+    resolveAsset?: AssetResolver;
+    getAssetText?: TextAssetLoader;
+    world?: World;
+  } = {}
 ): number {
   const world = options.world ?? getWorld();
   const clone = structuredClone(scene) as JScene;
@@ -432,7 +659,7 @@ export function prefabSpawn(
       tag: "",
       parent: raw.parent ?? 0,
     };
-    applyComponents(e, raw.components ?? {}, options.resolveAsset);
+    applyComponents(e, raw.components ?? {}, options.resolveAsset, options.getAssetText);
     world.entities.set(e.id, e);
     if (raw.tag) entitySetTag(e.id, raw.tag, world);
   }
@@ -573,7 +800,8 @@ export function sceneHas3d(scene: JScene): boolean {
   for (const e of scene.entities) {
     const c = e.components;
     if (!c) continue;
-    if (c.transform3d || c.mesh3d || c.camera3d || c.light3d) return true;
+    if (c.transform3d || c.mesh3d || c.camera3d || c.light3d || c.rigidbody3d || c.collider3d)
+      return true;
   }
   return false;
 }

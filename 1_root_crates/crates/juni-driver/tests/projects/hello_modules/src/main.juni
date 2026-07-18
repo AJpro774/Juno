@@ -1,4 +1,0 @@
-import math
-
-fn main() -> i32:
-    return math.greet()

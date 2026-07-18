@@ -43,6 +43,7 @@ export function renderScenePanel(host: HTMLElement, store: SceneStore): void {
     if (c.camera3d) badges.push("cam3d");
     if (c.camera2d) badges.push("cam2d");
     if (c.sprite) badges.push("sprite");
+    if (c.sprite_animator) badges.push("anim");
     for (const b of badges) {
       const badge = document.createElement("span");
       badge.className = "scene-badge";

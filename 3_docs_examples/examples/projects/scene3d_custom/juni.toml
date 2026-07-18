@@ -1,4 +1,0 @@
-[project]
-name = "scene3d_custom"
-version = "0.1.0"
-entry = "src/main.juni"

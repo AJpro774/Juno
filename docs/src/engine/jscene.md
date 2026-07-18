@@ -39,6 +39,7 @@ Scenes are JSON documents (usually under `scenes/`) that describe entities and c
 | `tilemap` | `tile_size`, `cols`, `rows`, `tiles`, `tileset` |
 | `script` | `module`, `handler` — see [Entity scripts](scripts.md) |
 | `prefab` | `path`, `offset` — spawn-point authoring; runtime spawn via `prefab_spawn` |
+| `sprite_animator` | `default`, `autoplay`, `clips[]` — sprite / keyframe clips; see [Animation](animation.md) |
 
 ## Components (3D)
 
@@ -46,8 +47,12 @@ Scenes are JSON documents (usually under `scenes/`) that describe entities and c
 |-----------|--------|
 | `transform3d` | `position`, `rotation`, `scale` (each `[x,y,z]`) |
 | `mesh3d` | `primitive` (`box`\|`gltf`), `size`, `gltf`, `color`, optional `mesh` handle |
+| `rigidbody3d` | `vx`, `vy`, `vz`, `gravity` — see [Physics](../projects/physics.md) |
+| `collider3d` | `type` (`aabb`), `w`, `h`, `d`, `solid` |
 | `camera3d` | `active`, `fov`, `aspect`, `near`, `far`, `orbit_yaw`, `orbit_pitch`, `orbit_distance`, `target` |
 | `light3d` | `type` (`directional`\|`point`), `direction`, `position`, `color`, `range` |
+
+**Hybrid 2D-in-3D:** keep `rigidbody2d`/`collider2d`/`transform2d` for physics and add `transform3d`/`mesh3d` for drawing. `world_step` syncs `x,y` → `tx,ty` automatically (or call `transform3d_sync_from_2d`).
 
 Play mode materializes GPU mesh/camera/light handles and draws with `world_draw3d(cam)` — see [3D](../graphics/3d.md).
 

@@ -75,6 +75,7 @@ fn parse_error_diag(source: &str, err: juni_syntax::ParseError) -> Diagnostic {
         severity: Severity::Error,
         span: juni_syntax::Span::new(0, 0, line, col),
         message: msg,
+        notes: Vec::new(),
         file: None,
     }
 }

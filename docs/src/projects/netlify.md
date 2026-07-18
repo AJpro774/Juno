@@ -4,21 +4,16 @@ Host the **Juni IDE** (or a game export) as a static site on [Netlify](https://w
 
 ## IDE (recommended)
 
-The repo root [`netlify.toml`](../../netlify.toml) builds the IDE. It supports **two layouts** (flat wins when both exist):
-
-| Layout | When | Build | Publish |
-|--------|------|-------|---------|
-| **Flat** (canonical) | `ide/package.json` at repo root | `cd ide && npm install && npm run build` | `ide/dist` |
-| **Nested** (legacy upload batches) | only if flat `ide/` is missing: `1_` / `2_` / `3_` folders | Sync CREDITS + docs into `2_ide_runtime`, build that `ide/`, copy dist → `ide/dist` | `ide/dist` |
-
-Always publishes **`ide/dist`**. Prefer flat so Netlify does not ship a stale nested `2_ide_runtime` copy.
+The repo root [`netlify.toml`](../../netlify.toml) builds the flat canonical IDE:
 
 | Setting | Value |
 |---------|--------|
 | Base directory | *(empty)* |
-| Build command | *(see `netlify.toml` — layout-aware)* |
+| Build command | `cd ide && npm install && npm run build` (see `netlify.toml`) |
 | Publish directory | `ide/dist` |
 | Asset base path | `/` (default Vite base) |
+
+Requires root `ide/package.json` (the standard clone layout).
 
 ### Connect the repo
 
@@ -26,7 +21,7 @@ Always publishes **`ide/dist`**. Prefer flat so Netlify does not ship a stale ne
 2. Netlify reads `netlify.toml` automatically
 3. Deploy
 
-Or CLI (flat layout, from a full local clone):
+Or CLI from a full local clone:
 
 ```bash
 # from repo root
@@ -44,7 +39,7 @@ Do **not** set `GITHUB_PAGES=true` on Netlify.
 
 ### WASM package
 
-`ide/public/pkg` must contain a current `juni_wasm` build (under nested upload: `2_ide_runtime/ide/public/pkg`). The Netlify build does **not** run `wasm-pack` (keeps deploys fast). After compiler changes:
+`ide/public/pkg` must contain a current `juni_wasm` build. The Netlify build does **not** run `wasm-pack` (keeps deploys fast). After compiler changes:
 
 ```bash
 cd ide && npm run build:wasm
@@ -83,6 +78,6 @@ Minimal `netlify.toml` for a game-only site:
 ## Troubleshooting
 
 - **Blank IDE / wrong asset URLs** — confirm `GITHUB_PAGES` is not `true` in Netlify env.
-- **Build can't find `ide/`** — flat clones need root `ide/`; batch uploads need the three `*_` folders so the nested branch of `netlify.toml` can run.
+- **Build can't find `ide/`** — clone needs root `ide/` with `package.json` (canonical flat layout).
 - **Compile fails in browser** — refresh `ide/public/pkg` with `npm run build:wasm`.
 - **WebGPU / AI** — Chrome/Edge required; Netlify only hosts static files (inference still runs in the visitor’s browser).

@@ -5,6 +5,7 @@ CLI=(cargo run -q -p juni-cli --)
 
 projects=(
   examples/projects/platformer
+  examples/projects/platformer_3d
   examples/projects/scene3d_lit
 )
 

@@ -26,6 +26,8 @@ Non-solid colliders act as **triggers** (overlap contacts, no resolution). Optio
 
 See [`examples/projects/platformer`](../../examples/projects/platformer): coin pickup via `coin_on_trigger_enter`, goal / hazard still polled after `world_step`, Space to restart after death. Authoring path: Stub → collide → Show colliders → Export — see [Entity scripts](scripts.md).
 
+For native 3D physics + `world_draw3d`, see [`examples/projects/platformer_3d`](../../examples/projects/platformer_3d) (XZ move, jump, coin enter/exit, hazard/goal). Hybrid 2D-phys / 3D-draw notes are in [Physics](../projects/physics.md).
+
 ## Editor
 
 Author entities in the IDE Hierarchy / Inspector, **Save Scene** to disk, then **Play**. See [Visual editor](../engine/editor.md).

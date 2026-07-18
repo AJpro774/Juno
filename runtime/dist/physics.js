@@ -1,11 +1,11 @@
-/** AABB / circle 2D physics with velocity integration, contacts, and axis separation. */
-import { getWorld, setPhysicsHooks, } from "./world.js";
+/** AABB / circle 2D + AABB 3D physics with shared contacts and hybrid 2D→3D sync. */
+import { defaultTransform3D, getWorld, setPhysicsHooks, } from "./world.js";
 const MAX_CONTACTS = 64;
 let contacts = [];
 export function clearContacts() {
     contacts = [];
 }
-export function pushContact(a, b, nx, ny, trigger = false) {
+export function pushContact(a, b, nx, ny, trigger = false, nz = 0) {
     if (contacts.length >= MAX_CONTACTS)
         return;
     const lo = Math.min(a, b);
@@ -17,11 +17,12 @@ export function pushContact(a, b, nx, ny, trigger = false) {
                 c.trigger = false;
                 c.nx = nx;
                 c.ny = ny;
+                c.nz = nz;
             }
             return;
         }
     }
-    contacts.push({ a: lo, b: hi, nx, ny, trigger });
+    contacts.push({ a: lo, b: hi, nx, ny, nz, trigger });
 }
 export function collisionCount() {
     return contacts.length;
@@ -46,6 +47,14 @@ export function readAabb(memory, ptr) {
 }
 export function aabbOverlap(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+export function aabb3Overlap(a, b) {
+    return (a.x - a.w / 2 < b.x + b.w / 2 &&
+        a.x + a.w / 2 > b.x - b.w / 2 &&
+        a.y - a.h / 2 < b.y + b.h / 2 &&
+        a.y + a.h / 2 > b.y - b.h / 2 &&
+        a.z - a.d / 2 < b.z + b.d / 2 &&
+        a.z + a.d / 2 > b.z - b.d / 2);
 }
 export function aabbResolveX(moving, other, velX) {
     if (!aabbOverlap(moving, other))
@@ -80,15 +89,26 @@ function colliderAabb(e) {
     }
     return { x: t.x - c.w / 2, y: t.y - c.h / 2, w: c.w, h: c.h };
 }
+function colliderAabb3(e) {
+    const t = e.transform3d;
+    const c = e.collider3d;
+    if (!t || !c)
+        return null;
+    return { x: t.tx, y: t.ty, z: t.tz, w: c.w, h: c.h, d: c.d };
+}
 function circleOverlap(ax, ay, ar, bx, by, br) {
     const dx = bx - ax;
     const dy = by - ay;
     const rr = ar + br;
     return dx * dx + dy * dy < rr * rr;
 }
-/** Walkable surface: normal points upward enough (ny < -0.35). */
-function isGroundNormal(_nx, ny) {
+/** Walkable surface in 2D (Y-down): normal points upward enough (ny < -0.35). */
+function isGroundNormal2d(_nx, ny) {
     return ny < -0.35;
+}
+/** Walkable surface in 3D (Y-up): normal points upward enough (ny > 0.35). */
+function isGroundNormal3d(_nx, ny, _nz) {
+    return ny > 0.35;
 }
 function applySlopeSlide(body, slopeDeg) {
     if (!slopeDeg || !body.grounded)
@@ -122,7 +142,7 @@ function recordTriggerOverlaps(moving, other) {
         pushContact(moving.id, other.id, 0, 0, true);
 }
 function markGrounded(body, nx, ny, surface) {
-    if (!isGroundNormal(nx, ny))
+    if (!isGroundNormal2d(nx, ny))
         return;
     body.grounded = true;
     if (surface?.slope)
@@ -202,8 +222,94 @@ function resolvePair(moving, other) {
     markGrounded(body, nx, ny, oc);
     pushContact(moving.id, other.id, nx, ny, false);
 }
-export function stepWorldPhysics(world, dt) {
-    clearContacts();
+function recordTriggerOverlaps3d(moving, other) {
+    const mc = moving.collider3d;
+    const oc = other.collider3d;
+    if (!mc || !oc)
+        return;
+    if (mc.solid && oc.solid)
+        return;
+    const a = colliderAabb3(moving);
+    const b = colliderAabb3(other);
+    if (a && b && aabb3Overlap(a, b))
+        pushContact(moving.id, other.id, 0, 0, true, 0);
+}
+function resolvePair3d(moving, other) {
+    const body = moving.rigidbody3d;
+    const mt = moving.transform3d;
+    const ot = other.transform3d;
+    const mc = moving.collider3d;
+    const oc = other.collider3d;
+    if (!body || !mt || !ot || !mc || !oc)
+        return;
+    if (!oc.solid || !mc.solid) {
+        recordTriggerOverlaps3d(moving, other);
+        return;
+    }
+    const a = colliderAabb3(moving);
+    const b = colliderAabb3(other);
+    if (!a || !b || !aabb3Overlap(a, b))
+        return;
+    const aMinX = a.x - a.w / 2;
+    const aMaxX = a.x + a.w / 2;
+    const aMinY = a.y - a.h / 2;
+    const aMaxY = a.y + a.h / 2;
+    const aMinZ = a.z - a.d / 2;
+    const aMaxZ = a.z + a.d / 2;
+    const bMinX = b.x - b.w / 2;
+    const bMaxX = b.x + b.w / 2;
+    const bMinY = b.y - b.h / 2;
+    const bMaxY = b.y + b.h / 2;
+    const bMinZ = b.z - b.d / 2;
+    const bMaxZ = b.z + b.d / 2;
+    const overlapX = Math.min(aMaxX, bMaxX) - Math.max(aMinX, bMinX);
+    const overlapY = Math.min(aMaxY, bMaxY) - Math.max(aMinY, bMinY);
+    const overlapZ = Math.min(aMaxZ, bMaxZ) - Math.max(aMinZ, bMinZ);
+    let nx = 0;
+    let ny = 0;
+    let nz = 0;
+    // Prefer Y separation for platformer-style landings when nearly tied.
+    const minOverlap = Math.min(overlapX, overlapY, overlapZ);
+    const preferY = overlapY <= overlapX * 1.05 && overlapY <= overlapZ * 1.05;
+    if (preferY || minOverlap === overlapY) {
+        if (a.y < b.y) {
+            mt.ty -= overlapY;
+            ny = -1;
+        }
+        else {
+            mt.ty += overlapY;
+            ny = 1;
+        }
+        body.vy = 0;
+    }
+    else if (minOverlap === overlapX) {
+        if (a.x < b.x) {
+            mt.tx -= overlapX;
+            nx = -1;
+        }
+        else {
+            mt.tx += overlapX;
+            nx = 1;
+        }
+        body.vx = 0;
+    }
+    else {
+        if (a.z < b.z) {
+            mt.tz -= overlapZ;
+            nz = -1;
+        }
+        else {
+            mt.tz += overlapZ;
+            nz = 1;
+        }
+        body.vz = 0;
+    }
+    if (isGroundNormal3d(nx, ny, nz))
+        body.grounded = true;
+    pushContact(moving.id, other.id, nx, ny, false, nz);
+}
+/** 2D solver only — does not clear the shared contact buffer. */
+export function stepWorldPhysics2d(world, dt) {
     const bodies = [];
     const colliders = [];
     for (const e of world.entities.values()) {
@@ -243,6 +349,78 @@ export function stepWorldPhysics(world, dt) {
         }
     }
 }
+/**
+ * Sync transform2d → transform3d for hybrid entities (2D physics, 3D render).
+ * Maps x→tx, y→ty; keeps authored tz. Skips entities that own a rigidbody3d.
+ */
+export function syncHybrid2dTo3d(world) {
+    for (const e of world.entities.values()) {
+        if (!e.transform2d)
+            continue;
+        if (e.rigidbody3d)
+            continue;
+        if (!e.transform3d && !e.mesh3d)
+            continue;
+        const t3 = e.transform3d ?? defaultTransform3D();
+        t3.tx = e.transform2d.x;
+        t3.ty = e.transform2d.y;
+        e.transform3d = t3;
+    }
+}
+/** 3D AABB solver — appends to the shared contact buffer (does not clear). */
+export function stepWorldPhysics3d(world, dt) {
+    const bodies = [];
+    const colliders = [];
+    for (const e of world.entities.values()) {
+        // Hybrid: 2D body already drives motion; skip 3D integration for those.
+        if (e.rigidbody3d && e.transform3d && !e.rigidbody2d)
+            bodies.push(e);
+        if (e.collider3d && e.transform3d)
+            colliders.push(e);
+    }
+    for (const e of bodies) {
+        const body = e.rigidbody3d;
+        const t = e.transform3d;
+        body.grounded = false;
+        const g = body.gravity !== 0 ? body.gravity : world.gravity;
+        // Y-up: gravity pulls down (−Y).
+        body.vy -= g * dt;
+        t.tx += body.vx * dt;
+        for (const other of colliders) {
+            if (other.id === e.id)
+                continue;
+            resolvePair3d(e, other);
+        }
+        t.ty += body.vy * dt;
+        for (const other of colliders) {
+            if (other.id === e.id)
+                continue;
+            resolvePair3d(e, other);
+        }
+        t.tz += body.vz * dt;
+        for (const other of colliders) {
+            if (other.id === e.id)
+                continue;
+            resolvePair3d(e, other);
+        }
+    }
+    for (const e of bodies) {
+        for (const other of colliders) {
+            if (other.id === e.id)
+                continue;
+            if (other.collider3d?.solid && e.collider3d?.solid)
+                continue;
+            recordTriggerOverlaps3d(e, other);
+        }
+    }
+}
+/** Full world physics: 2D then hybrid sync then 3D; shared contact buffer. */
+export function stepWorldPhysics(world, dt) {
+    clearContacts();
+    stepWorldPhysics2d(world, dt);
+    syncHybrid2dTo3d(world);
+    stepWorldPhysics3d(world, dt);
+}
 export function installPhysicsHooks() {
     setPhysicsHooks({ stepPhysics: stepWorldPhysics });
 }
@@ -272,6 +450,10 @@ export function createPhysicsImports(memoryRef) {
 /** Expose collider helper for editor gizmos. */
 export function getColliderBounds(e) {
     return colliderAabb(e);
+}
+/** Expose 3D collider helper for editor gizmos. */
+export function getColliderBounds3d(e) {
+    return colliderAabb3(e);
 }
 /** Ensure world gravity is used even when hooks already installed. */
 export function ensurePhysicsInstalled() {

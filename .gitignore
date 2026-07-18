@@ -10,5 +10,11 @@ github_upload/
 github_upload_batches/
 itchupload/
 
+# Legacy nested upload mirrors (canonical layout is flat: ide/, crates/, docs/, …)
+1_root_crates/
+2_ide_runtime/
+3_docs_examples/
+_github_upload/
+
 # Local Netlify folder
 .netlify

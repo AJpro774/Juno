@@ -55,6 +55,65 @@ Workflow: [`.github/workflows/release-desktop.yml`](../../.github/workflows/rele
 
 Triggers on **`v*`** tags (and manual `workflow_dispatch`). Artifacts upload to a **draft** GitHub Release via `tauri-apps/tauri-action`.
 
+The matrix uses `fail-fast: false`. **Signing is optional and secrets-driven**: if macOS/Windows signing secrets are absent, that OS still builds **unsigned** installers and the rest of the matrix continues.
+
+## Code signing / notarization (GitHub secrets)
+
+Configure secrets under the repo **Settings → Secrets and variables → Actions**. Values are operator-side (Apple Developer / cert vendor / Azure); the workflow only wires them in when present.
+
+### macOS (codesign + notarization)
+
+Provide a **Developer ID Application** certificate as a base64 `.p12`, plus either Apple ID or App Store Connect API auth for notarization.
+
+| Secret | Required when | Notes |
+|--------|---------------|-------|
+| `APPLE_CERTIFICATE` | signing | Base64 of exported `.p12` (`openssl base64 -A -in cert.p12 -out cert.txt`) |
+| `APPLE_CERTIFICATE_PASSWORD` | signing | Password used when exporting the `.p12` |
+| `APPLE_SIGNING_IDENTITY` | optional | Keychain identity string; inferred from the cert when omitted |
+| `APPLE_ID` | notarize via Apple ID | Apple ID email |
+| `APPLE_PASSWORD` | notarize via Apple ID | App-specific password |
+| `APPLE_TEAM_ID` | notarize via Apple ID | 10-character Team ID |
+| `APPLE_API_KEY` | notarize via API key | App Store Connect Key ID |
+| `APPLE_API_ISSUER` | notarize via API key | Issuer UUID |
+| `APPLE_API_PRIVATE_KEY` | notarize via API key | Contents of the `.p8` private key (workflow writes `APPLE_API_KEY_PATH`) |
+
+If only `APPLE_CERTIFICATE` (+ password) is set, the app is **signed** but not notarized. For Gatekeeper-friendly downloads, also set one notarization auth method.
+
+See [Tauri macOS signing](https://v2.tauri.app/distribute/sign/macos/).
+
+### Windows (Authenticode)
+
+Choose **one** of:
+
+1. **PFX + signtool** (OV/EV code-signing cert in the runner certificate store), or
+2. **Azure Trusted Signing** (cloud certificate profile).
+
+PFX takes priority when `WINDOWS_CERTIFICATE` is set.
+
+| Secret | Path | Notes |
+|--------|------|-------|
+| `WINDOWS_CERTIFICATE` | PFX | Base64 of `.pfx` (`certutil -encode certificate.pfx out.txt` or `openssl base64 -A -in certificate.pfx`) |
+| `WINDOWS_CERTIFICATE_PASSWORD` | PFX | Export password for the `.pfx` |
+| `WINDOWS_TIMESTAMP_URL` | PFX optional | Defaults to `http://timestamp.digicert.com` |
+| `AZURE_CLIENT_ID` | Azure | App registration client ID |
+| `AZURE_CLIENT_SECRET` | Azure | App registration client secret |
+| `AZURE_TENANT_ID` | Azure | Directory (tenant) ID |
+| `AZURE_TRUSTED_SIGNING_ACCOUNT` | Azure | Trusted Signing account name |
+| `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE` | Azure | Certificate profile name |
+| `AZURE_TRUSTED_SIGNING_ENDPOINT` | Azure optional | Defaults to `https://wus2.codesigning.azure.net` (use your account’s region) |
+
+The workflow patches `desktop/src-tauri/tauri.conf.json` **only for that CI job** (thumbprint or `signCommand`); the committed config stays unsigned-friendly.
+
+See [Tauri Windows signing](https://v2.tauri.app/distribute/sign/windows/).
+
+### Linux
+
+No code-signing secrets are required for AppImage/deb in this workflow.
+
+### After secrets are configured
+
+Push or re-run a `v*` tag (or `workflow_dispatch`) so draft release assets are rebuilt signed. Secret material never belongs in the repo or in docs — only the secret **names** above.
+
 ## Web download hub
 
 The site at **`/download/`** (same IDE fonts/tokens) detects OS/arch and links to GitHub Releases asset placeholders (`/releases/latest` until a tag publishes matching files).

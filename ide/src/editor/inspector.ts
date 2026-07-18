@@ -255,6 +255,55 @@ export function renderInspector(
   );
   host.appendChild(sectionSprite);
 
+  const anim = c.sprite_animator;
+  const sectionAnim = document.createElement("div");
+  sectionAnim.className = "inspector-section";
+  sectionAnim.innerHTML = "<h4>SpriteAnimator</h4>";
+  sectionAnim.appendChild(
+    checkboxInput("Enabled", !!anim, (on) => {
+      store.updateSelected((e) => {
+        ensureComponents(e);
+        if (on) {
+          e.components!.sprite_animator = {
+            default: "idle",
+            autoplay: true,
+            clips: [{ name: "idle", fps: 1, loop: true, frames: [0] }],
+          };
+        } else delete e.components!.sprite_animator;
+      });
+    })
+  );
+  if (anim) {
+    const clipNames = (anim.clips ?? []).map((x) => x.name ?? "").filter(Boolean);
+    sectionAnim.appendChild(
+      selectInput("Default clip", anim.default ?? "", [""].concat(clipNames), (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.sprite_animator = {
+            ...(e.components!.sprite_animator ?? {}),
+            default: v || undefined,
+          };
+        })
+      )
+    );
+    sectionAnim.appendChild(
+      checkboxInput("Autoplay", anim.autoplay !== false, (on) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.sprite_animator = {
+            ...(e.components!.sprite_animator ?? {}),
+            autoplay: on,
+          };
+        })
+      )
+    );
+    const hint = document.createElement("p");
+    hint.className = "inspector-hint";
+    hint.textContent = "Edit clips in the Anim panel (toolbar).";
+    sectionAnim.appendChild(hint);
+  }
+  host.appendChild(sectionAnim);
+
   const body = c.rigidbody2d;
   const sectionBody = document.createElement("div");
   sectionBody.className = "inspector-section";
@@ -372,6 +421,118 @@ export function renderInspector(
     );
   }
   host.appendChild(sectionCol);
+
+  const body3 = c.rigidbody3d;
+  const sectionBody3 = document.createElement("div");
+  sectionBody3.className = "inspector-section";
+  sectionBody3.innerHTML = "<h4>RigidBody3D</h4>";
+  sectionBody3.appendChild(
+    checkboxInput("Enabled", !!body3, (on) => {
+      store.updateSelected((e) => {
+        ensureComponents(e);
+        if (on) e.components!.rigidbody3d = { vx: 0, vy: 0, vz: 0, gravity: 900 };
+        else delete e.components!.rigidbody3d;
+      });
+    })
+  );
+  if (body3) {
+    sectionBody3.appendChild(
+      numInput("Gravity", body3.gravity ?? 0, (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.rigidbody3d = { ...(e.components!.rigidbody3d ?? {}), gravity: v };
+        })
+      )
+    );
+    sectionBody3.appendChild(
+      numInput("VX", body3.vx ?? 0, (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.rigidbody3d = { ...(e.components!.rigidbody3d ?? {}), vx: v };
+        })
+      )
+    );
+    sectionBody3.appendChild(
+      numInput("VY", body3.vy ?? 0, (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.rigidbody3d = { ...(e.components!.rigidbody3d ?? {}), vy: v };
+        })
+      )
+    );
+    sectionBody3.appendChild(
+      numInput("VZ", body3.vz ?? 0, (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.rigidbody3d = { ...(e.components!.rigidbody3d ?? {}), vz: v };
+        })
+      )
+    );
+  }
+  host.appendChild(sectionBody3);
+
+  const col3 = c.collider3d;
+  const sectionCol3 = document.createElement("div");
+  sectionCol3.className = "inspector-section";
+  sectionCol3.innerHTML = "<h4>Collider3D</h4>";
+  sectionCol3.appendChild(
+    checkboxInput("Enabled", !!col3, (on) => {
+      store.updateSelected((e) => {
+        ensureComponents(e);
+        if (on) {
+          e.components!.collider3d = {
+            type: "aabb",
+            w: 1,
+            h: 1,
+            d: 1,
+            solid: true,
+          };
+          if (!e.components!.transform3d) {
+            e.components!.transform3d = {
+              position: [0, 0, 0],
+              rotation: [0, 0, 0],
+              scale: [1, 1, 1],
+            };
+          }
+        } else delete e.components!.collider3d;
+      });
+    })
+  );
+  if (col3) {
+    sectionCol3.appendChild(
+      numInput("W", col3.w ?? 1, (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.collider3d = { ...(e.components!.collider3d ?? {}), w: v };
+        })
+      )
+    );
+    sectionCol3.appendChild(
+      numInput("H", col3.h ?? 1, (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.collider3d = { ...(e.components!.collider3d ?? {}), h: v };
+        })
+      )
+    );
+    sectionCol3.appendChild(
+      numInput("D", col3.d ?? 1, (v) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.collider3d = { ...(e.components!.collider3d ?? {}), d: v };
+        })
+      )
+    );
+    sectionCol3.appendChild(
+      checkboxInput("Solid", col3.solid !== false, (on) =>
+        store.updateSelected((e) => {
+          ensureComponents(e);
+          e.components!.collider3d = { ...(e.components!.collider3d ?? {}), solid: on };
+        })
+      )
+    );
+  }
+  host.appendChild(sectionCol3);
 
   const cam = c.camera2d;
   const sectionCam = document.createElement("div");

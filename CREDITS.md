@@ -79,6 +79,13 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
 - **License:** Apache License 2.0 (source); EULA for distributed IDE/apps — see `LICENSE` and `EULA.md`
 
+## v10 — Expand
+
+- **Author:** Alexander James Patton
+- **Deliverable:** Borrow checking, categorical Code Search, 3D/hybrid physics + `on_trigger_exit`, `platformer_3d`, Anim editor, deeper optional AI, flat repo, signed desktop hooks — `v10.0.0`
+- **Built with:** Cursor
+- **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.

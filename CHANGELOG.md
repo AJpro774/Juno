@@ -2,6 +2,31 @@
 
 All notable changes to Juni are documented here.
 
+## [10.0.0] — 2026-07-18
+
+Language borrow checking, 3D physics, animation authoring, deeper optional AI, flat repo, signed desktop hooks.
+
+### Language / checker
+- Real **borrow checking** (`ref` / `mut`): reject immutable writes, overlapping mut aliases, escaping refs
+- Generics docs, richer diagnostics, const array index bounds
+- Docs: [Types](docs/src/language/types.md), [Generics](docs/src/language/generics.md)
+
+### IDE
+- Categorical Monarch highlight + theme colors; **Code Search** by category
+- **Anim** panel: sprite-sheet / keyframe clips → `assets/anims/*.json` + `sprite_animator`
+- Deeper optional AI: RAG refresh, project-aware chat prompts — still **off by default**
+
+### Engine / physics
+- AABB `rigidbody3d` / `collider3d` alongside 2D; hybrid 2D-phys → 3D-render sync
+- Script event `on_trigger_exit` when a prior trigger pair disappears
+- Template: `examples/projects/platformer_3d`
+
+### Repo / release
+- Canonical flat layout only (removed nested `1_root_crates` / `2_ide_runtime` / `3_docs_examples` / `_github_upload`)
+- Netlify builds flat `ide/` only
+- Desktop release workflow: macOS notarization + Windows signing when secrets present (unsigned fallback otherwise)
+- Brand / package / desktop versions → **10.0.0**
+
 ## [9.3.0] — 2026-07-18
 
 Scripts that feel real: open → stub → collide → see colliders → ship.

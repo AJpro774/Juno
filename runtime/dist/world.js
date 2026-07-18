@@ -100,6 +100,134 @@ export function mesh3dAttach(id, meshHandle, world = getWorld()) {
     if (!e.transform3d)
         e.transform3d = defaultTransform3D();
 }
+function findClip(anim, name) {
+    const want = name.trim();
+    if (!want)
+        return null;
+    return anim.clips.find((c) => c.name === want) ?? null;
+}
+function clipDuration(clip) {
+    if (clip.keys && clip.keys.length > 0) {
+        let maxT = 0;
+        for (const k of clip.keys)
+            maxT = Math.max(maxT, k.t);
+        return Math.max(maxT, 1e-6);
+    }
+    const frames = clip.frames;
+    if (frames && frames.length > 0) {
+        const fps = clip.fps > 0 ? clip.fps : 1;
+        return frames.length / fps;
+    }
+    return 1;
+}
+function applyAnimKey(e, key) {
+    if (key.frame !== undefined && e.sprite) {
+        e.sprite.frame = key.frame | 0;
+    }
+    if (key.x !== undefined ||
+        key.y !== undefined ||
+        key.rotation !== undefined) {
+        const t = e.transform2d ?? defaultTransform2D();
+        if (key.x !== undefined)
+            t.x = key.x;
+        if (key.y !== undefined)
+            t.y = key.y;
+        if (key.rotation !== undefined)
+            t.rotation = key.rotation;
+        e.transform2d = t;
+    }
+    if (key.tx !== undefined ||
+        key.ty !== undefined ||
+        key.tz !== undefined ||
+        key.rx !== undefined ||
+        key.ry !== undefined ||
+        key.rz !== undefined) {
+        const t = e.transform3d ?? defaultTransform3D();
+        if (key.tx !== undefined)
+            t.tx = key.tx;
+        if (key.ty !== undefined)
+            t.ty = key.ty;
+        if (key.tz !== undefined)
+            t.tz = key.tz;
+        if (key.rx !== undefined)
+            t.rx = key.rx;
+        if (key.ry !== undefined)
+            t.ry = key.ry;
+        if (key.rz !== undefined)
+            t.rz = key.rz;
+        e.transform3d = t;
+    }
+}
+function sampleClip(e, clip, time) {
+    const frames = clip.frames;
+    if (frames && frames.length > 0) {
+        const fps = clip.fps > 0 ? clip.fps : 1;
+        const idx = Math.floor(time * fps);
+        const frame = clip.loop
+            ? frames[idx % frames.length]
+            : frames[Math.min(idx, frames.length - 1)];
+        if (e.sprite)
+            e.sprite.frame = frame | 0;
+    }
+    const keys = clip.keys;
+    if (!keys || keys.length === 0)
+        return;
+    const sorted = [...keys].sort((a, b) => a.t - b.t);
+    let active = sorted[0];
+    for (const k of sorted) {
+        if (k.t <= time + 1e-9)
+            active = k;
+        else
+            break;
+    }
+    applyAnimKey(e, active);
+}
+/** Start a named clip on an entity's SpriteAnimator. Returns 1 on success. */
+export function animPlay(id, clipName, world = getWorld()) {
+    const e = world.entities.get(id | 0);
+    if (!e?.spriteAnimator)
+        return 0;
+    const clip = findClip(e.spriteAnimator, clipName);
+    if (!clip)
+        return 0;
+    e.spriteAnimator.playing = clip.name;
+    e.spriteAnimator.time = 0;
+    sampleClip(e, clip, 0);
+    return 1;
+}
+/** Stop the current SpriteAnimator clip on an entity. */
+export function animStop(id, world = getWorld()) {
+    const e = world.entities.get(id | 0);
+    if (!e?.spriteAnimator)
+        return;
+    e.spriteAnimator.playing = "";
+    e.spriteAnimator.time = 0;
+}
+function tickSpriteAnimator(e, dt) {
+    const anim = e.spriteAnimator;
+    if (!anim || !anim.playing)
+        return false;
+    const clip = findClip(anim, anim.playing);
+    if (!clip) {
+        anim.playing = "";
+        return false;
+    }
+    anim.time += dt;
+    const dur = clipDuration(clip);
+    if (anim.time >= dur) {
+        if (clip.loop) {
+            anim.time = anim.time % dur;
+        }
+        else {
+            anim.time = dur;
+            sampleClip(e, clip, anim.time);
+            anim.playing = "";
+            return true;
+        }
+    }
+    sampleClip(e, clip, anim.time);
+    return true;
+}
 export function camera2dSet(id, x, y, zoom, world = getWorld()) {
     const e = world.entities.get(id | 0);
     if (!e)
@@ -157,6 +285,48 @@ export function collider2dSet(id, kind, w, h, radius, solid, world = getWorld())
     if (!e.transform2d)
         e.transform2d = defaultTransform2D();
 }
+export function rigidbody3dSetVel(id, vx, vy, vz, world = getWorld()) {
+    const e = world.entities.get(id | 0);
+    if (!e)
+        return;
+    if (!e.rigidbody3d) {
+        e.rigidbody3d = { vx: 0, vy: 0, vz: 0, gravity: 0, grounded: false };
+    }
+    e.rigidbody3d.vx = vx;
+    // Sentinel: vy >= 1e6 means leave vertical unchanged (airborne horizontal move).
+    if (vy < 1_000_000)
+        e.rigidbody3d.vy = vy;
+    if (vz < 1_000_000)
+        e.rigidbody3d.vz = vz;
+}
+export function rigidbody3dGetGrounded(id, world = getWorld()) {
+    return world.entities.get(id | 0)?.rigidbody3d?.grounded ? 1 : 0;
+}
+export function collider3dSet(id, kind, w, h, d, solid, world = getWorld()) {
+    const e = world.entities.get(id | 0);
+    if (!e)
+        return;
+    void kind; // only AABB today
+    e.collider3d = {
+        kind: "aabb",
+        w,
+        h,
+        d,
+        solid: solid !== 0,
+    };
+    if (!e.transform3d)
+        e.transform3d = defaultTransform3D();
+}
+/** Copy transform2d.x/y onto transform3d.tx/ty (keeps tz). Creates transform3d if missing. */
+export function transform3dSyncFrom2d(id, world = getWorld()) {
+    const e = world.entities.get(id | 0);
+    if (!e?.transform2d)
+        return;
+    const t3 = e.transform3d ?? defaultTransform3D();
+    t3.tx = e.transform2d.x;
+    t3.ty = e.transform2d.y;
+    e.transform3d = t3;
+}
 export function getActiveCamera2D(world = getWorld()) {
     for (const e of world.entities.values()) {
         if (e.camera2d?.active)
@@ -171,8 +341,12 @@ export function setPhysicsHooks(hooks) {
 export function worldStep(dt, world = getWorld()) {
     const clamped = Math.min(0.05, Math.max(0, dt));
     for (const e of world.entities.values()) {
+        const drivenByClip = tickSpriteAnimator(e, clamped);
         const sprite = e.sprite;
-        if (sprite && sprite.fps > 0 && sprite.cols * sprite.rows > 1) {
+        if (!drivenByClip &&
+            sprite &&
+            sprite.fps > 0 &&
+            sprite.cols * sprite.rows > 1) {
             sprite.animTime += clamped;
             const total = sprite.cols * sprite.rows;
             const frame = Math.floor(sprite.animTime * sprite.fps);

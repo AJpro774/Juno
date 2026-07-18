@@ -24,20 +24,54 @@ let v = xs[0]               # index with i32
 xs[1] = 9
 ```
 
-Arrays live in linear memory. Indexing with a constant out of range is a checker error; runtime bounds traps are optional/future.
+Arrays live in linear memory. Indexing with a **constant** out of range is a checker error. Runtime bounds traps for dynamic indices are optional/future.
 
 ## Structs
 
 User-defined product types with named fields. Values are laid out in linear memory; locals of struct type hold an address.
 
-## References
+## References and borrow checking
 
 ```juni
 ref T        # shared/borrowed reference (immutable)
 mut ref T    # mutable reference
 ```
 
-In v0, refs are represented as `i32` pointers in WASM. Full borrow checking is future work.
+In WASM, refs are still represented as `i32` pointers. The checker enforces aliasing rules; there is no runtime borrow runtime.
+
+### Rules
+
+1. **No writes through `ref T`.** Field (or index) stores require `mut ref T`.
+2. **Exclusive mutable aliases.** A place may have either one active `mut ref` **or** any number of shared `ref`s — not both, and not two `mut ref`s at once.
+3. **`mut ref` moves.** Copying a `mut ref` into another local moves the exclusive alias (the source is invalidated). Shared `ref`s may be copied.
+4. **Call arguments.** Passing the same place as both a `mut ref` and another ref (or two `mut ref`s) in one call is an error.
+5. **Escape (conservative).** Storing a parameter `ref`/`mut ref` into module `state` / statics is rejected (would outlive the caller). Returning heap refs (`new`) or re-exporting parameter refs is allowed. Full non-lexical region inference (Rust NLL) is out of scope.
+
+```juni
+struct Node:
+    v: i32
+
+fn bump(p: mut ref Node) -> i32:
+    p.v = p.v + 1
+    return p.v
+
+fn peek(p: ref Node) -> i32:
+    return p.v
+    # p.v = 0   # error: write through immutable ref
+
+fn main() -> i32:
+    let a = new Node(v=1)
+    let b = a              # moves mut ref; `a` no longer aliases
+    print(bump(b))
+    # peek(b) and bump(b) in ways that alias mut+shared in one call → error
+    return 0
+```
+
+See also [Memory](memory.md) for `new` / `delete` (heap returns `mut ref T`).
+
+## Generics
+
+Single-parameter generic functions with `T: Ord` are supported. See [Generics](generics.md).
 
 ## Inference
 

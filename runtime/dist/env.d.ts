@@ -114,6 +114,12 @@ export declare function createEnvImports(options?: EnvOptions): {
         scene3d_set_fog: any;
         audio_stop: (handle: number) => void;
         audio_set_bus_volume: (volume: number) => void;
+        rigidbody3d_set_vel: any;
+        rigidbody3d_get_grounded: any;
+        collider3d_set: any;
+        transform3d_sync_from_2d: any;
+        anim_play: any;
+        anim_stop: any;
     };
     memoryRef: MemoryRef;
 };

@@ -10,6 +10,7 @@ import controlFlow from "../../docs/src/language/control-flow.md?raw";
 import engineOverview from "../../docs/src/engine/overview.md?raw";
 import engineIntrinsics from "../../docs/src/engine/intrinsics.md?raw";
 import engineJscene from "../../docs/src/engine/jscene.md?raw";
+import engineAnimation from "../../docs/src/engine/animation.md?raw";
 import engineEditor from "../../docs/src/engine/editor.md?raw";
 import engineLevel from "../../docs/src/engine/level.md?raw";
 import aiAssistant from "../../docs/src/projects/ai-assistant.md?raw";
@@ -40,6 +41,7 @@ export const DOC_PAGES: DocPage[] = [
   { id: "engine-overview", title: "Engine overview", markdown: engineOverview },
   { id: "engine-intrinsics", title: "Host intrinsics", markdown: engineIntrinsics },
   { id: "engine-jscene", title: ".jscene scenes", markdown: engineJscene },
+  { id: "engine-animation", title: "Animation", markdown: engineAnimation },
   { id: "engine-editor", title: "Visual editor", markdown: engineEditor },
   { id: "engine-level", title: "Making a level", markdown: engineLevel },
   { id: "ai-assistant", title: "AI assistant", markdown: aiAssistant },

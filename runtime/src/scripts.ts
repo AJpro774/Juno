@@ -10,6 +10,7 @@
  *
  *   {module}_on_collision(entity_id, other_id, dt) -> i32   — each frame, solid contacts
  *   {module}_on_trigger_enter(entity_id, other_id, dt) -> i32 — once when a trigger pair appears
+ *   {module}_on_trigger_exit(entity_id, other_id, dt) -> i32  — once when a prior trigger pair disappears
  *
  * Resolution order for `module="player"`, `handler="on_update"`:
  * 1. JS registry key `player:on_update` (then bare `on_update`)
@@ -49,8 +50,8 @@ const jsHandlers = new Map<string, ScriptHandlerFn | CollisionScriptHandlerFn>()
 let wasmExports: WebAssembly.Exports | null = null;
 let dispatchEnabled = true;
 
-/** Previous-frame contact pairs (`minId:maxId`) for trigger-enter detection. */
-let prevContactPairs = new Set<string>();
+/** Previous-frame trigger pairs (`minId:maxId`) for enter/exit detection. */
+let prevTriggerPairs = new Set<string>();
 
 function key(module: string, handler: string): string {
   const m = (module || "").trim();
@@ -71,6 +72,11 @@ function pairKey(a: number, b: number): string {
   const lo = Math.min(a, b);
   const hi = Math.max(a, b);
   return `${lo}:${hi}`;
+}
+
+function parsePairKey(pk: string): [number, number] {
+  const [lo, hi] = pk.split(":").map((s) => Number(s));
+  return [lo | 0, hi | 0];
 }
 
 /** Register a JavaScript handler (tests, IDE helpers, or host extensions). */
@@ -142,7 +148,7 @@ function invokeCollisionEvent(
   entityId: number,
   otherId: number,
   dt: number,
-  event: "on_collision" | "on_trigger_enter"
+  event: "on_collision" | "on_trigger_enter" | "on_trigger_exit"
 ): void {
   const e = world.entities.get(entityId);
   const script = e?.script;
@@ -185,26 +191,27 @@ export function dispatchEntityScripts(world: World, dt: number): void {
 }
 
 /**
- * After physics: fire `on_collision` for solid contacts each frame, and
- * `on_trigger_enter` when a trigger pair first appears. Both entities with a
+ * After physics: fire `on_collision` for solid contacts each frame,
+ * `on_trigger_enter` when a trigger pair first appears, and
+ * `on_trigger_exit` when a prior trigger pair is gone. Both entities with a
  * `script` component are called when the matching export/JS handler exists.
  */
 export function dispatchCollisionScripts(world: World, dt: number): void {
   if (!dispatchEnabled) return;
   const clamped = Math.min(0.05, Math.max(0, dt));
   const n = collisionCount();
-  const currentPairs = new Set<string>();
+  const currentTriggerPairs = new Set<string>();
 
   for (let i = 0; i < n; i++) {
     const a = collisionEntityA(i);
     const b = collisionEntityB(i);
     if (!a || !b) continue;
     const pk = pairKey(a, b);
-    currentPairs.add(pk);
     const isTrigger = collisionIsTrigger(i) !== 0;
 
     if (isTrigger) {
-      if (!prevContactPairs.has(pk)) {
+      currentTriggerPairs.add(pk);
+      if (!prevTriggerPairs.has(pk)) {
         invokeCollisionEvent(world, a, b, clamped, "on_trigger_enter");
         invokeCollisionEvent(world, b, a, clamped, "on_trigger_enter");
       }
@@ -214,12 +221,20 @@ export function dispatchCollisionScripts(world: World, dt: number): void {
     }
   }
 
-  prevContactPairs = currentPairs;
+  for (const pk of prevTriggerPairs) {
+    if (currentTriggerPairs.has(pk)) continue;
+    const [a, b] = parsePairKey(pk);
+    if (!a || !b) continue;
+    invokeCollisionEvent(world, a, b, clamped, "on_trigger_exit");
+    invokeCollisionEvent(world, b, a, clamped, "on_trigger_exit");
+  }
+
+  prevTriggerPairs = currentTriggerPairs;
 }
 
 /** Reset host script state (new run / world reset). */
 export function resetScriptHost(): void {
   // Keep JS registrations across runs (host may re-register); clear WASM bind.
   unbindScriptWasm();
-  prevContactPairs = new Set();
+  prevTriggerPairs = new Set();
 }

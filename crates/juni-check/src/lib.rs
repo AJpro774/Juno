@@ -1,12 +1,13 @@
 //! Juni typechecker and high-level IR.
 
+pub mod borrow;
 pub mod diag;
 pub mod generics;
 pub mod hir;
 pub mod program;
 pub mod types;
 
-pub use diag::{diagnostics_to_json, Diagnostic, DiagnosticJson, Severity};
+pub use diag::{diagnostics_to_json, did_you_mean, Diagnostic, DiagnosticJson, Severity};
 pub use hir::{mangle_symbol, HirModule, HirProgram, ModuleId};
 pub use program::{check_program, check_program_ok, ProgramCheckResult, ProgramModule};
 
@@ -17,6 +18,7 @@ use juni_syntax::{
     StructDef, TypeExpr, TypeExprKind, UnaryOp,
 };
 
+use crate::borrow::{Alias, BorrowCx, Place};
 use crate::generics::{infer_substitution, instantiate_fn_def, mangle_generic_instance};
 use crate::hir::*;
 use crate::program::{flatten_items, imports_from_module, FlatItem, ImportBindings};
@@ -96,6 +98,10 @@ struct Checker {
     generic_fns: HashMap<String, (FnDef, bool)>,
     /// Active type-parameter substitution while checking a generic template.
     type_param_scope: Option<HashMap<String, Type>>,
+    /// Function-local ref/mut alias tracking.
+    borrow: BorrowCx,
+    /// Place of the most recently checked ref-typed expression.
+    expr_place: Option<Alias>,
 }
 
 #[derive(Clone)]
@@ -170,6 +176,8 @@ impl Checker {
             fn_local_types: Vec::new(),
             generic_fns: HashMap::new(),
             type_param_scope: None,
+            borrow: BorrowCx::default(),
+            expr_place: None,
         }
     }
 
@@ -178,9 +186,14 @@ impl Checker {
         let module_aliases: Vec<_> = self.imports.module_aliases.iter().map(|(a, t)| (a.clone(), t.clone())).collect();
         for (alias, target) in module_aliases {
             if !self.foreign_exports.contains_key(&target) {
-                self.error(
+                let notes = self.note_did_you_mean(
+                    &target,
+                    self.foreign_exports.keys().cloned(),
+                );
+                self.error_with_notes(
                     module.span,
                     format!("unknown module `{target}` (via import `{alias}`)"),
+                    notes,
                 );
             }
         }
@@ -251,8 +264,33 @@ impl Checker {
             severity: Severity::Error,
             span,
             message: msg.into(),
+            notes: Vec::new(),
             file: self.file.clone(),
         });
+    }
+
+    fn error_with_notes(
+        &mut self,
+        span: juni_syntax::Span,
+        msg: impl Into<String>,
+        notes: impl IntoIterator<Item = String>,
+    ) {
+        self.diagnostics.push(Diagnostic {
+            severity: Severity::Error,
+            span,
+            message: msg.into(),
+            notes: notes.into_iter().collect(),
+            file: self.file.clone(),
+        });
+    }
+
+    fn note_did_you_mean(&self, name: &str, candidates: impl Iterator<Item = String>) -> Vec<String> {
+        let list: Vec<String> = candidates.collect();
+        if let Some(s) = did_you_mean(name, list.iter().map(|s| s.as_str())) {
+            vec![format!("did you mean `{s}`?")]
+        } else {
+            Vec::new()
+        }
     }
 
     fn resolve_foreign_struct(&self, module: &str, name: &str) -> Option<StructLayout> {
@@ -325,7 +363,11 @@ impl Checker {
     }
 
     fn pop_scope(&mut self) {
-        self.locals.pop();
+        if let Some(scope) = self.locals.pop() {
+            for (_, (_, id)) in scope {
+                self.borrow.clear_local(id.0);
+            }
+        }
     }
 
     fn declare_local(&mut self, name: String, ty: Type) -> LocalId {
@@ -390,7 +432,12 @@ impl Checker {
                     {
                         Type::TypeParam(other.to_string())
                     } else {
-                        self.error(te.span, format!("unknown type `{other}`"));
+                        let notes = self.note_did_you_mean(other, self.known_type_names());
+                        self.error_with_notes(
+                            te.span,
+                            format!("unknown type `{other}`"),
+                            notes,
+                        );
                         Type::Builtin(Builtin::I32)
                     }
                 }
@@ -616,6 +663,8 @@ impl Checker {
         let sig = self.functions.get(&f.name).cloned().unwrap();
         self.next_local = 0;
         self.fn_local_types.clear();
+        self.borrow.clear();
+        self.expr_place = None;
         self.current_ret = sig.ret.clone();
         self.current_fn = f.name.clone();
         self.locals.clear();
@@ -624,6 +673,12 @@ impl Checker {
         let mut param_locals = Vec::new();
         for (param, ty) in f.params.iter().zip(sig.params.iter()) {
             let id = self.declare_local(param.name.clone(), ty.clone());
+            if let Type::Ref { mutable, .. } = ty {
+                let place = BorrowCx::param_place(id.0);
+                if let Err(msg) = self.borrow.bind_local(id.0, place, *mutable) {
+                    self.error(param.span, msg);
+                }
+            }
             param_locals.push((id, ty.clone()));
         }
 
@@ -672,6 +727,10 @@ impl Checker {
                 name, ty, init, span, ..
             } => {
                 let (init_expr, init_ty) = self.check_expr(init);
+                let init_place = self.expr_place;
+                let init_from_local = Self::ident_local_id(init).and_then(|n| {
+                    self.lookup_local(&n).map(|(_, id)| id.0)
+                });
                 let ty = if let Some(ann) = ty {
                     let t = self.resolve_type(ann);
                     if !types_compatible(&t, &init_ty) {
@@ -682,6 +741,18 @@ impl Checker {
                     init_ty
                 };
                 let id = self.declare_local(name.clone(), ty.clone());
+                if let Type::Ref { mutable, .. } = &ty {
+                    let alias = init_place.unwrap_or(Alias {
+                        place: self.borrow.fresh_unknown(),
+                        mutable: *mutable,
+                    });
+                    if let Err(msg) =
+                        self.borrow
+                            .transfer(init_from_local, id.0, alias.place, *mutable)
+                    {
+                        self.error(*span, msg);
+                    }
+                }
                 HirStmt::Let {
                     local: id,
                     ty,
@@ -690,12 +761,31 @@ impl Checker {
             }
             Stmt::Assign { target, value, span } => {
                 let (val, val_ty) = self.check_expr(value);
+                let val_place = self.expr_place;
+                let val_from_local = Self::ident_local_id(value).and_then(|n| {
+                    self.lookup_local(&n).map(|(_, id)| id.0)
+                });
                 match &target.kind {
                     ExprKind::Ident(name) => {
                         match self.lookup_var(name) {
                             Some(VarRef::Local(ty, id)) => {
                                 if !types_compatible(&ty, &val_ty) {
                                     self.error(*span, format!("cannot assign {} to {}", val_ty, ty));
+                                }
+                                if let Type::Ref { mutable, .. } = &ty {
+                                    let alias = val_place.unwrap_or(Alias {
+                                        place: self.borrow.fresh_unknown(),
+                                        mutable: *mutable,
+                                    });
+                                    self.borrow.clear_local(id.0);
+                                    if let Err(msg) = self.borrow.transfer(
+                                        val_from_local,
+                                        id.0,
+                                        alias.place,
+                                        *mutable,
+                                    ) {
+                                        self.error(*span, msg);
+                                    }
                                 }
                                 HirStmt::AssignLocal {
                                     local: id,
@@ -707,6 +797,15 @@ impl Checker {
                                 if !types_compatible(&ty, &val_ty) {
                                     self.error(*span, format!("cannot assign {} to {}", val_ty, ty));
                                 }
+                                if matches!(ty, Type::Ref { .. }) {
+                                    if let Some(alias) = val_place {
+                                        if let Err(msg) =
+                                            BorrowCx::check_store_escape(alias.place)
+                                        {
+                                            self.error(*span, msg);
+                                        }
+                                    }
+                                }
                                 HirStmt::AssignStatic {
                                     stat: id,
                                     ty,
@@ -714,13 +813,22 @@ impl Checker {
                                 }
                             }
                             None => {
-                                self.error(*span, format!("undefined variable `{name}`"));
+                                let notes = self.note_did_you_mean(
+                                    name,
+                                    self.known_value_names(),
+                                );
+                                self.error_with_notes(
+                                    *span,
+                                    format!("undefined variable `{name}`"),
+                                    notes,
+                                );
                                 HirStmt::Expr(val)
                             }
                         }
                     }
                     ExprKind::Field { base, field } => {
                         let (base_e, base_ty) = self.check_expr(base);
+                        self.check_ref_write(&base_ty, base, *span);
                         let (fty, offset) = self.field_info(&base_ty, field, *span);
                         if !types_compatible(&fty, &val_ty) {
                             self.error(*span, format!("cannot assign {} to field {}", val_ty, fty));
@@ -735,12 +843,14 @@ impl Checker {
                     }
                     ExprKind::Index { base, index } => {
                         let (base_e, base_ty) = self.check_expr(base);
+                        self.check_ref_write(&base_ty, base, *span);
                         let (idx_e, idx_ty) = self.check_expr(index);
                         if !matches!(idx_ty, Type::Builtin(Builtin::I32)) {
                             self.error(index.span, "array index must be i32");
                         }
                         match &base_ty {
-                            Type::Array { elem, .. } => {
+                            Type::Array { elem, len } => {
+                                self.check_const_index_bounds(index, *len);
                                 if !types_compatible(elem, &val_ty) {
                                     self.error(
                                         *span,
@@ -862,11 +972,20 @@ impl Checker {
             Stmt::Return { value, span } => {
                 if let Some(v) = value {
                     let (e, ty) = self.check_expr(v);
+                    let ret_place = self.expr_place;
                     if !types_compatible(&self.current_ret, &ty) {
                         self.error(
                             *span,
                             format!("return type mismatch: expected {}, got {}", self.current_ret, ty),
                         );
+                    }
+                    if matches!(self.current_ret, Type::Ref { .. }) || matches!(ty, Type::Ref { .. })
+                    {
+                        if let Some(alias) = ret_place {
+                            if let Err(msg) = BorrowCx::check_return_place(alias.place) {
+                                self.error(*span, msg);
+                            }
+                        }
                     }
                     HirStmt::Return(Some(e))
                 } else {
@@ -920,12 +1039,104 @@ impl Checker {
         if let Some(f) = layout.fields.iter().find(|f| f.name == field) {
             return (f.ty.clone(), f.offset);
         }
-        self.error(span, format!("no field `{field}` on `{}`", layout.name));
+        let notes = self.note_did_you_mean(
+            field,
+            layout.fields.iter().map(|f| f.name.clone()),
+        );
+        self.error_with_notes(
+            span,
+            format!("no field `{field}` on `{}`", layout.name),
+            notes,
+        );
         (Type::Builtin(Builtin::I32), 0)
     }
 
-    fn check_expr(&mut self, expr: &Expr) -> (HirExpr, Type) {
+    fn ident_local_id(expr: &Expr) -> Option<String> {
         match &expr.kind {
+            ExprKind::Ident(name) => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    fn known_value_names(&self) -> impl Iterator<Item = String> + '_ {
+        let mut names: Vec<String> = Vec::new();
+        for scope in &self.locals {
+            names.extend(scope.keys().cloned());
+        }
+        names.extend(self.statics.keys().cloned());
+        names.extend(self.functions.keys().cloned());
+        names.extend(self.generic_fns.keys().cloned());
+        names.into_iter()
+    }
+
+    fn known_type_names(&self) -> impl Iterator<Item = String> + '_ {
+        let mut names: Vec<String> = vec![
+            "i32".into(),
+            "i64".into(),
+            "f32".into(),
+            "f64".into(),
+            "bool".into(),
+            "str".into(),
+            "void".into(),
+        ];
+        names.extend(self.structs.keys().cloned());
+        names.into_iter()
+    }
+
+    fn known_fn_names(&self) -> impl Iterator<Item = String> + '_ {
+        let mut names: Vec<String> = self.functions.keys().cloned().collect();
+        names.extend(self.generic_fns.keys().cloned());
+        // Common stdlib / host names for suggestions
+        for n in [
+            "print", "clamp", "lerp", "str_len", "str_eq", "str_concat", "min", "max", "abs",
+            "sqrt", "sin", "cos",
+        ] {
+            names.push(n.into());
+        }
+        names.into_iter()
+    }
+
+    fn check_const_index_bounds(&mut self, index: &Expr, len: u32) {
+        if let Some(i) = const_i32_expr(index) {
+            if i < 0 || (i as u32) >= len {
+                self.error_with_notes(
+                    index.span,
+                    format!("array index `{i}` out of bounds for length {len}"),
+                    [format!("valid indices are `0`..`{}`", len.saturating_sub(1))],
+                );
+            }
+        }
+    }
+
+    fn check_ref_write(&mut self, base_ty: &Type, base: &Expr, span: juni_syntax::Span) {
+        if let Type::Ref { mutable: false, .. } = base_ty {
+            self.error(
+                span,
+                "cannot write through immutable `ref T` (use `mut ref T`)",
+            );
+            return;
+        }
+        if let ExprKind::Ident(name) = &base.kind {
+            if let Some((_, id)) = self.lookup_local(name) {
+                if matches!(base_ty, Type::Ref { .. }) {
+                    match self.borrow.lookup(id.0) {
+                        None => {
+                            self.error(span, format!("cannot write through moved `mut ref` `{name}`"));
+                        }
+                        Some(alias) => {
+                            if let Err(msg) = self.borrow.check_write_through(alias) {
+                                self.error(span, msg);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn check_expr(&mut self, expr: &Expr) -> (HirExpr, Type) {
+        self.expr_place = None;
+        let (hir, ty) = match &expr.kind {
             ExprKind::Int(v) => (
                 HirExpr::Int(*v as i32),
                 Type::Builtin(Builtin::I32),
@@ -944,8 +1155,35 @@ impl Checker {
                     return self.qualified_to_expr(qref, expr.span);
                 }
                 match self.lookup_var(name) {
-                    Some(VarRef::Local(ty, id)) => (HirExpr::Local(id, ty.clone()), ty),
-                    Some(VarRef::Static(ty, id)) => (HirExpr::Static(id, ty.clone()), ty),
+                    Some(VarRef::Local(ty, id)) => {
+                        if let Type::Ref { mutable, .. } = &ty {
+                            match self.borrow.lookup(id.0) {
+                                Some(alias) => self.expr_place = Some(alias),
+                                None => {
+                                    self.error(
+                                        expr.span,
+                                        format!("use of moved `{ty}` value `{name}`"),
+                                    );
+                                    self.expr_place = Some(Alias {
+                                        place: self.borrow.fresh_unknown(),
+                                        mutable: *mutable,
+                                    });
+                                }
+                            }
+                        }
+                        (HirExpr::Local(id, ty.clone()), ty)
+                    }
+                    Some(VarRef::Static(ty, id)) => {
+                        if let Type::Ref { mutable, .. } = &ty {
+                            // Statics are treated as opaque long-lived places.
+                            let place = self.borrow.fresh_unknown();
+                            self.expr_place = Some(Alias {
+                                place,
+                                mutable: *mutable,
+                            });
+                        }
+                        (HirExpr::Static(id, ty.clone()), ty)
+                    }
                     None if self.functions.contains_key(name) => {
                         self.error(expr.span, format!("`{name}` is a function; call it with ()"));
                         (HirExpr::Int(0), Type::Builtin(Builtin::I32))
@@ -960,7 +1198,8 @@ impl Checker {
                         } else {
                             format!("undefined variable `{name}`")
                         };
-                        self.error(expr.span, hint);
+                        let notes = self.note_did_you_mean(name, self.known_value_names());
+                        self.error_with_notes(expr.span, hint, notes);
                         (HirExpr::Int(0), Type::Builtin(Builtin::I32))
                     }
                 }
@@ -1010,7 +1249,12 @@ impl Checker {
                             return self.emit_call(sig, args, expr.span);
                         }
                     }
-                    self.error(expr.span, format!("unknown function `{name}`"));
+                    let notes = self.note_did_you_mean(name, self.known_fn_names());
+                    self.error_with_notes(
+                        expr.span,
+                        format!("unknown function `{name}`"),
+                        notes,
+                    );
                     return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
                 }
                 if let ExprKind::Field { base, field } = &callee.kind {
@@ -1048,7 +1292,8 @@ impl Checker {
                     self.error(index.span, "array index must be i32");
                 }
                 match &base_ty {
-                    Type::Array { elem, .. } => {
+                    Type::Array { elem, len } => {
+                        self.check_const_index_bounds(index, *len);
                         let elem_size = elem.size(&self.structs);
                         (
                             HirExpr::Index {
@@ -1112,7 +1357,12 @@ impl Checker {
                         }
                     })
                 } else {
-                    self.error(expr.span, format!("unknown struct `{name}`"));
+                    let notes = self.note_did_you_mean(name, self.known_type_names());
+                    self.error_with_notes(
+                        expr.span,
+                        format!("unknown struct `{name}`"),
+                        notes,
+                    );
                     return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
                 };
                 let mut inits = Vec::new();
@@ -1127,7 +1377,15 @@ impl Checker {
                         }
                         inits.push((f.offset, f.ty.clone(), e));
                     } else {
-                        self.error(fexpr.span, format!("no field `{fname}` on `{name}`"));
+                        let notes = self.note_did_you_mean(
+                            fname,
+                            layout.fields.iter().map(|f| f.name.clone()),
+                        );
+                        self.error_with_notes(
+                            fexpr.span,
+                            format!("no field `{fname}` on `{name}`"),
+                            notes,
+                        );
                     }
                 }
                 (
@@ -1164,15 +1422,21 @@ impl Checker {
                                 self.error(fexpr.span, format!("no field `{fname}`"));
                             }
                         }
+                        let place = self.borrow.fresh_heap();
+                        let ty = Type::Ref {
+                            mutable: true,
+                            inner: Box::new(Type::Struct(layout.name.clone())),
+                        };
+                        self.expr_place = Some(Alias {
+                            place,
+                            mutable: true,
+                        });
                         (
                             HirExpr::New {
                                 size: layout.size,
                                 fields: inits,
                             },
-                            Type::Ref {
-                                mutable: true,
-                                inner: Box::new(Type::Struct(layout.name.clone())),
-                            },
+                            ty,
                         )
                     }
                     _ => {
@@ -1181,7 +1445,17 @@ impl Checker {
                     }
                 }
             }
+        };
+        // Preserve expr_place set inside Ident/New; clear for other non-ref results.
+        if !matches!(ty, Type::Ref { .. }) {
+            self.expr_place = None;
+        } else if self.expr_place.is_none() {
+            // Calls and other ref producers without an explicit place.
+            let mutable = matches!(ty, Type::Ref { mutable: true, .. });
+            let place = self.borrow.fresh_unknown();
+            self.expr_place = Some(Alias { place, mutable });
         }
+        (hir, ty)
     }
 
     fn instantiate_generic_call(
@@ -1234,9 +1508,11 @@ impl Checker {
         let saved_fn_local_types = self.fn_local_types.clone();
         let saved_current_fn = self.current_fn.clone();
         let saved_current_ret = self.current_ret.clone();
+        let saved_borrow = std::mem::take(&mut self.borrow);
 
         self.next_local = 0;
         self.fn_local_types.clear();
+        self.borrow.clear();
         self.current_ret = sig.ret.clone();
         self.current_fn = f.name.clone();
         self.locals.clear();
@@ -1245,6 +1521,10 @@ impl Checker {
         let mut param_locals = Vec::new();
         for (param, ty) in f.params.iter().zip(sig.params.iter()) {
             let id = self.declare_local(param.name.clone(), ty.clone());
+            if let Type::Ref { mutable, .. } = ty {
+                let place = BorrowCx::param_place(id.0);
+                let _ = self.borrow.bind_local(id.0, place, *mutable);
+            }
             param_locals.push((id, ty.clone()));
         }
 
@@ -1272,6 +1552,7 @@ impl Checker {
         self.fn_local_types = saved_fn_local_types;
         self.current_fn = saved_current_fn;
         self.current_ret = saved_current_ret;
+        self.borrow = saved_borrow;
     }
 
     fn emit_call(
@@ -1291,8 +1572,10 @@ impl Checker {
             );
         }
         let mut hir_args = Vec::new();
+        let mut ref_arg_places: Vec<(Place, bool)> = Vec::new();
         for (i, arg) in args.iter().enumerate() {
             let (e, ty) = self.check_expr(arg);
+            let arg_place = self.expr_place;
             if let Some(expected) = sig.params.get(i) {
                 if !types_compatible(expected, &ty) {
                     self.error(
@@ -1300,16 +1583,35 @@ impl Checker {
                         format!("argument type mismatch: expected {}, got {}", expected, ty),
                     );
                 }
+                if let Type::Ref { mutable, .. } = expected {
+                    let place = arg_place
+                        .map(|a| a.place)
+                        .unwrap_or_else(|| self.borrow.fresh_unknown());
+                    ref_arg_places.push((place, *mutable));
+                }
             }
             hir_args.push(e);
+        }
+        if let Err(msg) = BorrowCx::check_call_arg_places(&ref_arg_places) {
+            self.error(span, msg);
+        }
+        let ret = sig.ret.clone();
+        if let Type::Ref { mutable, .. } = &ret {
+            let place = self.borrow.fresh_unknown();
+            self.expr_place = Some(Alias {
+                place,
+                mutable: *mutable,
+            });
+        } else {
+            self.expr_place = None;
         }
         (
             HirExpr::Call {
                 func: sig.id,
                 args: hir_args,
-                ty: sig.ret.clone(),
+                ty: ret.clone(),
             },
-            sig.ret,
+            ret,
         )
     }
 
@@ -2971,6 +3273,125 @@ impl Checker {
                     Type::Builtin(Builtin::Void),
                 ))
             }
+            "rigidbody3d_set_vel" => {
+                if args.len() != 4 {
+                    self.error(span, "rigidbody3d_set_vel(id, vx, vy, vz) expects 4 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "rigidbody3d_set_vel id must be i32");
+                }
+                let (vx, vt) = self.check_arg(args, 1);
+                let (vy, yt) = self.check_arg(args, 2);
+                let (vz, zt) = self.check_arg(args, 3);
+                self.expect_f32ish(&vt, span, "rigidbody3d_set_vel vx");
+                self.expect_f32ish(&yt, span, "rigidbody3d_set_vel vy");
+                self.expect_f32ish(&zt, span, "rigidbody3d_set_vel vz");
+                Some((
+                    HirExpr::Rigidbody3dSetVel {
+                        id: Box::new(id),
+                        vx: Box::new(vx),
+                        vy: Box::new(vy),
+                        vz: Box::new(vz),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "rigidbody3d_get_grounded" => {
+                if args.len() != 1 {
+                    self.error(span, "rigidbody3d_get_grounded(id) expects 1 arg");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "rigidbody3d_get_grounded id must be i32");
+                }
+                Some((
+                    HirExpr::Rigidbody3dGetGrounded(Box::new(id)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "collider3d_set" => {
+                if args.len() != 6 {
+                    self.error(
+                        span,
+                        "collider3d_set(id, kind, w, h, d, solid) expects 6 args",
+                    );
+                }
+                let (id, it) = self.check_arg(args, 0);
+                let (kind, kt) = self.check_arg(args, 1);
+                if !matches!(it, Type::Builtin(Builtin::I32))
+                    || !matches!(kt, Type::Builtin(Builtin::I32))
+                {
+                    self.error(span, "collider3d_set id/kind must be i32");
+                }
+                let mut xs = Vec::new();
+                for i in 2..5 {
+                    let (e, t) = self.check_arg(args, i);
+                    self.expect_f32ish(&t, span, "collider3d_set size");
+                    xs.push(e);
+                }
+                let (solid, st) = self.check_arg(args, 5);
+                if !matches!(st, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "collider3d_set solid must be i32");
+                }
+                Some((
+                    HirExpr::Collider3dSet {
+                        id: Box::new(id),
+                        kind: Box::new(kind),
+                        w: Box::new(xs.remove(0)),
+                        h: Box::new(xs.remove(0)),
+                        d: Box::new(xs.remove(0)),
+                        solid: Box::new(solid),
+                    },
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "transform3d_sync_from_2d" => {
+                if args.len() != 1 {
+                    self.error(span, "transform3d_sync_from_2d(id) expects 1 arg");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "transform3d_sync_from_2d id must be i32");
+                }
+                Some((
+                    HirExpr::Transform3dSyncFrom2d(Box::new(id)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "anim_play" => {
+                if args.len() != 2 {
+                    self.error(span, "anim_play(id, clip) expects 2 args");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                let (clip, ct) = self.check_arg(args, 1);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "anim_play id must be i32");
+                }
+                if !matches!(ct, Type::Builtin(Builtin::Str)) {
+                    self.error(span, "anim_play clip must be str");
+                }
+                Some((
+                    HirExpr::AnimPlay {
+                        id: Box::new(id),
+                        clip: Box::new(clip),
+                    },
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
+            "anim_stop" => {
+                if args.len() != 1 {
+                    self.error(span, "anim_stop(id) expects 1 arg");
+                }
+                let (id, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "anim_stop id must be i32");
+                }
+                Some((
+                    HirExpr::AnimStop(Box::new(id)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
             "camera2d_follow" => {
                 if args.len() != 3 {
                     self.error(span, "camera2d_follow(cam, target, smooth) expects 3 args");
@@ -3147,6 +3568,23 @@ fn align_up(value: u32, align: u32) -> u32 {
     (value + align - 1) & !(align - 1)
 }
 
+fn const_i32_expr(expr: &Expr) -> Option<i32> {
+    match &expr.kind {
+        ExprKind::Int(v) => {
+            if *v >= i64::from(i32::MIN) && *v <= i64::from(i32::MAX) {
+                Some(*v as i32)
+            } else {
+                None
+            }
+        }
+        ExprKind::Unary {
+            op: UnaryOp::Neg,
+            expr: inner,
+        } => const_i32_expr(inner).and_then(|n| n.checked_neg()),
+        _ => None,
+    }
+}
+
 fn types_compatible(a: &Type, b: &Type) -> bool {
     match (a, b) {
         (Type::Builtin(x), Type::Builtin(y)) => x == y,
@@ -3157,7 +3595,9 @@ fn types_compatible(a: &Type, b: &Type) -> bool {
             l1 == l2 && types_compatible(e1, e2)
         }
         (Type::Ref { mutable: m1, inner: i1 }, Type::Ref { mutable: m2, inner: i2 }) => {
-            types_compatible(i1, i2) && (*m2 || *m1 == *m2 || !*m2)
+            // expected (a) vs actual (b): `mut ref` required only if expected is mutable;
+            // immutable `ref` accepts either.
+            types_compatible(i1, i2) && (*m2 || !*m1)
         }
         _ => false,
     }
@@ -3534,6 +3974,18 @@ fn main() -> i32:
     }
 
     #[test]
+    fn check_anim_intrinsics() {
+        let src = r#"fn main() -> i32:
+    let id = entity_create()
+    let ok = anim_play(id, "walk")
+    anim_stop(id)
+    return ok
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
+    }
+
+    #[test]
     fn check_asset_intrinsics() {
         let src = r#"state:
     tex: i32 = 0
@@ -3564,5 +4016,179 @@ fn main() -> i32:
 "#;
         let m = parse(src).unwrap();
         check_ok(&m).unwrap();
+    }
+
+    #[test]
+    fn reject_const_array_index_oob() {
+        let src = r#"fn main() -> i32:
+    let xs = [1, 2, 3]
+    return xs[3]
+"#;
+        let m = parse(src).unwrap();
+        let r = check(&m);
+        assert!(
+            r.diagnostics.iter().any(|d| {
+                d.severity == Severity::Error && d.message.contains("out of bounds")
+            }),
+            "{:?}",
+            r.diagnostics
+        );
+    }
+
+    #[test]
+    fn did_you_mean_unknown_fn() {
+        let src = r#"fn main() -> i32:
+    let x = clmap(1.0, 0.0, 1.0)
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let r = check(&m);
+        assert!(
+            r.diagnostics.iter().any(|d| {
+                d.severity == Severity::Error
+                    && d.message.contains("unknown function")
+                    && d.notes.iter().any(|n| n.contains("clamp"))
+            }),
+            "{:?}",
+            r.diagnostics
+        );
+    }
+
+    #[test]
+    fn reject_write_through_imm_ref() {
+        let src = r#"struct Node:
+    v: i32
+
+fn bump(p: ref Node) -> i32:
+    p.v = 1
+    return p.v
+
+fn main() -> i32:
+    let a = new Node(v=0)
+    return bump(a)
+"#;
+        let m = parse(src).unwrap();
+        let r = check(&m);
+        assert!(
+            r.diagnostics.iter().any(|d| {
+                d.severity == Severity::Error && d.message.contains("immutable `ref T`")
+            }),
+            "{:?}",
+            r.diagnostics
+        );
+    }
+
+    #[test]
+    fn reject_conflicting_mut_aliases_in_call() {
+        let src = r#"struct Node:
+    v: i32
+
+fn both(a: mut ref Node, b: ref Node) -> i32:
+    return a.v + b.v
+
+fn main() -> i32:
+    let p = new Node(v=1)
+    return both(p, p)
+"#;
+        let m = parse(src).unwrap();
+        let r = check(&m);
+        assert!(
+            r.diagnostics.iter().any(|d| {
+                d.severity == Severity::Error && d.message.contains("conflicting borrows")
+            }),
+            "{:?}",
+            r.diagnostics
+        );
+    }
+
+    #[test]
+    fn mut_ref_move_allows_exclusive_use() {
+        let src = r#"struct Node:
+    v: i32
+
+fn bump(p: mut ref Node) -> i32:
+    p.v = p.v + 1
+    return p.v
+
+fn main() -> i32:
+    let a = new Node(v=1)
+    let b = a
+    return bump(b)
+"#;
+        let m = parse(src).unwrap();
+        check_ok(&m).unwrap();
+    }
+
+    #[test]
+    fn reject_use_of_moved_mut_ref() {
+        let src = r#"struct Node:
+    v: i32
+
+fn main() -> i32:
+    let a = new Node(v=1)
+    let b = a
+    return a.v
+"#;
+        let m = parse(src).unwrap();
+        let r = check(&m);
+        assert!(
+            r.diagnostics.iter().any(|d| {
+                d.severity == Severity::Error && d.message.contains("moved")
+            }),
+            "{:?}",
+            r.diagnostics
+        );
+    }
+
+    #[test]
+    fn reject_param_ref_store_to_static() {
+        let src = r#"struct Node:
+    v: i32
+
+state:
+    held: i32 = 0
+
+fn stash(p: mut ref Node) -> i32:
+    held = p
+    return 0
+
+fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let r = check(&m);
+        assert!(
+            r.diagnostics.iter().any(|d| d.severity == Severity::Error),
+            "expected error assigning mut ref to i32 static or escape: {:?}",
+            r.diagnostics
+        );
+    }
+
+    #[test]
+    fn reject_param_ref_escape_into_ref_static() {
+        let src = r#"struct Node:
+    v: i32
+
+state:
+    held: mut ref Node = new Node(v=0)
+
+fn stash(p: mut ref Node) -> i32:
+    held = p
+    return 0
+
+fn main() -> i32:
+    let a = new Node(v=1)
+    return stash(a)
+"#;
+        let m = parse(src).unwrap();
+        let r = check(&m);
+        assert!(
+            r.diagnostics.iter().any(|d| {
+                d.severity == Severity::Error
+                    && (d.message.contains("escape") || d.message.contains("store parameter"))
+            }),
+            "{:?}",
+            r.diagnostics
+        );
     }
 }

@@ -10,16 +10,15 @@
 
 Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-## Status (v9.3.0)
+## Status (v10.0.0)
 
-- **Authoring:** Juni entity scripts via WASM `export fn {module}_{handler}`; inspector **Open/Stub**; 2D tilemap brush/erase; **3D Edit** WebGPU viewport
-- **Engine:** host ECS, `.jscene`, prefabs, `on_collision` / `on_trigger_enter`, collision poll, camera follow, `world_draw3d`
-- **Editor:** hierarchy/inspector, **Show colliders** overlays, Save to disk, undo/redo, play snapshot, hot reload, Export Web
-- **Optional AI:** WebLLM (model picker) — chat, autocorrect, explain — **off by default**
-- **Projects:** `juni.toml` modules, `juni export-web`, Netlify-ready static export
-- **Examples:** platformer (coin `on_trigger_enter`), scene3d_lit, paddle, audio, modules
-- **Docs:** engine, levels, Netlify, export-web, AI assistant, entity scripts, 3D edit
-- **CI:** `cargo test`, example checks, LSP smoke, IDE / Pages build; desktop multi-arch release
+- **Language:** borrow checking (`ref`/`mut`), generics docs, richer diagnostics, const array bounds
+- **Authoring:** entity scripts + Open/Stub; tilemap paint; **3D Edit**; **Code Search**; **Anim** editor
+- **Engine:** ECS / `.jscene`; 2D + **3D AABB physics** + hybrid 2D→3D; `on_collision` / `on_trigger_enter` / `on_trigger_exit`; `world_draw3d`
+- **Optional AI:** WebLLM — deeper RAG / project-aware chat — **off by default**
+- **Projects:** flat `ide/` / `crates/` / `docs/` / `examples/` / `runtime/`; Netlify flat-only; `juni export-web`
+- **Examples:** `platformer_3d`, platformer, scene3d_lit, paddle, audio, modules
+- **CI:** tests + example checks; desktop multi-arch release with optional macOS notarization / Windows signing
 
 ## Browser IDE (local)
 

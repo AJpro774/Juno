@@ -6,6 +6,7 @@ import {
   camera2dFollow,
   camera2dSet,
   collider2dSet,
+  collider3dSet,
   createWorld,
   entityCreate,
   entityDestroy,
@@ -16,9 +17,14 @@ import {
   resetWorld,
   rigidbody2dGetGrounded,
   rigidbody2dSetVel,
+  rigidbody3dGetGrounded,
+  rigidbody3dSetVel,
   spriteSet,
   transform2dSet,
   transform3dSet,
+  transform3dSyncFrom2d,
+  animPlay,
+  animStop,
   worldStep,
   type World,
 } from "./world.js";
@@ -217,7 +223,11 @@ export function createEngineImports(options: EngineHostOptions) {
   }
 
   function applyScene(scene: JScene, reset: boolean): void {
-    loadSceneIntoWorld(scene, { resolveAsset, reset });
+    loadSceneIntoWorld(scene, {
+      resolveAsset,
+      getAssetText: (path) => loadSceneText(path),
+      reset,
+    });
     const hooks = materializeHooks();
     if (hooks) materializeScene3d(scene, hooks);
   }
@@ -392,6 +402,25 @@ export function createEngineImports(options: EngineHostOptions) {
     ): void {
       collider2dSet(id, kind, w, h, radius, solid);
     },
+    rigidbody3d_set_vel(id: number, vx: number, vy: number, vz: number): void {
+      rigidbody3dSetVel(id, vx, vy, vz);
+    },
+    rigidbody3d_get_grounded(id: number): number {
+      return rigidbody3dGetGrounded(id);
+    },
+    collider3d_set(
+      id: number,
+      kind: number,
+      w: number,
+      h: number,
+      d: number,
+      solid: number
+    ): void {
+      collider3dSet(id, kind, w, h, d, solid);
+    },
+    transform3d_sync_from_2d(id: number): void {
+      transform3dSyncFrom2d(id);
+    },
     camera2d_follow(cam: number, target: number, smooth: number): void {
       camera2dFollow(cam, target, smooth);
     },
@@ -402,10 +431,21 @@ export function createEngineImports(options: EngineHostOptions) {
       const text = loadSceneText(path);
       if (!text) return 0;
       try {
-        return prefabSpawn(parseScene(text), x, y, { resolveAsset });
+        return prefabSpawn(parseScene(text), x, y, {
+          resolveAsset,
+          getAssetText: (p) => loadSceneText(p),
+        });
       } catch {
         return 0;
       }
+    },
+    anim_play(id: number, clipPtr: number): number {
+      const memory = memoryRef.current;
+      if (!memory) return 0;
+      return animPlay(id, readStr(memory, clipPtr));
+    },
+    anim_stop(id: number): void {
+      animStop(id);
     },
     world_draw3d(cam: number): void {
       const world = getWorld();
@@ -456,8 +496,14 @@ export function createEngineStubs() {
     rigidbody2d_set_vel: () => {},
     rigidbody2d_get_grounded: () => 0,
     collider2d_set: () => {},
+    rigidbody3d_set_vel: () => {},
+    rigidbody3d_get_grounded: () => 0,
+    collider3d_set: () => {},
+    transform3d_sync_from_2d: () => {},
     camera2d_follow: () => {},
     prefab_spawn: () => 0,
+    anim_play: () => 0,
+    anim_stop: () => {},
     world_draw3d: () => {},
     scene3d_set_ambient: () => {},
     scene3d_set_fog: () => {},

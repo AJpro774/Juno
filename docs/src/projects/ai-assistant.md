@@ -5,8 +5,9 @@ The Juni IDE can run a **fully optional**, **off-by-default** local coding assis
 - **Engine:** [WebLLM](https://github.com/mlc-ai/web-llm) (WebGPU)
 - **Default model:** Qwen2.5-Coder-1.5B-Instruct (MLC q4) — best Juni grounding for the download size
 - **Picker:** Coder 1.5B (default), Coder 3B (stronger, larger), Instruct 1.5B (general chat)
-- **RAG grounding:** keyword chunks over Juni docs/APIs (ECS, 3D/`world_draw3d`, physics, scripts, desktop LSP, assets) injected into the system prompt
-- **No cloud API** — weights download from the model CDN only after you click **Enable**
+- **RAG grounding:** curated keyword chunks + optional `ai-docs-index.json` over Juni docs (ECS, 3D/`world_draw3d`, **3D/hybrid physics**, **borrow checking**, sprite-sheet animation, **Code Search**, scripts/`on_trigger_exit`, desktop LSP, assets)
+- **Project-aware chat:** open file path + contents, Monaco selection, and recent diagnostics are injected into the prompt
+- **No cloud API** — weights download from the model CDN only after you click **Enable & download**
 
 Legacy 0.5B model ids are auto-upgraded to the Coder 1.5B default.
 
@@ -14,19 +15,20 @@ Legacy 0.5B model ids are auto-upgraded to the Coder 1.5B default.
 
 1. Open the IDE (see `RunJuniEditor.command` or `cd ide && npm run dev`)
 2. Click **AI: Off** in the toolbar
-3. Pick a model (optional) → click **Enable & download**
-4. Wait for the progress line to reach **Ready**
+3. Pick a model (optional; default is Coder 1.5B) → click **Enable & download**
+4. Wait for the progress line to reach **Ready** (use **Cancel** to abort a download or reply)
 
-Disable anytime with **Disable** (unloads the engine and clears the enable flag).
+**Disable & unload** clears the enable flag and unloads the WebLLM engine. Changing the model unloads the current weights — click Enable again to download the new pick.
 
 ## Features
 
 | Feature | How |
 |---------|-----|
-| Chat | Ask Juni / engine questions in the AI panel (docs RAG + cheat sheet) |
+| Chat | Ask Juni / engine questions (docs RAG + cheat sheet + open file / selection / diagnostics) |
 | Autocorrect | Select code → lightbulb **Suggest fix (local AI)** or context menu → review Apply/Dismiss |
 | Debug | After a failed compile, **Explain with AI** on the console (or in the AI panel) |
 | Insert | **Insert into editor** / Replace selection / New file from fenced Juni replies |
+| Cancel | **Cancel** stops an in-flight download or generation |
 
 ## Requirements
 
@@ -43,6 +45,8 @@ Disable anytime with **Disable** (unloads the engine and clears the enable flag)
 ## Limitations
 
 A 1.5B–3B coder model is better at Juni-only answers than tiny instruct models, but still not a substitute for the compiler. Prefer `juni check` / Run diagnostics as source of truth. The assistant is instructed never to answer with Unity/C# and not to invent host APIs; see [Engine intrinsics](../engine/intrinsics.md). If an old chat drifted off-topic, click **Clear chat** after upgrading.
+
+Tutorials never require AI — **Explain** / chat remain opt-in.
 
 ## Desktop
 

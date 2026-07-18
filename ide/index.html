@@ -38,7 +38,7 @@
       <header class="top">
         <div class="brand">
           <span class="brand-mark">Juni</span>
-          <span class="brand-tag">v9.3</span>
+          <span class="brand-tag">v10.0</span>
         </div>
         <div class="actions">
           <div class="action-group action-primary">
@@ -79,6 +79,8 @@
           <div class="action-group action-panels">
             <button type="button" id="ai-toggle" class="ghost">AI: Off</button>
             <button type="button" id="docs-toggle" class="ghost">Docs</button>
+            <button type="button" id="search-toggle" class="ghost">Search</button>
+            <button type="button" id="anim-toggle" class="ghost">Anim</button>
             <button type="button" id="tutorials-toggle" class="ghost">Tutorials</button>
             <button type="button" id="credits-toggle" class="ghost">Credits</button>
             <button type="button" id="cat-coffee-toggle" class="ghost" title="Buy My Cat a Coffee">
@@ -135,6 +137,44 @@
           <nav id="docs-nav" class="docs-nav" aria-label="Documentation"></nav>
           <article id="docs-body" class="docs-body"></article>
         </aside>
+        <aside id="search-panel" class="docs-panel search-panel" aria-hidden="true">
+          <div class="docs-head">
+            <span>Code Search</span>
+            <button type="button" id="search-close" class="ghost tight" aria-label="Close search">
+              Close
+            </button>
+          </div>
+          <div class="search-controls">
+            <label class="search-query-label">
+              Query
+              <input
+                type="search"
+                id="search-query"
+                placeholder="Find in .juni…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <fieldset class="search-cats-fieldset">
+              <legend>Categories</legend>
+              <div id="search-categories" class="search-categories"></div>
+            </fieldset>
+            <div class="search-toolbar">
+              <button type="button" id="search-run" class="run tight">Search</button>
+              <span id="search-status" class="search-status" aria-live="polite"></span>
+            </div>
+          </div>
+          <div id="search-results" class="search-results" aria-label="Search results"></div>
+        </aside>
+        <aside id="anim-panel" class="docs-panel anim-panel" aria-hidden="true">
+          <div class="docs-head">
+            <span>Animation</span>
+            <button type="button" id="anim-close" class="ghost tight" aria-label="Close animation">
+              Close
+            </button>
+          </div>
+          <div id="anim-panel-body" class="anim-panel-body" aria-label="Animation editor"></div>
+        </aside>
         <aside id="tutorials-panel" class="docs-panel tutorials-panel" aria-hidden="true">
           <div class="docs-head">
             <span>Tutorials</span>
@@ -169,12 +209,16 @@
           </div>
           <div class="ai-controls">
             <p class="ai-blurb">
-              Optional in-browser assistant (Qwen2.5-Coder-1.5B via WebLLM). Off by default. Downloads a
-              model only after you enable it. Runs locally on WebGPU — Juni/Juno only, no cloud API.
+              Optional local assistant — <strong>off by default</strong>. No cloud API.
+              <span class="ai-steps"
+                >1) Pick a model → 2) Enable &amp; download (WebGPU) → 3) Chat. Disable unloads weights;
+                Cancel stops an in-flight download or reply.</span
+              >
             </p>
             <div class="ai-toolbar">
               <button type="button" id="ai-enable" class="run tight">Enable &amp; download</button>
-              <button type="button" id="ai-disable" class="ghost tight">Disable</button>
+              <button type="button" id="ai-disable" class="ghost tight">Disable &amp; unload</button>
+              <button type="button" id="ai-cancel" class="ghost tight" hidden>Cancel</button>
               <span id="ai-status" class="ai-status">Off</span>
             </div>
             <label class="ai-model-label">
@@ -185,6 +229,7 @@
                 <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Instruct 1.5B</option>
               </select>
             </label>
+            <p id="ai-model-note" class="ai-model-note">Best Juni grounding / size tradeoff</p>
             <div id="ai-progress" class="ai-progress" hidden></div>
             <div class="ai-toolbar">
               <button type="button" id="ai-explain" class="ghost tight">Explain last errors</button>

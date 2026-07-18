@@ -2,6 +2,7 @@
 
 import type { SceneStore } from "./scene-store.js";
 import { getEditorMode } from "./mode.js";
+import { getShowColliders } from "./scene-view.js";
 import {
   createScene3dHandlers,
   createCustomMeshFromData,
@@ -278,6 +279,22 @@ export function attachSceneView3d(
             picks.push({ id, kind: "camera", x: eye[0], y: eye[1], z: eye[2], radius: 0.45 });
           }
         }
+
+        if (getShowColliders() && c.collider3d) {
+          const pos = c.transform3d?.position ?? [0, 0, 0];
+          const w = c.collider3d.w ?? 1;
+          const h = c.collider3d.h ?? 1;
+          const d = c.collider3d.d ?? 1;
+          const solid = c.collider3d.solid !== false;
+          const overlay = addMarker(Math.max(0.05, w), Math.max(0.05, h), Math.max(0.05, d));
+          if (overlay) {
+            const mat = solid
+              ? handlers.materialColor?.(0.3, 0.8, 0.77, 0.35) ?? 0
+              : handlers.materialColor?.(0.91, 0.66, 0.22, 0.35) ?? 0;
+            if (mat) handlers.meshSetMaterial?.(overlay, mat);
+            handlers.meshSetPose?.(overlay, pos[0], pos[1], pos[2], 0, 0, 0);
+          }
+        }
       }
 
       // RGB axis gizmo at origin.
@@ -403,6 +420,25 @@ export function attachSceneView3d(
         ctx.fillStyle = "#e8e1d4";
         ctx.fillText(ent.name ?? "cam", s.x + 10, s.y + 4);
         picks.push({ id, kind: "camera", x: t[0], y: t[1], z: t[2], radius: 0.5 });
+      }
+      if (getShowColliders() && c.collider3d) {
+        const p = c.transform3d?.position ?? [0, 0, 0];
+        const w = c.collider3d.w ?? 1;
+        const h = c.collider3d.h ?? 1;
+        const d = c.collider3d.d ?? 1;
+        const solid = c.collider3d.solid !== false;
+        const a = iso(p[0] - w / 2, p[1] - h / 2, p[2] - d / 2);
+        const b = iso(p[0] + w / 2, p[1] + h / 2, p[2] + d / 2);
+        const x0 = Math.min(a.x, b.x);
+        const y0 = Math.min(a.y, b.y);
+        const bw = Math.max(8, Math.abs(b.x - a.x));
+        const bh = Math.max(8, Math.abs(b.y - a.y));
+        ctx.save();
+        ctx.strokeStyle = solid ? "#4ecdc4" : "#e8a838";
+        ctx.lineWidth = 1.5;
+        if (!solid) ctx.setLineDash([5, 4]);
+        ctx.strokeRect(x0, y0, bw, bh);
+        ctx.restore();
       }
     }
   }

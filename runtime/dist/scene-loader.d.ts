@@ -1,5 +1,5 @@
 /** Load / serialize `.jscene` JSON into the ECS world. */
-import { type World } from "./world.js";
+import { type AnimClip, type World } from "./world.js";
 export type JSceneTransform2D = {
     x?: number;
     y?: number;
@@ -68,6 +68,20 @@ export type JSceneComponents = {
         solid?: boolean;
         slope?: number;
     };
+    rigidbody3d?: {
+        vx?: number;
+        vy?: number;
+        vz?: number;
+        gravity?: number;
+    };
+    collider3d?: {
+        type?: string;
+        kind?: string;
+        w?: number;
+        h?: number;
+        d?: number;
+        solid?: boolean;
+    };
     tilemap?: {
         tile_size?: number;
         cols?: number;
@@ -93,6 +107,32 @@ export type JSceneComponents = {
         x?: number;
         y?: number;
     };
+    /** Sprite / keyframe animation clips (not skeletal). */
+    sprite_animator?: {
+        default?: string;
+        autoplay?: boolean;
+        playing?: string;
+        clips?: Array<{
+            name?: string;
+            fps?: number;
+            loop?: boolean;
+            frames?: number[];
+            keys?: Array<{
+                t?: number;
+                frame?: number;
+                x?: number;
+                y?: number;
+                rotation?: number;
+                tx?: number;
+                ty?: number;
+                tz?: number;
+                rx?: number;
+                ry?: number;
+                rz?: number;
+            }>;
+            asset?: string;
+        }>;
+    };
 };
 export type JSceneEntity = {
     id?: number;
@@ -108,11 +148,16 @@ export type JScene = {
 };
 /** Resolve asset path → handle via optional lookup (asset pack id). */
 export type AssetResolver = (path: string) => number;
+/** Optional text asset loader (clip JSON under assets/). */
+export type TextAssetLoader = (path: string) => string | null;
+/** Parse a clip JSON asset (`assets/anims/*.json`). */
+export declare function parseAnimClipJson(text: string, fallbackName?: string): AnimClip | null;
 export declare function emptyScene(): JScene;
 export declare function parseScene(json: string | JScene): JScene;
 export declare function loadSceneIntoWorld(scene: JScene, options?: {
     world?: World;
     resolveAsset?: AssetResolver;
+    getAssetText?: TextAssetLoader;
     reset?: boolean;
 }): World;
 export declare function serializeWorld(world?: World): JScene;
@@ -124,6 +169,7 @@ export declare function spawnTagged(name: string, tag: string, world?: World): n
  */
 export declare function prefabSpawn(scene: JScene, ox: number, oy: number, options?: {
     resolveAsset?: AssetResolver;
+    getAssetText?: TextAssetLoader;
     world?: World;
 }): number;
 /** Create GPU mesh / camera / light handles from authored `.jscene` 3D components. */

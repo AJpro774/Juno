@@ -1,0 +1,16 @@
+# Coin trigger prefab (mesh attached at spawn in main)
+{
+  "version": 1,
+  "entities": [
+    {
+      "id": 1,
+      "name": "Coin",
+      "tag": "coin",
+      "components": {
+        "transform3d": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1] },
+        "collider3d": { "type": "aabb", "w": 0.4, "h": 0.4, "d": 0.4, "solid": false },
+        "script": { "module": "coin", "handler": "on_update" }
+      }
+    }
+  ]
+}

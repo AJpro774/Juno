@@ -29,6 +29,41 @@ export type SpriteComp = {
     loop: boolean;
     animTime: number;
 };
+/** Discrete keyframe for sprite frame and/or simple transform pose. */
+export type AnimKey = {
+    t: number;
+    frame?: number;
+    x?: number;
+    y?: number;
+    rotation?: number;
+    tx?: number;
+    ty?: number;
+    tz?: number;
+    rx?: number;
+    ry?: number;
+    rz?: number;
+};
+/** Named clip: sprite-sheet frame list and/or discrete keys (not skeletal). */
+export type AnimClip = {
+    name: string;
+    fps: number;
+    loop: boolean;
+    /** Sprite sheet frame indices played at `fps`. */
+    frames?: number[];
+    /** Discrete time → frame/transform samples. */
+    keys?: AnimKey[];
+    /** Optional project asset path (`assets/anims/….json`) for authoring. */
+    asset?: string;
+};
+export type SpriteAnimatorComp = {
+    clips: AnimClip[];
+    /** Clip to start when the entity is loaded (if `autoplay`). */
+    defaultClip: string;
+    autoplay: boolean;
+    /** Currently playing clip name, or empty when stopped. */
+    playing: string;
+    time: number;
+};
 export type Mesh3DComp = {
     meshHandle: number;
 };
@@ -60,6 +95,20 @@ export type Collider2D = {
     solid: boolean;
     /** Degrees from horizontal; non-zero enables slope slide when grounded on this surface. */
     slope: number;
+};
+export type RigidBody3D = {
+    vx: number;
+    vy: number;
+    vz: number;
+    gravity: number;
+    grounded: boolean;
+};
+export type Collider3D = {
+    kind: "aabb";
+    w: number;
+    h: number;
+    d: number;
+    solid: boolean;
 };
 export type PrefabComp = {
     path: string;
@@ -103,10 +152,13 @@ export type EntityRecord = {
     camera3d?: Camera3DComp;
     rigidbody2d?: RigidBody2D;
     collider2d?: Collider2D;
+    rigidbody3d?: RigidBody3D;
+    collider3d?: Collider3D;
     tilemap?: TilemapComp;
     light3d?: Light3DComp;
     script?: ScriptRef;
     prefab?: PrefabComp;
+    spriteAnimator?: SpriteAnimatorComp;
 };
 export type World = {
     entities: Map<number, EntityRecord>;
@@ -128,11 +180,20 @@ export declare function transform2dSet(id: number, x: number, y: number, rot: nu
 export declare function transform3dSet(id: number, tx: number, ty: number, tz: number, rx: number, ry: number, rz: number, sx: number, sy: number, sz: number, world?: World): void;
 export declare function spriteSet(id: number, tex: number, w: number, h: number, world?: World): void;
 export declare function mesh3dAttach(id: number, meshHandle: number, world?: World): void;
+/** Start a named clip on an entity's SpriteAnimator. Returns 1 on success. */
+export declare function animPlay(id: number, clipName: string, world?: World): number;
+/** Stop the current SpriteAnimator clip on an entity. */
+export declare function animStop(id: number, world?: World): void;
 export declare function camera2dSet(id: number, x: number, y: number, zoom: number, world?: World): void;
 export declare function camera2dFollow(camId: number, targetId: number, smooth: number, world?: World): void;
 export declare function rigidbody2dSetVel(id: number, vx: number, vy: number, world?: World): void;
 export declare function rigidbody2dGetGrounded(id: number, world?: World): number;
 export declare function collider2dSet(id: number, kind: number, w: number, h: number, radius: number, solid: number, world?: World): void;
+export declare function rigidbody3dSetVel(id: number, vx: number, vy: number, vz: number, world?: World): void;
+export declare function rigidbody3dGetGrounded(id: number, world?: World): number;
+export declare function collider3dSet(id: number, kind: number, w: number, h: number, d: number, solid: number, world?: World): void;
+/** Copy transform2d.x/y onto transform3d.tx/ty (keeps tz). Creates transform3d if missing. */
+export declare function transform3dSyncFrom2d(id: number, world?: World): void;
 export declare function getActiveCamera2D(world?: World): Camera2DComp | null;
 export type PhysicsHooks = {
     stepPhysics: (world: World, dt: number) => void;
