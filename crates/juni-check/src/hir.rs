@@ -566,6 +566,7 @@ pub enum HirExpr {
     CollisionCount,
     CollisionEntityA(Box<HirExpr>),
     CollisionEntityB(Box<HirExpr>),
+    CollisionIsTrigger(Box<HirExpr>),
     Rigidbody2dSetVel {
         id: Box<HirExpr>,
         vx: Box<HirExpr>,

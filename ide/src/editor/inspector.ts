@@ -98,10 +98,18 @@ function resizeTiles(
   return out;
 }
 
+export type InspectorScriptCallbacks = {
+  onOpenScript?: (module: string, handler: string) => void;
+  onStubScript?: (module: string, handler: string) => void;
+  /** When false, Open/Stub are disabled (scratch / no project entry). */
+  scriptActionsEnabled?: boolean;
+};
+
 export function renderInspector(
   host: HTMLElement,
   store: SceneStore,
-  assetPack: AssetPack | null
+  assetPack: AssetPack | null,
+  scriptCallbacks?: InspectorScriptCallbacks
 ): void {
   host.innerHTML = "";
   const entity = store.getSelected();
@@ -907,6 +915,40 @@ export function renderInspector(
         })
       )
     );
+    const actions = document.createElement("div");
+    actions.className = "inspector-actions";
+    const enabled = scriptCallbacks?.scriptActionsEnabled !== false;
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "ghost tight";
+    openBtn.textContent = "Open";
+    openBtn.title = enabled
+      ? "Reveal export fn {module}_{handler} in the project entry file"
+      : "Open a project with an entry .juni to use Open";
+    openBtn.disabled = !enabled || !scriptCallbacks?.onOpenScript;
+    openBtn.addEventListener("click", () => {
+      scriptCallbacks?.onOpenScript?.(
+        script.module ?? "",
+        script.handler ?? "on_update"
+      );
+    });
+    const stubBtn = document.createElement("button");
+    stubBtn.type = "button";
+    stubBtn.className = "ghost tight";
+    stubBtn.textContent = "Stub";
+    stubBtn.title = enabled
+      ? "Insert export fn {module}_{handler} in the project entry file"
+      : "Open a project with an entry .juni to use Stub";
+    stubBtn.disabled = !enabled || !scriptCallbacks?.onStubScript;
+    stubBtn.addEventListener("click", () => {
+      scriptCallbacks?.onStubScript?.(
+        script.module ?? "",
+        script.handler ?? "on_update"
+      );
+    });
+    actions.appendChild(openBtn);
+    actions.appendChild(stubBtn);
+    sectionScript.appendChild(actions);
   }
   host.appendChild(sectionScript);
 }

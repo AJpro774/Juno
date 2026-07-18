@@ -5,6 +5,40 @@ import type { AssetPack } from "../../../runtime/src/types.js";
 import { getEditorMode } from "./mode.js";
 import { sceneHas3d } from "../../../runtime/src/scene-loader.js";
 
+const SHOW_COLLIDERS_KEY = "juni.editor.showColliders";
+
+/** Solid colliders — teal stroke. */
+const COLLIDER_SOLID_STROKE = "#4ecdc4";
+/** Trigger (non-solid) colliders — amber dashed stroke. */
+const COLLIDER_TRIGGER_STROKE = "#e8a838";
+
+function loadShowColliders(): boolean {
+  try {
+    const v = localStorage.getItem(SHOW_COLLIDERS_KEY);
+    if (v === null) return true;
+    return v === "1";
+  } catch {
+    return true;
+  }
+}
+
+let showColliders = loadShowColliders();
+
+/** Whether Edit-mode collider overlays are visible (default on). */
+export function getShowColliders(): boolean {
+  return showColliders;
+}
+
+/** Persist and update the Show colliders preference. Caller should redraw. */
+export function setShowColliders(on: boolean): void {
+  showColliders = on;
+  try {
+    localStorage.setItem(SHOW_COLLIDERS_KEY, on ? "1" : "0");
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export type SceneViewHandle = {
   redraw: () => void;
   dispose: () => void;
@@ -189,6 +223,42 @@ export function attachSceneView(
       ctx.font = "11px JetBrains Mono, monospace";
       ctx.fillText(entity.name ?? "", x - w / 2, y - h / 2 - 4);
     }
+
+    if (showColliders) {
+      for (const entity of store.getScene().entities) {
+        const t = entity.components?.transform2d;
+        const col = entity.components?.collider2d;
+        if (!t || !col) continue;
+        const sx = (t.x ?? 0) + canvas.width / 2;
+        const sy = (t.y ?? 0) + canvas.height / 2;
+        drawColliderOverlay(col, sx, sy);
+      }
+    }
+  }
+
+  /** Stroke AABB/circle in the same center-based screen space as sprites. */
+  function drawColliderOverlay(
+    col: { type?: string; w?: number; h?: number; radius?: number; solid?: boolean },
+    sx: number,
+    sy: number
+  ): void {
+    if (!ctx) return;
+    const isSolid = col.solid !== false;
+    ctx.save();
+    ctx.strokeStyle = isSolid ? COLLIDER_SOLID_STROKE : COLLIDER_TRIGGER_STROKE;
+    ctx.lineWidth = 1.5;
+    if (!isSolid) ctx.setLineDash([5, 4]);
+    if (col.type === "circle") {
+      const r = col.radius ?? 16;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      const w = col.w ?? 32;
+      const h = col.h ?? 32;
+      ctx.strokeRect(sx - w / 2 + 0.5, sy - h / 2 + 0.5, w - 1, h - 1);
+    }
+    ctx.restore();
   }
 
   function toWorld(clientX: number, clientY: number): { x: number; y: number } {

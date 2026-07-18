@@ -50,6 +50,7 @@ export declare function createEngineImports(options: EngineHostOptions): {
     collision_count(): number;
     collision_entity_a(i: number): number;
     collision_entity_b(i: number): number;
+    collision_is_trigger(i: number): number;
     rigidbody2d_set_vel(id: number, vx: number, vy: number): void;
     rigidbody2d_get_grounded(id: number): number;
     collider2d_set(id: number, kind: number, w: number, h: number, radius: number, solid: number): void;
@@ -82,6 +83,7 @@ export declare function createEngineStubs(): {
     collision_count: () => number;
     collision_entity_a: () => number;
     collision_entity_b: () => number;
+    collision_is_trigger: () => number;
     rigidbody2d_set_vel: () => void;
     rigidbody2d_get_grounded: () => number;
     collider2d_set: () => void;

@@ -36,7 +36,7 @@ import { getEditorMode, setEditorMode, subscribeMode } from "./editor/mode";
 import { renderScenePanel } from "./editor/scene-panel";
 import { renderInspector } from "./editor/inspector";
 import { renderAssetBrowser } from "./editor/asset-browser";
-import { attachSceneView } from "./editor/scene-view";
+import { attachSceneView, getShowColliders, setShowColliders } from "./editor/scene-view";
 import { attachSceneView3d } from "./editor/scene-view-3d";
 import type { AssetPack } from "../../runtime/src/types";
 import { clearWritableRoot, writeProjectFile } from "./project-persist";
@@ -335,6 +335,7 @@ const undoSceneBtn = document.getElementById("undo-scene") as HTMLButtonElement;
 const redoSceneBtn = document.getElementById("redo-scene") as HTMLButtonElement;
 const sceneDirtyEl = document.getElementById("scene-dirty") as HTMLElement;
 const hotReloadChk = document.getElementById("hot-reload") as HTMLInputElement;
+const showCollidersChk = document.getElementById("show-colliders") as HTMLInputElement;
 const exportWebBtn = document.getElementById("export-web") as HTMLButtonElement;
 
 let previewMode: PreviewMode = "canvas2d";
@@ -401,13 +402,144 @@ function syncEditViewport(): void {
 
 function refreshEnginePanels() {
   renderScenePanel(scenePanelHost, sceneStore);
-  renderInspector(inspectorHost, sceneStore, currentAssetPack);
+  renderInspector(inspectorHost, sceneStore, currentAssetPack, {
+    onOpenScript: openScriptExport,
+    onStubScript: stubScriptExport,
+    scriptActionsEnabled: !!(project?.entry && project.files.has(project.entry)),
+  });
   renderAssetBrowser(assetBrowserHost, currentAssetPack, sceneStore);
   if (getEditorMode() === "edit" && sceneHas3d(sceneStore.getScene())) {
     sceneView3d?.redraw();
   } else {
     sceneView?.redraw();
   }
+}
+
+/** Ensure the project entry .juni is open in the tab editor; return its model. */
+function ensureEntryModel(): { path: string; model: monaco.editor.ITextModel } | null {
+  if (!project?.entry || !tabEditor) {
+    logLine("Open a project with an entry .juni to use Script Open/Stub.", "meta");
+    return null;
+  }
+  const path = project.entry;
+  let model = tabEditor.getModel(path);
+  if (!model) {
+    const file = project.files.get(path);
+    if (!file) {
+      logLine(`Entry file not found: ${path}`, "err");
+      return null;
+    }
+    tabEditor.openFile(path, file.content, true);
+    model = tabEditor.getModel(path);
+  } else {
+    tabEditor.activateTab(path);
+  }
+  if (!model) {
+    logLine(`Could not open entry file: ${path}`, "err");
+    return null;
+  }
+  return { path, model };
+}
+
+function scriptExportName(module: string, handler: string): string | null {
+  const mod = module.trim();
+  const han = (handler.trim() || "on_update").trim();
+  if (!mod) {
+    logLine("Set Script Module before Open/Stub.", "meta");
+    return null;
+  }
+  return `${mod}_${han}`;
+}
+
+function findExportFn(
+  model: monaco.editor.ITextModel,
+  exportName: string
+): monaco.editor.FindMatch | null {
+  const matches = model.findMatches(
+    `export fn ${exportName}`,
+    false,
+    false,
+    true,
+    null,
+    false
+  );
+  return matches[0] ?? null;
+}
+
+function revealExportMatch(match: monaco.editor.FindMatch): void {
+  if (!tabEditor) return;
+  const range = match.range;
+  tabEditor.editor.setSelection(range);
+  tabEditor.editor.revealRangeInCenter(range);
+  tabEditor.editor.focus();
+}
+
+function openScriptExport(module: string, handler: string): void {
+  const exportName = scriptExportName(module, handler);
+  if (!exportName) return;
+  const opened = ensureEntryModel();
+  if (!opened) return;
+  const match = findExportFn(opened.model, exportName);
+  if (match) {
+    revealExportMatch(match);
+    logLine(`Opened export fn ${exportName} in ${opened.path}.`, "meta");
+    return;
+  }
+  logLine(
+    `export fn ${exportName} not found in ${opened.path}. Use Stub to insert it.`,
+    "meta"
+  );
+}
+
+function stubScriptExport(module: string, handler: string): void {
+  const exportName = scriptExportName(module, handler);
+  if (!exportName) return;
+  const opened = ensureEntryModel();
+  if (!opened || !tabEditor) return;
+  const { path, model } = opened;
+
+  const existing = findExportFn(model, exportName);
+  if (existing) {
+    revealExportMatch(existing);
+    logLine(`Stub already exists: export fn ${exportName}`, "meta");
+    return;
+  }
+
+  const stubBody = `export fn ${exportName}(entity_id: i32, dt: f32) -> i32:\n    return 0\n\n`;
+  const mainMatches = model.findMatches(
+    "^(export\\s+)?fn\\s+main\\b",
+    false,
+    true,
+    true,
+    null,
+    false
+  );
+
+  let insertText = stubBody;
+  let range: monaco.IRange;
+  if (mainMatches[0]) {
+    const line = mainMatches[0].range.startLineNumber;
+    range = new monaco.Range(line, 1, line, 1);
+  } else {
+    const lineCount = model.getLineCount();
+    const lastCol = model.getLineMaxColumn(lineCount);
+    const value = model.getValue();
+    if (value.length > 0 && !value.endsWith("\n")) {
+      insertText = `\n\n${stubBody}`;
+    } else if (value.length > 0 && !value.endsWith("\n\n")) {
+      insertText = `\n${stubBody}`;
+    }
+    range = new monaco.Range(lineCount, lastCol, lineCount, lastCol);
+  }
+
+  tabEditor.editor.executeEdits("stub-script", [
+    { range, text: insertText, forceMoveMarkers: true },
+  ]);
+  syncProjectFromEditor();
+
+  const inserted = findExportFn(model, exportName);
+  if (inserted) revealExportMatch(inserted);
+  logLine(`Stubbed export fn ${exportName} in ${path}.`, "meta");
 }
 
 function tryLoadSceneFromProject() {
@@ -605,6 +737,7 @@ function loadScratchExample(ex: Example) {
   clearConsole();
   const model = tabEditor?.getModel(SCRATCH_FILE);
   if (model) monaco.editor.setModelMarkers(model, "juni", []);
+  refreshEnginePanels();
 }
 
 function syncProjectFromEditor() {
@@ -989,6 +1122,17 @@ async function main() {
     hotReloadEnabled = !!hotReloadChk.checked;
     logLine(hotReloadEnabled ? "Hot reload on (saves while playing re-run)." : "Hot reload off.", "meta");
   });
+  if (showCollidersChk) {
+    showCollidersChk.checked = getShowColliders();
+    showCollidersChk.addEventListener("change", () => {
+      setShowColliders(!!showCollidersChk.checked);
+      sceneView?.redraw();
+      logLine(
+        showCollidersChk.checked ? "Collider overlays on." : "Collider overlays off.",
+        "meta"
+      );
+    });
+  }
   exportWebBtn?.addEventListener("click", () => {
     void exportWebBuild();
   });

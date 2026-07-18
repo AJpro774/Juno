@@ -163,6 +163,7 @@ export function createEnvImports(options = {}) {
             collision_count: engine.collision_count ?? stub0,
             collision_entity_a: engine.collision_entity_a ?? stub0,
             collision_entity_b: engine.collision_entity_b ?? stub0,
+            collision_is_trigger: engine.collision_is_trigger ?? stub0,
             rigidbody2d_set_vel: engine.rigidbody2d_set_vel ?? stub,
             rigidbody2d_get_grounded: engine.rigidbody2d_get_grounded ?? stub0,
             collider2d_set: engine.collider2d_set ?? stub,

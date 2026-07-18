@@ -38,7 +38,8 @@ use wasm_encoder::{
 /// 97 camera2d_follow 98 prefab_spawn 99 world_draw3d
 /// 100 scene3d_set_ambient 101 scene3d_set_fog
 /// 102 audio_stop 103 audio_set_bus_volume
-const IMPORT_COUNT: u32 = 104;
+/// 104 collision_is_trigger
+const IMPORT_COUNT: u32 = 105;
 
 /// Emit a single-module program (backward compatible).
 pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
@@ -364,6 +365,7 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
     imports.import("env", "scene3d_set_fog", EntityType::Function(t_f32_void));
     imports.import("env", "audio_stop", EntityType::Function(t_i32_void));
     imports.import("env", "audio_set_bus_volume", EntityType::Function(t_f32_void));
+    imports.import("env", "collision_is_trigger", EntityType::Function(t_i32_i32));
     module.section(&imports);
 
     let mut functions = FunctionSection::new();
@@ -1538,6 +1540,10 @@ impl<'a> EmitCtx<'a> {
                 self.emit_expr(f, i);
                 f.instruction(&Instruction::Call(93));
             }
+            HirExpr::CollisionIsTrigger(i) => {
+                self.emit_expr(f, i);
+                f.instruction(&Instruction::Call(104));
+            }
             HirExpr::Rigidbody2dSetVel { id, vx, vy } => {
                 self.emit_expr(f, id);
                 as_f32_expr(f, vx, self);
@@ -1762,6 +1768,7 @@ fn expr_ty(expr: &HirExpr) -> Type {
         | HirExpr::CollisionCount
         | HirExpr::CollisionEntityA(_)
         | HirExpr::CollisionEntityB(_)
+        | HirExpr::CollisionIsTrigger(_)
         | HirExpr::Rigidbody2dGetGrounded(_)
         | HirExpr::PrefabSpawn { .. } => Type::Builtin(Builtin::I32),
         HirExpr::AabbOverlap { .. } => Type::Builtin(Builtin::Bool),

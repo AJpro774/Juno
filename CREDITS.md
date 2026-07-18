@@ -74,6 +74,7 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **v9.0:** Entry `export fn {module}_{handler}` WASM script ABI; scene-view tilemap brush/erase; docs + **Scripts and tile paint** tutorial; themes pack + Cat Coffee; release hygiene (README/CHANGELOG)
 - **v9.1:** WebGPU 3D Edit viewport (mesh/light/camera gizmo-lite; Play keeps `world_draw3d`); multi-arch Tauri CI → GitHub Releases; web `/download/` hub; Android as installable PWA (no APK)
 - **v9.2:** Browser LSP hover/diagnostics via WASM; `.glb` mesh load path; `audio_stop` + master bus volume; tutorial sample audio + `9.2.0` brand bump
+- **v9.3:** Script Open/Stub UX; `on_collision` / `on_trigger_enter`; `collision_is_trigger`; Edit-mode Show colliders; platformer coin trigger demo; `9.3.0` brand bump
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
 - **License:** Apache License 2.0 (source); EULA for distributed IDE/apps — see `LICENSE` and `EULA.md`

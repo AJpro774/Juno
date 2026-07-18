@@ -2888,6 +2888,19 @@ impl Checker {
                     Type::Builtin(Builtin::I32),
                 ))
             }
+            "collision_is_trigger" => {
+                if args.len() != 1 {
+                    self.error(span, "collision_is_trigger(i) expects 1 arg");
+                }
+                let (i, it) = self.check_arg(args, 0);
+                if !matches!(it, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "collision_is_trigger i must be i32");
+                }
+                Some((
+                    HirExpr::CollisionIsTrigger(Box::new(i)),
+                    Type::Builtin(Builtin::I32),
+                ))
+            }
             "rigidbody2d_set_vel" => {
                 if args.len() != 3 {
                     self.error(span, "rigidbody2d_set_vel(id, vx, vy) expects 3 args");

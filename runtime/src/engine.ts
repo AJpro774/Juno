@@ -35,6 +35,7 @@ import {
   collisionCount,
   collisionEntityA,
   collisionEntityB,
+  collisionIsTrigger,
   ensurePhysicsInstalled,
 } from "./physics.js";
 import { parseGltfJson, parseGltfOrGlb, isGlbBytes } from "./gltf.js";
@@ -372,6 +373,9 @@ export function createEngineImports(options: EngineHostOptions) {
     collision_entity_b(i: number): number {
       return collisionEntityB(i);
     },
+    collision_is_trigger(i: number): number {
+      return collisionIsTrigger(i);
+    },
     rigidbody2d_set_vel(id: number, vx: number, vy: number): void {
       rigidbody2dSetVel(id, vx, vy);
     },
@@ -448,6 +452,7 @@ export function createEngineStubs() {
     collision_count: () => 0,
     collision_entity_a: () => 0,
     collision_entity_b: () => 0,
+    collision_is_trigger: () => 0,
     rigidbody2d_set_vel: () => {},
     rigidbody2d_get_grounded: () => 0,
     collider2d_set: () => {},

@@ -103,6 +103,7 @@ export declare function createEnvImports(options?: EnvOptions): {
         collision_count: any;
         collision_entity_a: any;
         collision_entity_b: any;
+        collision_is_trigger: any;
         rigidbody2d_set_vel: any;
         rigidbody2d_get_grounded: any;
         collider2d_set: any;

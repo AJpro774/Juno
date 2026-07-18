@@ -6,6 +6,11 @@
  *
  *   handler(entity_id: i32, dt: f32) -> i32
  *
+ * Fixed collision/trigger events (not the inspector `handler` field):
+ *
+ *   {module}_on_collision(entity_id, other_id, dt) -> i32   — each frame, solid contacts
+ *   {module}_on_trigger_enter(entity_id, other_id, dt) -> i32 — once when a trigger pair appears
+ *
  * Resolution order for `module="player"`, `handler="on_update"`:
  * 1. JS registry key `player:on_update` (then bare `on_update`)
  * 2. WASM export `player_on_update` (then bare `on_update`)
@@ -17,14 +22,35 @@
  */
 
 import type { World } from "./world.js";
+import {
+  collisionCount,
+  collisionEntityA,
+  collisionEntityB,
+  collisionIsTrigger,
+} from "./physics.js";
 
 export type ScriptHandlerFn = (entityId: number, dt: number) => number | void;
 
+export type CollisionScriptHandlerFn = (
+  entityId: number,
+  otherId: number,
+  dt: number
+) => number | void;
+
 export type WasmScriptExport = (entityId: number, dt: number) => number;
 
-const jsHandlers = new Map<string, ScriptHandlerFn>();
+export type WasmCollisionScriptExport = (
+  entityId: number,
+  otherId: number,
+  dt: number
+) => number;
+
+const jsHandlers = new Map<string, ScriptHandlerFn | CollisionScriptHandlerFn>();
 let wasmExports: WebAssembly.Exports | null = null;
 let dispatchEnabled = true;
+
+/** Previous-frame contact pairs (`minId:maxId`) for trigger-enter detection. */
+let prevContactPairs = new Set<string>();
 
 function key(module: string, handler: string): string {
   const m = (module || "").trim();
@@ -41,11 +67,17 @@ function wasmNames(module: string, handler: string): string[] {
   return names;
 }
 
+function pairKey(a: number, b: number): string {
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  return `${lo}:${hi}`;
+}
+
 /** Register a JavaScript handler (tests, IDE helpers, or host extensions). */
 export function registerScriptHandler(
   module: string,
   handler: string,
-  fn: ScriptHandlerFn
+  fn: ScriptHandlerFn | CollisionScriptHandlerFn
 ): void {
   jsHandlers.set(key(module, handler), fn);
 }
@@ -74,7 +106,7 @@ export function setScriptDispatchEnabled(enabled: boolean): void {
 function resolveHandler(module: string, handler: string): ScriptHandlerFn | null {
   const primary = key(module, handler);
   const js = jsHandlers.get(primary) ?? jsHandlers.get(handler || "on_update");
-  if (js) return js;
+  if (js) return js as ScriptHandlerFn;
 
   if (!wasmExports) return null;
   for (const name of wasmNames(module, handler)) {
@@ -84,6 +116,49 @@ function resolveHandler(module: string, handler: string): ScriptHandlerFn | null
     }
   }
   return null;
+}
+
+function resolveCollisionHandler(
+  module: string,
+  handler: string
+): CollisionScriptHandlerFn | null {
+  const primary = key(module, handler);
+  const js = jsHandlers.get(primary) ?? jsHandlers.get(handler);
+  if (js) return js as CollisionScriptHandlerFn;
+
+  if (!wasmExports) return null;
+  for (const name of wasmNames(module, handler)) {
+    const exp = wasmExports[name];
+    if (typeof exp === "function") {
+      return (entityId, otherId, dt) =>
+        (exp as WasmCollisionScriptExport)(entityId, otherId, dt);
+    }
+  }
+  return null;
+}
+
+function invokeCollisionEvent(
+  world: World,
+  entityId: number,
+  otherId: number,
+  dt: number,
+  event: "on_collision" | "on_trigger_enter"
+): void {
+  const e = world.entities.get(entityId);
+  const script = e?.script;
+  if (!script) return;
+  const module = script.module ?? "";
+  if (!module && !script.handler) return;
+  const fn = resolveCollisionHandler(module, event);
+  if (!fn) return;
+  try {
+    fn(entityId, otherId, dt);
+  } catch (err) {
+    console.warn(
+      `[juni] script ${module}:${event} on entity ${entityId} failed`,
+      err
+    );
+  }
 }
 
 /**
@@ -109,8 +184,42 @@ export function dispatchEntityScripts(world: World, dt: number): void {
   }
 }
 
+/**
+ * After physics: fire `on_collision` for solid contacts each frame, and
+ * `on_trigger_enter` when a trigger pair first appears. Both entities with a
+ * `script` component are called when the matching export/JS handler exists.
+ */
+export function dispatchCollisionScripts(world: World, dt: number): void {
+  if (!dispatchEnabled) return;
+  const clamped = Math.min(0.05, Math.max(0, dt));
+  const n = collisionCount();
+  const currentPairs = new Set<string>();
+
+  for (let i = 0; i < n; i++) {
+    const a = collisionEntityA(i);
+    const b = collisionEntityB(i);
+    if (!a || !b) continue;
+    const pk = pairKey(a, b);
+    currentPairs.add(pk);
+    const isTrigger = collisionIsTrigger(i) !== 0;
+
+    if (isTrigger) {
+      if (!prevContactPairs.has(pk)) {
+        invokeCollisionEvent(world, a, b, clamped, "on_trigger_enter");
+        invokeCollisionEvent(world, b, a, clamped, "on_trigger_enter");
+      }
+    } else {
+      invokeCollisionEvent(world, a, b, clamped, "on_collision");
+      invokeCollisionEvent(world, b, a, clamped, "on_collision");
+    }
+  }
+
+  prevContactPairs = currentPairs;
+}
+
 /** Reset host script state (new run / world reset). */
 export function resetScriptHost(): void {
   // Keep JS registrations across runs (host may re-register); clear WASM bind.
   unbindScriptWasm();
+  prevContactPairs = new Set();
 }

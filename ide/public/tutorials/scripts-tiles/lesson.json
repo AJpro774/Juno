@@ -6,13 +6,13 @@
     {
       "image": "step-1.svg",
       "caption": "Export a Juni handler",
-      "narration": "In your entry module, write export fn player_on_update with entity_id and dt parameters. The compiler emits that name as a WASM export, same as main and frame.",
+      "narration": "In your entry module, write export fn player_on_update with entity_id and dt parameters. The compiler emits that name as a WASM export, same as main and frame. Collision pickups use the same pattern with on_trigger_enter or on_collision.",
       "highlight": "editor"
     },
     {
       "image": "step-2.svg",
       "caption": "Bind Script in Inspector",
-      "narration": "Select an entity. Enable Script, set Module to player and Handler to on_update. Save Scene. On Play, world_step calls your Juni export — no JavaScript registerScriptHandler required.",
+      "narration": "Select an entity. Enable Script, set Module to player and Handler to on_update. Use Stub if the export is missing, then Open to jump to it. Save Scene. On Play, world_step calls your Juni export — no JavaScript registerScriptHandler required.",
       "highlight": "inspector"
     },
     {

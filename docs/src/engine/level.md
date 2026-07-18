@@ -6,7 +6,7 @@ Build a playable Juni level with `.jscene`, ECS physics, and a short `frame` loo
 
 1. **Scene** — `scenes/level1.jscene` with tagged entities (`player`, `camera`, platforms, triggers)
 2. **Prefabs** — `prefabs/*.jscene` fragments spawned with `prefab_spawn(path, x, y)`
-3. **Script** — `main` loads the scene; `frame` drives input, polls collisions, draws
+3. **Script** — `main` loads the scene; `frame` drives input and draws; entity scripts / collision events react inside `world_step`
 
 ## Intrinsics
 
@@ -17,14 +17,14 @@ Build a playable Juni level with `.jscene`, ECS physics, and a short `frame` loo
 | `camera2d_follow(cam, target, smooth)` | Lerp camera toward target each `world_step` |
 | `rigidbody2d_set_vel` / `rigidbody2d_get_grounded` | Control / query the player body |
 | `collider2d_set` | Configure AABB (`kind=0`) or circle (`kind=1`) |
-| `collision_count` / `collision_entity_a` / `collision_entity_b` | Poll contacts after `world_step` |
+| `collision_count` / `collision_entity_a` / `collision_entity_b` / `collision_is_trigger` | Poll contacts after `world_step` |
 | `world_step` / `world_draw` | Physics + 2D draw |
 
 Non-solid colliders act as **triggers** (overlap contacts, no resolution). Optional `slope` (degrees) on solid colliders adds a light slide when grounded. Entity **script** handlers run at the end of each `world_step` — see [Entity scripts](scripts.md).
 
 ## Example flow
 
-See [`examples/projects/platformer`](../../examples/projects/platformer): goal / hazard triggers, coin prefab, Space to restart after death.
+See [`examples/projects/platformer`](../../examples/projects/platformer): coin pickup via `coin_on_trigger_enter`, goal / hazard still polled after `world_step`, Space to restart after death. Authoring path: Stub → collide → Show colliders → Export — see [Entity scripts](scripts.md).
 
 ## Editor
 

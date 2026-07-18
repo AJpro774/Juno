@@ -2,6 +2,22 @@
 
 All notable changes to Juni are documented here.
 
+## [9.3.0] — 2026-07-18
+
+Scripts that feel real: open → stub → collide → see colliders → ship.
+
+### IDE / authoring
+- Inspector **Open** / **Stub** for entity scripts against the project entry `.juni`
+- Edit-mode **Show colliders** overlays (AABB/circle; solid vs trigger stroke); toggle default on
+
+### Engine / scripts
+- Entity script events: `on_collision` and `on_trigger_enter` (`export fn {module}_on_*`)
+- Host poll: `collision_is_trigger(i)` through checker/codegen
+- Platformer coin pickup demo via `on_trigger_enter`
+
+### Release
+- Brand / package / desktop versions → **9.3.0**
+
 ## [9.2.0] — 2026-07-17
 
 Parity polish for browser IDE and runtime assets.

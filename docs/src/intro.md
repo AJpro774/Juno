@@ -2,6 +2,8 @@
 
 **Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.
 
+**v9.3** finishes the authoring loop: inspector **Open/Stub** for entry scripts, `on_collision` / `on_trigger_enter` events, Edit-mode **Show colliders**, and a platformer coin `on_trigger_enter` demo.
+
 **v9.2** brings browser IDE **LSP hover/diagnostics** closer to desktop, **`.glb`** mesh loading, and light audio upgrades (`audio_stop`, master bus volume), plus tutorial sample audio.
 
 **v9.1** adds a **WebGPU 3D Edit viewport** for Mesh3D / Light3D / Camera3D (orbit, select, drag); Play still draws with `world_draw3d`.

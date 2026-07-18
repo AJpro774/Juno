@@ -1,6 +1,6 @@
 /** Host-side ECS world for the Juno game engine. */
 
-import { dispatchEntityScripts } from "./scripts.js";
+import { dispatchCollisionScripts, dispatchEntityScripts } from "./scripts.js";
 
 export type Transform2D = {
   x: number;
@@ -394,6 +394,7 @@ export function worldStep(dt: number, world: World = getWorld()): void {
 
   physicsHooks?.syncMeshes?.(world);
 
-  // Entity script handlers (after physics so grounded / contacts are current).
+  // Collision / trigger events, then per-entity tick (contacts are current).
+  dispatchCollisionScripts(world, clamped);
   dispatchEntityScripts(world, clamped);
 }

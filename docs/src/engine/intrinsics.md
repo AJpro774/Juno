@@ -39,7 +39,7 @@ Juni games call these as language builtins (no `import`). They map to WASM `env.
 | `world_draw(cam)` | Draw 2D world |
 | `rigidbody2d_set_vel` / `rigidbody2d_get_grounded` | Body control |
 | `collider2d_set(id, kind, w, h, radius, solid)` | kind 0=aabb, 1=circle |
-| `collision_count` / `collision_entity_a` / `collision_entity_b` | Contact poll |
+| `collision_count` / `collision_entity_a` / `collision_entity_b` / `collision_is_trigger` | Contact poll |
 
 Entity `script` components are dispatched inside `world_step` — see [Entity scripts](scripts.md).
 

@@ -34,6 +34,8 @@ ECS entities with `rigidbody2d` + `collider2d` components are stepped automatica
 
 `rigidbody2d_get_grounded` is set when the contact normal points upward (landing / standing). Prefer Y separation when overlaps are nearly square so platformer landings feel stable.
 
+After `world_step`, prefer entity `on_collision` / `on_trigger_enter` exports for reactions (see [Entity scripts](../engine/scripts.md)); `collision_count` polling remains valid for simple checks.
+
 ## Example
 
-See `examples/projects/paddle_physics` (legacy AABB calls) and `examples/projects/platformer` (ECS + `world_step`).
+See `examples/projects/paddle_physics` (legacy AABB calls) and `examples/projects/platformer` (ECS + `world_step`; coin uses `on_trigger_enter`).

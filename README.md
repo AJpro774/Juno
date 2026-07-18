@@ -10,16 +10,16 @@
 
 Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-## Status (v9.2.0)
+## Status (v9.3.0)
 
-- **Authoring:** Juni entity scripts via WASM `export fn {module}_{handler}`; 2D tilemap brush/erase; **3D Edit** WebGPU viewport for mesh/light/camera
-- **Engine:** host ECS, `.jscene`, prefabs, collision poll, camera follow, `world_draw3d`, ambient/fog
-- **Editor:** hierarchy/inspector, Save to disk, undo/redo, play snapshot, hot reload, Export Web
+- **Authoring:** Juni entity scripts via WASM `export fn {module}_{handler}`; inspector **Open/Stub**; 2D tilemap brush/erase; **3D Edit** WebGPU viewport
+- **Engine:** host ECS, `.jscene`, prefabs, `on_collision` / `on_trigger_enter`, collision poll, camera follow, `world_draw3d`
+- **Editor:** hierarchy/inspector, **Show colliders** overlays, Save to disk, undo/redo, play snapshot, hot reload, Export Web
 - **Optional AI:** WebLLM (model picker) — chat, autocorrect, explain — **off by default**
 - **Projects:** `juni.toml` modules, `juni export-web`, Netlify-ready static export
-- **Examples:** platformer vertical slice, scene3d_lit, paddle, audio, modules
+- **Examples:** platformer (coin `on_trigger_enter`), scene3d_lit, paddle, audio, modules
 - **Docs:** engine, levels, Netlify, export-web, AI assistant, entity scripts, 3D edit
-- **CI:** `cargo test`, example checks, LSP smoke, IDE / Pages build
+- **CI:** `cargo test`, example checks, LSP smoke, IDE / Pages build; desktop multi-arch release
 
 ## Browser IDE (local)
 

@@ -720,6 +720,13 @@ select {
   font-family: var(--font-mono);
 }
 
+.inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.15rem;
+}
+
 .inspector-field {
   display: grid;
   grid-template-columns: 4.5rem 1fr;

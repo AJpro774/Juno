@@ -54,5 +54,6 @@ export {
   unregisterScriptHandler,
   clearScriptHandlers,
   dispatchEntityScripts,
+  dispatchCollisionScripts,
   resetScriptHost,
 } from "./scripts.js";

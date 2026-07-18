@@ -3,7 +3,7 @@ import { readStr } from "./memory.js";
 import { camera2dFollow, camera2dSet, collider2dSet, createWorld, entityCreate, entityDestroy, entityFindByTag, entitySetTag, getWorld, mesh3dAttach, resetWorld, rigidbody2dGetGrounded, rigidbody2dSetVel, spriteSet, transform2dSet, transform3dSet, worldStep, } from "./world.js";
 import { loadSceneIntoWorld, materializeScene3d, parseScene, prefabSpawn, } from "./scene-loader.js";
 import { parseTilemapJson, renderWorld2d, tilemapAttach, tilemapGet } from "./render2d.js";
-import { collisionCount, collisionEntityA, collisionEntityB, ensurePhysicsInstalled, } from "./physics.js";
+import { collisionCount, collisionEntityA, collisionEntityB, collisionIsTrigger, ensurePhysicsInstalled, } from "./physics.js";
 import { parseGltfJson, parseGltfOrGlb, isGlbBytes } from "./gltf.js";
 const scenes = new Map();
 let nextSceneHandle = 1;
@@ -271,6 +271,9 @@ export function createEngineImports(options) {
         collision_entity_b(i) {
             return collisionEntityB(i);
         },
+        collision_is_trigger(i) {
+            return collisionIsTrigger(i);
+        },
         rigidbody2d_set_vel(id, vx, vy) {
             rigidbody2dSetVel(id, vx, vy);
         },
@@ -343,6 +346,7 @@ export function createEngineStubs() {
         collision_count: () => 0,
         collision_entity_a: () => 0,
         collision_entity_b: () => 0,
+        collision_is_trigger: () => 0,
         rigidbody2d_set_vel: () => { },
         rigidbody2d_get_grounded: () => 0,
         collider2d_set: () => { },

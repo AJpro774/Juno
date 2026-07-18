@@ -1,5 +1,5 @@
 /** Host-side ECS world for the Juno game engine. */
-import { dispatchEntityScripts } from "./scripts.js";
+import { dispatchCollisionScripts, dispatchEntityScripts } from "./scripts.js";
 export let activeWorld = null;
 export function createWorld() {
     const world = {
@@ -212,7 +212,8 @@ export function worldStep(dt, world = getWorld()) {
         cam.y += (target.transform2d.y - cam.y) * t;
     }
     physicsHooks?.syncMeshes?.(world);
-    // Entity script handlers (after physics so grounded / contacts are current).
+    // Collision / trigger events, then per-entity tick (contacts are current).
+    dispatchCollisionScripts(world, clamped);
     dispatchEntityScripts(world, clamped);
 }
 //# sourceMappingURL=world.js.map
