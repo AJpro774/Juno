@@ -1,0 +1,4 @@
+# Cloudflare / static hosts: keep download hub as real files; SPA fallback elsewhere.
+/download    /download/   301
+/download/*  /download/:splat   200
+/*    /index.html   200

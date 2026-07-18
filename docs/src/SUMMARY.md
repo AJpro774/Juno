@@ -33,6 +33,7 @@
 - [AI assistant](projects/ai-assistant.md)
 - [Licensing](projects/licensing.md)
 - [Deploy to Netlify](projects/netlify.md)
+- [Deploy to Cloudflare](projects/cloudflare.md)
 - [Export for web](projects/export-web.md)
 - [Visual tutorials](projects/tutorials.md)
 - [Themes & Cat Coffee](projects/cat-coffee.md)
