@@ -488,13 +488,14 @@ select {
   box-shadow: -12px 0 40px rgba(28, 25, 21, 0.08);
 }
 
-.workspace.docs-open .docs-panel {
+.workspace.docs-open #docs-panel {
   position: relative;
   transform: none;
   opacity: 1;
   pointer-events: auto;
   width: auto;
   box-shadow: none;
+  display: grid;
 }
 
 .docs-head {
@@ -799,7 +800,8 @@ select {
 }
 
 .workspace.ai-open #docs-panel,
-.workspace.ai-open #tutorials-panel {
+.workspace.ai-open #tutorials-panel,
+.workspace.ai-open #settings-panel {
   display: none;
 }
 
@@ -818,12 +820,14 @@ select {
 }
 
 .workspace.tutorials-open #docs-panel,
-.workspace.tutorials-open #ai-panel {
+.workspace.tutorials-open #ai-panel,
+.workspace.tutorials-open #settings-panel {
   display: none;
 }
 
 .workspace.docs-open #tutorials-panel,
-.workspace.docs-open #ai-panel {
+.workspace.docs-open #ai-panel,
+.workspace.docs-open #settings-panel {
   display: none;
 }
 
@@ -1123,13 +1127,15 @@ select {
 
   .workspace.docs-open,
   .workspace.ai-open,
-  .workspace.tutorials-open {
+  .workspace.tutorials-open,
+  .workspace.settings-open {
     grid-template-columns: 1fr;
   }
 
-  .workspace.docs-open .docs-panel,
+  .workspace.docs-open #docs-panel,
   .workspace.ai-open .ai-panel,
-  .workspace.tutorials-open .tutorials-panel {
+  .workspace.tutorials-open .tutorials-panel,
+  .workspace.settings-open .settings-panel {
     position: absolute;
     width: var(--docs-w);
   }
@@ -1157,8 +1163,14 @@ select {
 }
 
 .workspace.settings-open .settings-panel {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  width: auto;
+  box-shadow: none;
+  display: grid;
+  grid-template-rows: auto 1fr;
   min-height: 0;
   border-left: 1px solid var(--line);
   background: var(--pane);
@@ -1167,16 +1179,6 @@ select {
 .workspace.settings-open #docs-panel,
 .workspace.settings-open #ai-panel,
 .workspace.settings-open #tutorials-panel {
-  display: none;
-}
-
-.workspace.docs-open #settings-panel,
-.workspace.ai-open #settings-panel,
-.workspace.tutorials-open #settings-panel {
-  display: none;
-}
-
-.settings-panel {
   display: none;
 }
 
