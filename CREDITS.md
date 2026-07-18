@@ -2,7 +2,7 @@
 
 Author: **Alexander James Patton**
 
-Built with **Cursor** (AI-assisted development) and the open-source toolchain listed per version.
+Built with **Cursor** and the open-source toolchain listed per version.
 
 ---
 
@@ -10,35 +10,30 @@ Built with **Cursor** (AI-assisted development) and the open-source toolchain li
 
 - **Author:** Alexander James Patton
 - **Built with:** Cursor
-- **Models used:** Early scaffolding with Cursor agent assistance (exact model names not recorded)
 - **Software:** Rust, Cargo, `wasm-encoder`, thiserror, Node.js
 
 ## v1 — IDE + strings / print
 
 - **Author:** Alexander James Patton
 - **Built with:** Cursor
-- **Models used:** Cursor agent assistance (not fully recorded)
 - **Software:** Rust, wasm-bindgen, wasm-pack, Vite, Monaco Editor, TypeScript, Node.js
 
 ## v2 — Canvas2D, WebGPU sample, Docs panel
 
 - **Author:** Alexander James Patton
 - **Built with:** Cursor
-- **Models used:** Cursor Composer / Auto agent routing for implementation
 - **Software:** Rust, wasm-bindgen, wasm-pack, Vite, Monaco Editor, TypeScript, marked, HTML Canvas 2D, WebGPU / WGSL, Node.js
 
 ## v3 — Games, sim, 3D, Credits
 
 - **Author:** Alexander James Patton
 - **Built with:** Cursor
-- **Models used:** Cursor Composer (implementation agents for compiler, IDE runtime, docs)
 - **Software:** Rust, wasm-bindgen, wasm-pack, Vite, Monaco Editor, TypeScript, marked, HTML Canvas 2D, WebGPU / WGSL, Node.js
 
 ## v4 — Language-first upgrade
 
 - **Author:** Alexander James Patton
 - **Built with:** Cursor
-- **Models used:** Cursor Composer / agent routing for compiler, IDE, docs, and CI
 - **Software:** Rust, wasm-encoder, wasm-bindgen, wasm-pack, Vite, Monaco Editor, TypeScript, marked, HTML Canvas 2D, WebGPU / WGSL, GitHub Actions, Node.js
 
 ## v4.0 — Initial release
@@ -67,11 +62,10 @@ Built with **Cursor** (AI-assisted development) and the open-source toolchain li
 - **Author:** Alexander James Patton
 - **Deliverable:** Self-contained export-web / itch·Netlify packaging, in-IDE visual tutorial player (screenshots + captions + TTS); phased `v8.0.0` / `v8.1.0` / `v8.2.0` / `v8.3.0`
 - **v8.1:** Inspector completeness (collider/camera/tilemap/prefab/script), 2D physics polish (grounded/triggers/slopes), entity script dispatch host ABI, physics+scripts tutorial
-- **v8.2:** Tauri project FS + LSP hover/diagnostics, 3D editor slice (mesh/light/camera + `world_draw3d` Play), AI model defaults / docs RAG, spritesheet + richer glTF, desktop/3D/AI tutorials
+- **v8.2:** Tauri project FS + LSP hover/diagnostics, 3D editor slice (mesh/light/camera + `world_draw3d` Play), spritesheet + richer glTF, desktop/3D tutorials
 - **v8.3:** Modern / Classic UI appearance toggle (Classic default), rearranged modern workspace chrome, Settings panel
 - **Built with:** Cursor
-- **Models used:** Cursor Grok 4.5 High, Composer 2.5
-- **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2, WebLLM
+- **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
 
 ## v9 — Author in Juni
 
@@ -81,9 +75,8 @@ Built with **Cursor** (AI-assisted development) and the open-source toolchain li
 - **v9.1:** WebGPU 3D Edit viewport (mesh/light/camera gizmo-lite; Play keeps `world_draw3d`); multi-arch Tauri CI → GitHub Releases; web `/download/` hub; Android as installable PWA (no APK)
 - **v9.2:** Browser LSP hover/diagnostics via WASM; `.glb` mesh load path; `audio_stop` + master bus volume; tutorial sample audio + `9.2.0` brand bump
 - **Built with:** Cursor
-- **Models used:** Cursor Grok 4.5 High, Composer 2.5
-- **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2, WebLLM
-- **License:** Apache License 2.0 (source); EULA for distributed IDE/apps — see \`LICENSE\` and \`EULA.md\`
+- **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
+- **License:** Apache License 2.0 (source); EULA for distributed IDE/apps — see `LICENSE` and `EULA.md`
 
 ---
 
