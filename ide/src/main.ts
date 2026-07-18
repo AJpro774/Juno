@@ -46,6 +46,7 @@ import {
   wireAiPanelDom,
 } from "./agent/ui";
 import { setupAiAutocorrect } from "./agent/autocorrect";
+import { wireUiAppearanceSettings } from "./ui-theme";
 import init, { compile, compile_project, complete_source, goto_def_source } from "../public/pkg/juni_wasm.js";
 
 self.MonacoEnvironment = {
@@ -278,6 +279,9 @@ const tutorialsPanel = document.getElementById("tutorials-panel") as HTMLElement
 const aiToggle = document.getElementById("ai-toggle") as HTMLButtonElement;
 const aiPanel = document.getElementById("ai-panel") as HTMLElement;
 const aiClose = document.getElementById("ai-close") as HTMLButtonElement;
+const settingsToggle = document.getElementById("settings-toggle") as HTMLButtonElement;
+const settingsPanel = document.getElementById("settings-panel") as HTMLElement;
+const settingsClose = document.getElementById("settings-close") as HTMLButtonElement;
 const tutorialPlayer: TutorialPlayer = wireTutorialPlayer({
   panel: tutorialsPanel,
   lessonSelect: document.getElementById("tutorial-lesson") as HTMLSelectElement,
@@ -313,7 +317,7 @@ const hotReloadChk = document.getElementById("hot-reload") as HTMLInputElement;
 const exportWebBtn = document.getElementById("export-web") as HTMLButtonElement;
 
 let previewMode: PreviewMode = "canvas2d";
-let panelMode: "docs" | "credits" | "ai" | "tutorials" | null = null;
+let panelMode: "docs" | "credits" | "ai" | "tutorials" | "settings" | null = null;
 let activeDocId = DOC_PAGES[0]?.id ?? "intro";
 let frameCtl: FrameController | null = null;
 let runGeneration = 0;
@@ -548,18 +552,21 @@ function markPreviewUsed() {
   previewBody.classList.add("has-frame");
 }
 
-function setPanel(mode: "docs" | "credits" | "ai" | "tutorials" | null) {
+function setPanel(mode: "docs" | "credits" | "ai" | "tutorials" | "settings" | null) {
   const prev = panelMode;
   panelMode = mode;
   const docsOpen = mode === "docs" || mode === "credits";
   const aiOpen = mode === "ai";
   const tutorialsOpen = mode === "tutorials";
+  const settingsOpen = mode === "settings";
   workspace.classList.toggle("docs-open", docsOpen);
   workspace.classList.toggle("ai-open", aiOpen);
   workspace.classList.toggle("tutorials-open", tutorialsOpen);
+  workspace.classList.toggle("settings-open", settingsOpen);
   docsPanel.setAttribute("aria-hidden", docsOpen ? "false" : "true");
   aiPanel.setAttribute("aria-hidden", aiOpen ? "false" : "true");
   tutorialsPanel.setAttribute("aria-hidden", tutorialsOpen ? "false" : "true");
+  settingsPanel.setAttribute("aria-hidden", settingsOpen ? "false" : "true");
   if (mode === "docs") {
     sideTitle.textContent = "Docs";
     docsNav.style.display = "";
@@ -649,6 +656,10 @@ function setupSidePanel() {
     setPanel(panelMode === "ai" ? null : "ai");
   });
   aiClose.addEventListener("click", () => setPanel(null));
+  settingsToggle.addEventListener("click", () => {
+    setPanel(panelMode === "settings" ? null : "settings");
+  });
+  settingsClose.addEventListener("click", () => setPanel(null));
   void tutorialPlayer.init();
   explainErrorsBtn.addEventListener("click", () => {
     void explainLastDiagnostics();
@@ -734,6 +745,7 @@ async function main() {
     examplesSel.appendChild(opt);
   }
 
+  wireUiAppearanceSettings();
   setupSidePanel();
   setPreviewMode("canvas2d");
 

@@ -2,7 +2,7 @@
 
 [package]
 name = "juni-desktop"
-version = "8.2.0"
+version = "8.3.0"
 description = "Juni desktop IDE shell"
 authors = ["Juni Contributors"]
 edition = "2021"

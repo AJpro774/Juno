@@ -2,6 +2,8 @@
 
 **Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.
 
+**v8.3** adds a **Modern / Classic** UI appearance toggle in Settings (Modern default): rearranged workspace chrome vs the original warm layout.
+
 **v8.2** ships first-class **desktop** FS + richer LSP (hover/diagnostics), a **3D editor slice** (mesh/light/camera + Play via `world_draw3d`), stronger **AI** model defaults / docs RAG, and final desktop/3D/AI tutorials.
 
 **v8.1** completes the 2D editor (collider / camera / tilemap / prefab / script inspector), polishes 2D physics (grounded, triggers, slopes), and dispatches entity scripts each `world_step`.

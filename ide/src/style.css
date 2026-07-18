@@ -100,6 +100,13 @@ body {
   justify-content: flex-end;
 }
 
+.action-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 select,
 button {
   font: inherit;
@@ -1143,3 +1150,209 @@ select {
     min-width: 0;
   }
 }
+
+/* ---- Settings panel ---- */
+.workspace.settings-open {
+  grid-template-columns: 1fr var(--docs-w);
+}
+
+.workspace.settings-open .settings-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--line);
+  background: var(--pane);
+}
+
+.workspace.settings-open #docs-panel,
+.workspace.settings-open #ai-panel,
+.workspace.settings-open #tutorials-panel {
+  display: none;
+}
+
+.workspace.docs-open #settings-panel,
+.workspace.ai-open #settings-panel,
+.workspace.tutorials-open #settings-panel {
+  display: none;
+}
+
+.settings-panel {
+  display: none;
+}
+
+.settings-body {
+  padding: 1rem 1.1rem 1.5rem;
+  overflow: auto;
+}
+
+.settings-heading {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.settings-blurb {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.settings-field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.settings-field select {
+  width: 100%;
+}
+
+/* ---- Classic: keep parchment Syne look (default tokens on :root) ---- */
+html[data-ui="classic"] {
+  --font-ui: "Syne", sans-serif;
+}
+
+/* ---- Modern: cooler chrome + rearranged workspace ---- */
+html[data-ui="modern"] {
+  --bg: #0f1419;
+  --bg-deep: #0a0e12;
+  --ink: #e7ecef;
+  --muted: #8b98a5;
+  --accent: #2bb673;
+  --accent-ink: #04140c;
+  --danger: #ff6b5a;
+  --line: rgba(231, 236, 239, 0.1);
+  --editor-bg: #121820;
+  --console-bg: #080b0e;
+  --console-ink: #c8d0d8;
+  --pane: #151c24;
+  --glow: radial-gradient(900px 420px at 0% 0%, rgba(43, 182, 115, 0.12) 0%, transparent 55%),
+    radial-gradient(800px 380px at 100% 0%, rgba(70, 120, 160, 0.1) 0%, transparent 50%),
+    var(--bg);
+  --font-ui: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --docs-w: min(24rem, 92vw);
+  color-scheme: dark;
+}
+
+html[data-ui="modern"] body {
+  background: var(--glow);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+html[data-ui="modern"] .top {
+  padding: 0.55rem 0.9rem;
+  background: rgba(10, 14, 18, 0.72);
+  border-bottom-color: var(--line);
+  gap: 0.75rem;
+}
+
+html[data-ui="modern"] .brand-mark {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 1.35rem;
+}
+
+html[data-ui="modern"] .brand-tag {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+html[data-ui="modern"] .action-group + .action-group::before {
+  content: "";
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.15rem 0.15rem 0.05rem;
+  background: var(--line);
+}
+
+html[data-ui="modern"] .ghost,
+html[data-ui="modern"] .mode-btn,
+html[data-ui="modern"] select {
+  border-radius: 6px;
+  background: transparent;
+}
+
+html[data-ui="modern"] .run {
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+html[data-ui="modern"] .pane-head,
+html[data-ui="modern"] .pane-head-light {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+html[data-ui="modern"] .main-row.engine-row {
+  /* Project | Scene | Code | Hierarchy */
+  grid-template-columns: minmax(8rem, 0.45fr) minmax(14rem, 0.95fr) minmax(0, 1.05fr) minmax(11rem, 0.55fr);
+}
+
+html[data-ui="modern"] .file-tree-pane {
+  order: 1;
+}
+
+html[data-ui="modern"] .preview-pane {
+  order: 2;
+  border-right: 1px solid var(--line);
+}
+
+html[data-ui="modern"] .editor-pane {
+  order: 3;
+}
+
+html[data-ui="modern"] .engine-side {
+  order: 4;
+}
+
+html[data-ui="modern"] .stage {
+  grid-template-rows: minmax(0, 1fr) minmax(5.5rem, 18vh);
+}
+
+html[data-ui="modern"] .console {
+  font-size: 0.78rem;
+}
+
+html[data-ui="modern"] .tab-bar {
+  background: var(--bg-deep);
+}
+
+@media (max-width: 1100px) {
+  html[data-ui="modern"] .main-row.engine-row {
+    grid-template-columns: minmax(8rem, 0.5fr) minmax(0, 1fr) minmax(10rem, 0.55fr);
+  }
+
+  html[data-ui="modern"] .preview-pane {
+    display: none;
+  }
+
+  html[data-ui="modern"] .file-tree-pane,
+  html[data-ui="modern"] .editor-pane,
+  html[data-ui="modern"] .engine-side {
+    order: initial;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace.settings-open {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace.settings-open .settings-panel {
+    position: absolute;
+    width: var(--docs-w);
+    inset: 0 auto 0 0;
+    right: 0;
+    left: auto;
+    z-index: 5;
+  }
+}
+

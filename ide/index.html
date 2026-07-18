@@ -1,51 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-ui="modern">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Juni</title>
+    <script>
+      try {
+        var u = localStorage.getItem("juni.ui.appearance");
+        if (u === "classic" || u === "modern") document.documentElement.dataset.ui = u;
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <div id="app">
+    <div id="app" data-ui="modern">
       <header class="top">
         <div class="brand">
           <span class="brand-mark">Juni</span>
-          <span class="brand-tag">v8.2</span>
+          <span class="brand-tag">v8.3</span>
         </div>
         <div class="actions">
-          <button type="button" id="open-project" class="ghost">Open Project</button>
-          <button type="button" id="demo-project" class="ghost">Demo Project</button>
-          <select id="examples" aria-label="Examples"></select>
-          <div class="mode" role="group" aria-label="Preview mode">
-            <button type="button" id="mode-2d" class="mode-btn is-active" data-mode="canvas2d">
-              2D
-            </button>
-            <button type="button" id="mode-gpu" class="mode-btn" data-mode="webgpu">
-              WebGPU
-            </button>
+          <div class="action-group action-primary">
+            <button type="button" id="open-project" class="ghost">Open Project</button>
+            <button type="button" id="demo-project" class="ghost">Demo Project</button>
+            <select id="examples" aria-label="Examples"></select>
           </div>
-          <div class="mode" role="group" aria-label="Editor mode">
-            <button type="button" id="mode-edit" class="mode-btn is-active">Edit</button>
-            <button type="button" id="mode-play" class="mode-btn">Play</button>
+          <div class="action-group action-modes">
+            <div class="mode" role="group" aria-label="Preview mode">
+              <button type="button" id="mode-2d" class="mode-btn is-active" data-mode="canvas2d">
+                2D
+              </button>
+              <button type="button" id="mode-gpu" class="mode-btn" data-mode="webgpu">
+                WebGPU
+              </button>
+            </div>
+            <div class="mode" role="group" aria-label="Editor mode">
+              <button type="button" id="mode-edit" class="mode-btn is-active">Edit</button>
+              <button type="button" id="mode-play" class="mode-btn">Play</button>
+            </div>
           </div>
-          <button type="button" id="undo-scene" class="ghost tight" title="Undo (⌘Z)">Undo</button>
-          <button type="button" id="redo-scene" class="ghost tight" title="Redo (⌘⇧Z)">Redo</button>
-          <button type="button" id="save-scene" class="ghost">Save Scene</button>
-          <span id="scene-dirty" class="scene-dirty" hidden title="Unsaved scene changes">●</span>
-          <label class="hot-reload-label ghost tight" title="Recompile when saving while playing">
-            <input type="checkbox" id="hot-reload" /> Hot reload
-          </label>
-          <button type="button" id="export-web" class="ghost">Export Web</button>
-          <button type="button" id="ai-toggle" class="ghost">AI: Off</button>
-          <button type="button" id="docs-toggle" class="ghost">Docs</button>
-          <button type="button" id="tutorials-toggle" class="ghost">Tutorials</button>
-          <button type="button" id="credits-toggle" class="ghost">Credits</button>
+          <div class="action-group action-scene">
+            <button type="button" id="undo-scene" class="ghost tight" title="Undo (⌘Z)">Undo</button>
+            <button type="button" id="redo-scene" class="ghost tight" title="Redo (⌘⇧Z)">Redo</button>
+            <button type="button" id="save-scene" class="ghost">Save Scene</button>
+            <span id="scene-dirty" class="scene-dirty" hidden title="Unsaved scene changes">●</span>
+            <label class="hot-reload-label ghost tight" title="Recompile when saving while playing">
+              <input type="checkbox" id="hot-reload" /> Hot reload
+            </label>
+            <button type="button" id="export-web" class="ghost">Export Web</button>
+          </div>
+          <div class="action-group action-panels">
+            <button type="button" id="ai-toggle" class="ghost">AI: Off</button>
+            <button type="button" id="docs-toggle" class="ghost">Docs</button>
+            <button type="button" id="tutorials-toggle" class="ghost">Tutorials</button>
+            <button type="button" id="credits-toggle" class="ghost">Credits</button>
+            <button type="button" id="settings-toggle" class="ghost">Settings</button>
+          </div>
           <button type="button" id="run" class="run">Run</button>
         </div>
       </header>
@@ -155,6 +170,27 @@
           <div class="ai-compose">
             <textarea id="ai-input" rows="2" placeholder="Ask about Juni / engine…"></textarea>
             <button type="button" id="ai-send" class="run tight">Send</button>
+          </div>
+        </aside>
+        <aside id="settings-panel" class="docs-panel settings-panel" aria-hidden="true">
+          <div class="docs-head">
+            <span>Settings</span>
+            <button type="button" id="settings-close" class="ghost tight" aria-label="Close settings">
+              Close
+            </button>
+          </div>
+          <div class="settings-body">
+            <h3 class="settings-heading">Appearance</h3>
+            <p class="settings-blurb">
+              Modern rearranges the workspace and uses a cooler chrome. Classic keeps the original warm layout.
+            </p>
+            <label class="settings-field">
+              UI appearance
+              <select id="ui-appearance" aria-label="UI appearance">
+                <option value="modern">Modern (default)</option>
+                <option value="classic">Classic</option>
+              </select>
+            </label>
           </div>
         </aside>
       </div>

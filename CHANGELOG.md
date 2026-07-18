@@ -2,6 +2,16 @@
 
 All notable changes to Juni are documented here.
 
+## [8.3.0] — 2026-07-17
+
+Modern / Classic UI appearance.
+
+### IDE
+- **Settings** panel with **UI appearance** toggle: Modern (default) or Classic
+- Preference persisted in `localStorage` (`juni.ui.appearance`)
+- Modern: cooler dark chrome (DM Sans), grouped toolbar, Scene-forward workspace order
+- Classic: original warm parchment layout (Syne)
+
 ## [8.2.0] — 2026-07-17
 
 Desktop IDE, 3D editor slice, and stronger local AI.
