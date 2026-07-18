@@ -18,6 +18,9 @@ export class SceneStore {
   private listeners = new Set<SceneStoreListener>();
   private dirty = false;
   private dragUndoPushed = false;
+  private paintUndoPushed = false;
+  /** Editor brush index for tilemap paint (0 = erase). Not stored in .jscene. */
+  private tileBrush = 1;
 
   subscribe(fn: SceneStoreListener): () => void {
     this.listeners.add(fn);
@@ -152,6 +155,48 @@ export class SceneStore {
     this.dragUndoPushed = false;
   }
 
+  getTileBrush(): number {
+    return this.tileBrush;
+  }
+
+  setTileBrush(tile: number): void {
+    this.tileBrush = Math.max(0, tile | 0);
+  }
+
+  /** Call once at paint stroke start so the whole stroke is one undo step. */
+  beginPaintGesture(): void {
+    if (this.paintUndoPushed) return;
+    this.pushUndo();
+    this.paintUndoPushed = true;
+  }
+
+  endPaintGesture(): void {
+    this.paintUndoPushed = false;
+  }
+
+  /** Set one cell in an entity's tilemap (pads the tiles array as needed). */
+  setEntityTile(id: number, col: number, row: number, tile: number): void {
+    const entity = this.scene.entities.find((e) => e.id === id);
+    if (!entity) return;
+    const tm = entity.components?.tilemap;
+    if (!tm) return;
+    const cols = tm.cols ?? 0;
+    const rows = tm.rows ?? 0;
+    if (cols <= 0 || rows <= 0 || col < 0 || row < 0 || col >= cols || row >= rows) return;
+    const needed = cols * rows;
+    const tiles = Array.isArray(tm.tiles) ? tm.tiles.slice() : [];
+    while (tiles.length < needed) tiles.push(0);
+    const idx = row * cols + col;
+    const next = tile | 0;
+    if (tiles[idx] === next) return;
+    if (!this.paintUndoPushed) this.pushUndo();
+    tiles[idx] = next;
+    entity.components = entity.components ?? {};
+    entity.components.tilemap = { ...tm, tiles };
+    this.dirty = true;
+    this.notify();
+  }
+
   setEntityTransform2d(id: number, x: number, y: number): void {
     const entity = this.scene.entities.find((e) => e.id === id);
     if (!entity) return;
@@ -161,6 +206,23 @@ export class SceneStore {
       ...(entity.components.transform2d ?? {}),
       x,
       y,
+    };
+    this.dirty = true;
+    this.notify();
+  }
+
+  /** Update Transform3D position (Edit 3D viewport drag). */
+  setEntityTransform3d(id: number, x: number, y: number, z: number): void {
+    const entity = this.scene.entities.find((e) => e.id === id);
+    if (!entity) return;
+    if (!this.dragUndoPushed) this.pushUndo();
+    entity.components = entity.components ?? {};
+    const prev = entity.components.transform3d ?? {};
+    entity.components.transform3d = {
+      ...prev,
+      position: [x, y, z],
+      rotation: prev.rotation ?? [0, 0, 0],
+      scale: prev.scale ?? [1, 1, 1],
     };
     this.dirty = true;
     this.notify();

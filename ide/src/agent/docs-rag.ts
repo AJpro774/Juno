@@ -53,8 +53,15 @@ export const DOC_CHUNKS: DocChunk[] = [
     id: "scripts",
     title: "Entity scripts",
     path: "engine/scripts",
-    text: "script module handler on_update world_step registerEntityScript WASM export",
-    keywords: ["script", "handler", "on_update", "dispatch", "module"],
+    text: "script module handler on_update world_step export fn player_on_update WASM export registerScriptHandler bindScriptWasm",
+    keywords: ["script", "handler", "on_update", "dispatch", "module", "export", "wasm"],
+  },
+  {
+    id: "tilemap-paint",
+    title: "Tilemap paint",
+    path: "engine/editor",
+    text: "tilemap brush erase paint cols rows tileset tiles .jscene scene view inspector",
+    keywords: ["tilemap", "tile", "paint", "brush", "erase", "grid"],
   },
   {
     id: "desktop",

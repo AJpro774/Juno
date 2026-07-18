@@ -139,7 +139,7 @@ fn asset_kind(ext: &str) -> String {
     match ext {
         "png" | "jpg" | "jpeg" | "gif" | "webp" => "image".to_string(),
         "obj" => "mesh".to_string(),
-        "gltf" => "gltf".to_string(),
+        "gltf" | "glb" => "gltf".to_string(),
         "jscene" => "scene".to_string(),
         "json" => "tilemap".to_string(),
         "wav" | "mp3" | "ogg" => "audio".to_string(),

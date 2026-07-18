@@ -2,7 +2,7 @@
 
 **Juni** is a systems language that feels like Python and performs like C++: statically typed, no GC, explicit memory and refs, compiling natively to **WebAssembly** — with **Canvas2D**, a small **3D** API on WebGPU, frame loops, and input for games and simulations.
 
-**Juno** is this repository. Author: **Alexander J. Patton**. See [CREDITS.md](CREDITS.md).
+**Juno** is this repository. Author: **Alexander James Patton**. See [CREDITS.md](CREDITS.md).
 
 ## Try it online
 
@@ -69,3 +69,8 @@ Enable **Settings → Pages → Build and deployment → GitHub Actions**. The I
 ## Docs
 
 See [docs/src/intro.md](docs/src/intro.md), or open **Docs** in the IDE.
+
+## License
+
+- **Source code** is licensed under the [Apache License 2.0](LICENSE) only.
+- **Distributed Juni IDE / runtime apps** are also subject to the [End User License Agreement](EULA.md).

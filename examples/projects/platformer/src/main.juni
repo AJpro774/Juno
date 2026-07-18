@@ -8,6 +8,14 @@ state:
     dead: i32 = 0
     spawn_x: f32 = 80.0
     spawn_y: f32 = 160.0
+    hazard_t: f32 = 0.0
+
+# Matches .jscene script { module: "hazard", handler: "on_update" }
+export fn hazard_on_update(entity_id: i32, dt: f32) -> i32:
+    hazard_t = hazard_t + dt
+    let x = 180.0 + sin(hazard_t * 2.0) * 24.0
+    transform2d_set(entity_id, x, 200.0, 0.0, 1.0, 1.0)
+    return 0
 
 fn restart() -> i32:
     dead = 0

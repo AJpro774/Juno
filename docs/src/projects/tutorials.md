@@ -11,8 +11,9 @@ The Juni IDE includes a **Tutorials** panel (next to Docs) with screenshot-style
 
 ### Narration
 
-- If `step-N.mp3` exists beside the step image, the player plays that file.
+- If `step-N.mp3` (or a step’s `audio` override such as `step-1.wav`) exists beside the step image, the player plays that file.
 - Otherwise it uses the browser `speechSynthesis` API with the step’s `narration` text (works offline after the IDE loads).
+- **Ship a game** ships a tiny `step-1.wav` sample so Speak has a committed audio path; remaining steps use `speechSynthesis` unless you generate MP3s.
 
 ## Lesson pack format
 
@@ -78,7 +79,7 @@ node scripts/generate-tutorial-tts.mjs
 node scripts/generate-tutorial-tts.mjs --lesson ship-a-game
 ```
 
-Set `OPENAI_API_KEY` or `JUNI_TTS_API_KEY` to write real `step-N.mp3` files. Without a key the script lists planned paths and exits successfully; the IDE still narrates via `speechSynthesis`.
+Set `OPENAI_API_KEY` or `JUNI_TTS_API_KEY` to write real `step-N.mp3` files. Without a key the script lists planned paths and exits successfully; the IDE still narrates via `speechSynthesis` (and uses any committed sample such as `ship-a-game/step-1.wav`).
 
 ## Current lessons
 

@@ -29,9 +29,11 @@
 - [Audio](projects/audio.md)
 - [Desktop IDE](projects/desktop.md)
 - [AI assistant](projects/ai-assistant.md)
+- [Licensing](projects/licensing.md)
 - [Deploy to Netlify](projects/netlify.md)
 - [Export for web](projects/export-web.md)
 - [Visual tutorials](projects/tutorials.md)
+- [Themes & Cat Coffee](projects/cat-coffee.md)
 
 # Graphics
 

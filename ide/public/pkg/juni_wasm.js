@@ -90,6 +90,28 @@ export function complete_source(source, line, col) {
 }
 
 /**
+ * Diagnostics for the browser IDE (parity with desktop LSP).
+ *
+ * Returns JSON: `{ items: [{ severity, message, line, col, end_line, end_col, file }] }`
+ * @param {string} source
+ * @returns {string}
+ */
+export function diagnostics_source(source) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.diagnostics_source(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Go-to-definition for the browser IDE.
  *
  * Returns JSON: `{ location: { file, line, col, endLine, endCol } | null }`
@@ -105,6 +127,30 @@ export function goto_def_source(source, line, col) {
         const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.goto_def_source(ptr0, len0, line, col);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Hover for the browser IDE (parity with desktop LSP).
+ *
+ * Returns JSON: `{ hover: { contents, line, col, end_line, end_col } | null }`
+ * @param {string} source
+ * @param {number} line
+ * @param {number} col
+ * @returns {string}
+ */
+export function hover_source(source, line, col) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.hover_source(ptr0, len0, line, col);
         deferred2_0 = ret[0];
         deferred2_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);

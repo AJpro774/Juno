@@ -2,7 +2,7 @@
 
 **Juni** is a systems language that feels like Python and performs like C++: statically typed, no GC, explicit memory and refs, compiling natively to **WebAssembly** — with **Canvas2D**, a small **3D** API on WebGPU, frame loops, and input for games and simulations.
 
-**Juno** is this repository. Author: **Alexander J. Patton**. See [CREDITS.md](CREDITS.md).
+**Juno** is this repository. Author: **Alexander James Patton**. See [CREDITS.md](CREDITS.md).
 
 ## Try it online
 

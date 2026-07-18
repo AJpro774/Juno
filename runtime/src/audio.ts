@@ -1,4 +1,4 @@
-/** Audio intrinsics: audio_load, audio_play, audio_play_loop, audio_set_volume. */
+/** Audio intrinsics: load/play/loop/stop, per-handle volume, master bus. */
 
 import { readStr } from "./memory.js";
 import type { AssetEntry, AssetPack, MemoryRef } from "./types.js";
@@ -8,6 +8,9 @@ export type AudioHandlers = {
   audio_play: (handle: number) => void;
   audio_play_loop: (handle: number) => void;
   audio_set_volume: (handle: number, volume: number) => void;
+  audio_stop: (handle: number) => void;
+  /** Master bus gain in [0, 1]. */
+  audio_set_bus_volume: (volume: number) => void;
 };
 
 function mimeForAudio(path: string): string {
@@ -27,12 +30,26 @@ export function createAudioHandlers(options: {
 
   const buffers = new Map<number, AudioBuffer>();
   const volumes = new Map<number, number>();
+  const active = new Map<number, AudioBufferSourceNode[]>();
   let sharedCtx: AudioContext | null = null;
+  let masterGain: GainNode | null = null;
+  let busVolume = 1;
 
   function getCtx(): AudioContext | null {
     if (typeof AudioContext === "undefined") return null;
     if (!sharedCtx) sharedCtx = new AudioContext();
     return sharedCtx;
+  }
+
+  function getMaster(): GainNode | null {
+    const ctx = getCtx();
+    if (!ctx) return null;
+    if (!masterGain) {
+      masterGain = ctx.createGain();
+      masterGain.gain.value = busVolume;
+      masterGain.connect(ctx.destination);
+    }
+    return masterGain;
   }
 
   function lookup(path: string): AssetEntry | null {
@@ -59,9 +76,23 @@ export function createAudioHandlers(options: {
     buffers.set(entry.id, buf);
   }
 
+  function trackSource(handle: number, src: AudioBufferSourceNode): void {
+    const list = active.get(handle) ?? [];
+    list.push(src);
+    active.set(handle, list);
+    src.onended = () => {
+      const cur = active.get(handle);
+      if (!cur) return;
+      const next = cur.filter((s) => s !== src);
+      if (next.length) active.set(handle, next);
+      else active.delete(handle);
+    };
+  }
+
   function play(handle: number, loop: boolean): void {
     const ctx = getCtx();
-    if (!ctx) return;
+    const master = getMaster();
+    if (!ctx || !master) return;
     const buf = buffers.get(handle | 0);
     if (!buf) return;
     const src = ctx.createBufferSource();
@@ -70,7 +101,8 @@ export function createAudioHandlers(options: {
     const gain = ctx.createGain();
     gain.gain.value = volumes.get(handle | 0) ?? 1;
     src.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(master);
+    trackSource(handle | 0, src);
     src.start();
   }
 
@@ -95,6 +127,22 @@ export function createAudioHandlers(options: {
     audio_set_volume(handle: number, volume: number) {
       volumes.set(handle | 0, Math.max(0, Math.min(1, volume)));
     },
+    audio_stop(handle: number) {
+      const list = active.get(handle | 0);
+      if (!list) return;
+      for (const src of list) {
+        try {
+          src.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      active.delete(handle | 0);
+    },
+    audio_set_bus_volume(volume: number) {
+      busVolume = Math.max(0, Math.min(1, volume));
+      if (masterGain) masterGain.gain.value = busVolume;
+    },
   };
 }
 
@@ -106,5 +154,7 @@ export function createAudioStubs(): AudioHandlers {
     audio_play: () => {},
     audio_play_loop: () => {},
     audio_set_volume: () => {},
+    audio_stop: () => {},
+    audio_set_bus_volume: () => {},
   };
 }

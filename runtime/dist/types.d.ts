@@ -91,5 +91,7 @@ export type AudioHostHandlers = {
     audio_play: (handle: number) => void;
     audio_play_loop?: (handle: number) => void;
     audio_set_volume?: (handle: number, volume: number) => void;
+    audio_stop?: (handle: number) => void;
+    audio_set_bus_volume?: (volume: number) => void;
 };
 //# sourceMappingURL=types.d.ts.map

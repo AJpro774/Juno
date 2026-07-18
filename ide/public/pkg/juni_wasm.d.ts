@@ -29,11 +29,25 @@ export function compile_project(json: string): string;
 export function complete_source(source: string, line: number, col: number): string;
 
 /**
+ * Diagnostics for the browser IDE (parity with desktop LSP).
+ *
+ * Returns JSON: `{ items: [{ severity, message, line, col, end_line, end_col, file }] }`
+ */
+export function diagnostics_source(source: string): string;
+
+/**
  * Go-to-definition for the browser IDE.
  *
  * Returns JSON: `{ location: { file, line, col, endLine, endCol } | null }`
  */
 export function goto_def_source(source: string, line: number, col: number): string;
+
+/**
+ * Hover for the browser IDE (parity with desktop LSP).
+ *
+ * Returns JSON: `{ hover: { contents, line, col, end_line, end_col } | null }`
+ */
+export function hover_source(source: string, line: number, col: number): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -43,7 +57,9 @@ export interface InitOutput {
     readonly compile: (a: number, b: number) => [number, number];
     readonly compile_project: (a: number, b: number) => [number, number];
     readonly complete_source: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly diagnostics_source: (a: number, b: number) => [number, number];
     readonly goto_def_source: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly hover_source: (a: number, b: number, c: number, d: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

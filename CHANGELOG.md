@@ -2,6 +2,57 @@
 
 All notable changes to Juni are documented here.
 
+## [9.2.0] — 2026-07-17
+
+Parity polish for browser IDE and runtime assets.
+
+### IDE / LSP
+- Browser IDE **hover** and **diagnostics** via WASM (`hover_source` / `diagnostics_source`), closer to desktop Tauri LSP
+- Completion + go-to-definition unchanged on the wasm path
+
+### Assets / audio
+- **`.glb`** load path for `mesh_load_gltf` / Mesh3D glTF authoring (JSON `.gltf` still supported)
+- Audio: `audio_stop(handle)` and master `audio_set_bus_volume(volume)` through a simple Web Audio bus
+
+### Tutorials / hygiene
+- Committed `ship-a-game/step-1.wav` sample; Speak still falls back to `speechSynthesis`
+- Docs note `scripts/generate-tutorial-tts.mjs` for optional OpenAI MP3s
+- Brand / package / desktop versions → **9.2.0**
+
+## [9.1.0] — 2026-07-17
+
+### 3D Edit
+- WebGPU scene view in **Edit** for Mesh3D / Light3D / Camera3D (orbit, select, XZ drag; RGB axis gizmo)
+- Canvas2D isometric fallback when WebGPU is unavailable
+- **Play** still stops the edit preview and draws via `world_draw3d`
+- Docs: [3D](docs/src/graphics/3d.md)
+
+### Installers / download hub
+- GitHub Actions **Release desktop** workflow: Tauri multi-arch matrix (macOS x86_64 + aarch64, Windows x86_64 + ARM64 when runners allow, Linux x86_64 + aarch64); draft GitHub Release on `v*` tags
+- Web **`/download/`** hub (IDE Classic styling): OS/arch detect, GitHub Releases links/placeholders
+- Android: installable **PWA** (`manifest.webmanifest` + service worker) with Add to Home Screen instructions on the download page
+- Desktop bundle icons/targets updated in `tauri.conf.json`; docs: [Desktop IDE](docs/src/projects/desktop.md)
+
+## [9.0.0] — 2026-07-17
+
+Author in Juni: WASM entity scripts, 2D tilemap paint, and release hygiene.
+
+### Scripts
+- Entry-module `export fn` names compile to WASM exports (alongside `main` / `frame`)
+- Convention: `.jscene` `script.module` + `script.handler` → WASM `{module}_{handler}` (e.g. `player_on_update`)
+- Host still prefers JS `registerScriptHandler` when registered; otherwise invokes Juni WASM
+- Docs: [Entity scripts](docs/src/engine/scripts.md); platformer hazard uses `export fn hazard_on_update`
+
+### Tilemap paint
+- Scene view brush / erase for tilemap entities (Alt or right-click erase; ⌘/Ctrl-drag to move)
+- Inspector: grid size, tileset, brush tile index; tiles array pads on resize
+- Painted tiles round-trip through Save Scene / `.jscene`
+
+### Docs / tutorials
+- README Status → v9.0; filled leftover `[8.0.0]` changelog stub
+- Intro covers 9.0 scripts + tile paint
+- Tutorial lesson pack **Scripts and tile paint** under `ide/public/tutorials/scripts-tiles/`
+
 ## [8.3.0] — 2026-07-17
 
 Modern / Classic UI appearance.
@@ -54,14 +105,20 @@ Desktop IDE, 3D editor slice, and stronger local AI.
 ### Tutorials
 - Lesson pack **Physics and scripts** under `ide/public/tutorials/physics-scripts/`
 
-## [8.0.0] — TBD
+## [8.0.0] — 2026-07-17
 
-Ship a game + tutorials release (stub; fill on ship).
+Ship a game + tutorials: self-contained web packaging and the in-IDE lesson player.
 
-### Planned
-- Self-contained `export-web` / itch / Netlify game packaging
-- In-IDE visual tutorial player (screenshots + captions + TTS)
-- CREDITS v8: Cursor Grok 4.5 High, Composer 2.5
+### Export
+- `juni export-web` writes a self-contained `dist/web/` (HTML + WASM + runtime) for itch / Netlify
+- IDE **Export Web** downloads a `*-web.zip` of the same layout
+
+### Tutorials
+- In-IDE visual tutorial player: screenshots, captions, optional TTS
+- First lesson pack **Ship a game** under `ide/public/tutorials/ship-a-game/`
+
+### Credits
+- v8 models: Cursor Grok 4.5 High, Composer 2.5
 
 ## [7.5.0] — 2026-07-15
 

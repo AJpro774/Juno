@@ -37,7 +37,8 @@ use wasm_encoder::{
 /// 94 rigidbody2d_set_vel 95 rigidbody2d_get_grounded 96 collider2d_set
 /// 97 camera2d_follow 98 prefab_spawn 99 world_draw3d
 /// 100 scene3d_set_ambient 101 scene3d_set_fog
-const IMPORT_COUNT: u32 = 102;
+/// 102 audio_stop 103 audio_set_bus_volume
+const IMPORT_COUNT: u32 = 104;
 
 /// Emit a single-module program (backward compatible).
 pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
@@ -361,6 +362,8 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
     imports.import("env", "world_draw3d", EntityType::Function(t_i32_void));
     imports.import("env", "scene3d_set_ambient", EntityType::Function(t_3f_void));
     imports.import("env", "scene3d_set_fog", EntityType::Function(t_f32_void));
+    imports.import("env", "audio_stop", EntityType::Function(t_i32_void));
+    imports.import("env", "audio_set_bus_volume", EntityType::Function(t_f32_void));
     module.section(&imports);
 
     let mut functions = FunctionSection::new();
@@ -462,6 +465,8 @@ fn is_void_expr(expr: &HirExpr) -> bool {
             | HirExpr::WorldDraw(_)
             | HirExpr::AudioPlayLoop(_)
             | HirExpr::AudioSetVolume { .. }
+            | HirExpr::AudioStop(_)
+            | HirExpr::AudioSetBusVolume(_)
             | HirExpr::Rigidbody2dSetVel { .. }
             | HirExpr::Collider2dSet { .. }
             | HirExpr::Camera2dFollow { .. }
@@ -1503,6 +1508,14 @@ impl<'a> EmitCtx<'a> {
                 self.emit_expr(f, handle);
                 as_f32_expr(f, volume, self);
                 f.instruction(&Instruction::Call(88));
+            }
+            HirExpr::AudioStop(handle) => {
+                self.emit_expr(f, handle);
+                f.instruction(&Instruction::Call(102));
+            }
+            HirExpr::AudioSetBusVolume(volume) => {
+                as_f32_expr(f, volume, self);
+                f.instruction(&Instruction::Call(103));
             }
             HirExpr::GamepadAxis { pad, axis } => {
                 self.emit_expr(f, pad);

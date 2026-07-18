@@ -2,6 +2,12 @@
 
 **Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.
 
+**v9.2** brings browser IDE **LSP hover/diagnostics** closer to desktop, **`.glb`** mesh loading, and light audio upgrades (`audio_stop`, master bus volume), plus tutorial sample audio.
+
+**v9.1** adds a **WebGPU 3D Edit viewport** for Mesh3D / Light3D / Camera3D (orbit, select, drag); Play still draws with `world_draw3d`.
+
+**v9.0** makes authoring honest in the editor: **Juni entity scripts** (entry `export fn {module}_{handler}` as WASM exports invoked from `.jscene` script components) and **2D tilemap paint** (brush/erase in the scene view; inspector for grid/tileset; tiles round-trip in `.jscene`).
+
 **v8.3** adds a **Classic / Modern** UI appearance toggle in Settings (Classic default): original warm layout vs rearranged modern chrome.
 
 **v8.2** ships first-class **desktop** FS + richer LSP (hover/diagnostics), a **3D editor slice** (mesh/light/camera + Play via `world_draw3d`), stronger **AI** model defaults / docs RAG, and final desktop/3D/AI tutorials.
@@ -18,7 +24,7 @@
 
 **[Try the IDE online](https://ajpro774.github.io/Juno/)** (GitHub Pages).
 
-Author: **Alexander J. Patton**. Credits: open **Credits** in the IDE or see `CREDITS.md`.
+Author: **Alexander James Patton**. Credits: open **Credits** in the IDE or see `CREDITS.md`.
 
 ## Quick example (multi-module)
 

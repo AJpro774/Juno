@@ -37,7 +37,7 @@ import {
   collisionEntityB,
   ensurePhysicsInstalled,
 } from "./physics.js";
-import { parseGltfJson } from "./gltf.js";
+import { parseGltfJson, parseGltfOrGlb, isGlbBytes } from "./gltf.js";
 
 export type EngineHostOptions = {
   memoryRef: MemoryRef;
@@ -45,6 +45,8 @@ export type EngineHostOptions = {
   getCtx2d?: () => CanvasRenderingContext2D | null;
   getBitmap?: (handle: number) => ImageBitmap | HTMLImageElement | null;
   getAssetText?: (path: string) => string | null;
+  /** Optional binary asset resolver (for `.glb` and other embeds). */
+  getAssetBytes?: (path: string) => ArrayBuffer | null;
   createCustomMesh?: (positions: Float32Array, indices: Uint16Array) => number;
   syncMeshPose?: (
     meshHandle: number,
@@ -121,6 +123,69 @@ export function createEngineImports(options: EngineHostOptions) {
     return text;
   }
 
+  function decodeEmbedBytes(embed: string): ArrayBuffer | null {
+    try {
+      const bin = atob(embed);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out.buffer;
+    } catch {
+      return null;
+    }
+  }
+
+  function loadSceneBytes(path: string): ArrayBuffer | null {
+    const fromHook = options.getAssetBytes?.(path) ?? null;
+    if (fromHook) return fromHook;
+    const entry = options.assetPack?.assets?.[path];
+    if (entry?.embed) return decodeEmbedBytes(entry.embed);
+    return null;
+  }
+
+  function loadMeshFromPath(path: string): ReturnType<typeof parseGltfJson> {
+    const lower = path.toLowerCase();
+    if (lower.endsWith(".glb")) {
+      const bytes =
+        loadSceneBytes(path) ??
+        loadSceneBytes(`assets/${path}`);
+      if (!bytes) return null;
+      return parseGlbWithResolver(bytes);
+    }
+    // Prefer binary when the pack embed is already GLB bytes.
+    const bytes = loadSceneBytes(path) ?? loadSceneBytes(`assets/${path}`);
+    if (bytes && isGlbBytes(bytes)) {
+      return parseGlbWithResolver(bytes);
+    }
+    const text = loadSceneText(path) ?? loadSceneText(`assets/${path}`);
+    if (!text) return null;
+    return parseGltfJson(text, {
+      getBufferBytes: (uri) => {
+        const entry = options.assetPack?.assets?.[uri];
+        if (entry?.embed) return decodeEmbedBytes(entry.embed);
+        const embedded = loadSceneBytes(uri);
+        if (embedded) return embedded;
+        const bin = loadSceneText(uri) ?? loadSceneText(`assets/${uri}`);
+        if (!bin) return null;
+        if (bin.startsWith("data:")) {
+          const idx = bin.indexOf("base64,");
+          if (idx < 0) return null;
+          return decodeEmbedBytes(bin.slice(idx + 7));
+        }
+        return null;
+      },
+    });
+  }
+
+  function parseGlbWithResolver(bytes: ArrayBuffer) {
+    return parseGltfOrGlb(bytes, {
+      getBufferBytes: (uri) => {
+        const entry = options.assetPack?.assets?.[uri];
+        if (entry?.embed) return decodeEmbedBytes(entry.embed);
+        return loadSceneBytes(uri) ?? loadSceneBytes(`assets/${uri}`);
+      },
+    });
+  }
+
   function materializeHooks(): Scene3dMaterializeHooks | null {
     if (!options.meshBox || !options.cameraPerspective) return null;
     if (!options.lightDirectional || !options.lightPoint) return null;
@@ -133,23 +198,8 @@ export function createEngineImports(options: EngineHostOptions) {
       materialColor: options.materialColor,
       meshSetMaterial: options.meshSetMaterial,
       loadGltf: (path: string) => {
-        const text = loadSceneText(path) ?? loadSceneText(`assets/${path}`);
-        if (!text || !options.createCustomMesh) return 0;
-        const data = parseGltfJson(text, {
-          getBufferBytes: (uri) => {
-            const bin = loadSceneText(uri) ?? loadSceneText(`assets/${uri}`);
-            if (!bin) return null;
-            if (bin.startsWith("data:")) {
-              const idx = bin.indexOf("base64,");
-              if (idx < 0) return null;
-              const raw = atob(bin.slice(idx + 7));
-              const out = new Uint8Array(raw.length);
-              for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-              return out.buffer;
-            }
-            return null;
-          },
-        });
+        if (!options.createCustomMesh) return 0;
+        const data = loadMeshFromPath(path);
         if (!data) return 0;
         return options.createCustomMesh!(data.positions, data.indices);
       },
@@ -308,24 +358,8 @@ export function createEngineImports(options: EngineHostOptions) {
       const memory = memoryRef.current;
       if (!memory) return 0;
       const path = readStr(memory, pathPtr);
-      const text = loadSceneText(path);
-      if (!text || !options.createCustomMesh) return 0;
-      const mesh = parseGltfJson(text, {
-        getBufferBytes: (uri: string) => {
-          const entry = options.assetPack?.assets?.[uri];
-          if (entry?.embed) {
-            try {
-              const bin = atob(entry.embed);
-              const out = new Uint8Array(bin.length);
-              for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-              return out.buffer;
-            } catch {
-              return null;
-            }
-          }
-          return null;
-        },
-      });
+      if (!options.createCustomMesh) return 0;
+      const mesh = loadMeshFromPath(path);
       if (!mesh) return 0;
       return options.createCustomMesh(mesh.positions, mesh.indices);
     },

@@ -8,6 +8,8 @@ export type EngineHostOptions = {
     getCtx2d?: () => CanvasRenderingContext2D | null;
     getBitmap?: (handle: number) => ImageBitmap | HTMLImageElement | null;
     getAssetText?: (path: string) => string | null;
+    /** Optional binary asset resolver (for `.glb` and other embeds). */
+    getAssetBytes?: (path: string) => ArrayBuffer | null;
     createCustomMesh?: (positions: Float32Array, indices: Uint16Array) => number;
     syncMeshPose?: (meshHandle: number, tx: number, ty: number, tz: number, rx: number, ry: number, rz: number) => void;
     meshBox?: (sx: number, sy: number, sz: number) => number;

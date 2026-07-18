@@ -553,6 +553,8 @@ pub enum HirExpr {
         handle: Box<HirExpr>,
         volume: Box<HirExpr>,
     },
+    AudioStop(Box<HirExpr>),
+    AudioSetBusVolume(Box<HirExpr>),
     GamepadAxis {
         pad: Box<HirExpr>,
         axis: Box<HirExpr>,

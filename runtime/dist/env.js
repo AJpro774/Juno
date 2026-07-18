@@ -171,6 +171,8 @@ export function createEnvImports(options = {}) {
             world_draw3d: engine.world_draw3d ?? stub,
             scene3d_set_ambient: engine.scene3d_set_ambient ?? stub,
             scene3d_set_fog: engine.scene3d_set_fog ?? stub,
+            audio_stop: audio.audio_stop ?? stub,
+            audio_set_bus_volume: audio.audio_set_bus_volume ?? stub,
         },
         memoryRef,
     };

@@ -1,0 +1,110 @@
+# Multi-arch Tauri desktop installers → GitHub Releases.
+# Triggers on version tags (v9.1.0, v*) and manual workflow_dispatch.
+name: Release desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v9.1.0). Leave empty to draft from app version."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS Apple Silicon + Intel
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+            rust_targets: aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+            rust_targets: x86_64-apple-darwin
+          # Linux x86_64 + aarch64 (native ARM runner when available)
+          - platform: ubuntu-22.04
+            args: ""
+            rust_targets: ""
+          - platform: ubuntu-22.04-arm
+            args: ""
+            rust_targets: ""
+          # Windows x86_64 + ARM64 (ARM runner when available on public repos)
+          - platform: windows-latest
+            args: ""
+            rust_targets: ""
+          - platform: windows-11-arm
+            args: --target aarch64-pc-windows-msvc
+            rust_targets: aarch64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ide/package-lock.json
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Install desktop npm deps
+        working-directory: desktop
+        run: npm install
+
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v__VERSION__"
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tagName: ${{ steps.tag.outputs.name }}
+          releaseName: Juni IDE ${{ steps.tag.outputs.name }}
+          releaseBody: |
+            Desktop installers for Juni IDE (multi-arch).
+
+            Download the build that matches your OS and CPU, or use the [web download hub](https://junoengine.netlify.app/download/).
+
+            See CHANGELOG.md for notes. Android: install the web IDE as a PWA (Add to Home Screen) — no native APK in v9.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

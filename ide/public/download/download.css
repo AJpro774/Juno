@@ -1,0 +1,275 @@
+:root {
+  --bg: #f3efe6;
+  --bg-deep: #e8e1d4;
+  --ink: #1c1915;
+  --muted: #6b645a;
+  --accent: #0f6e56;
+  --accent-ink: #f7fff9;
+  --line: rgba(28, 25, 21, 0.12);
+  --pane: #f7f3eb;
+  --editor-bg: #faf7f1;
+  --glow: radial-gradient(1200px 500px at 10% -10%, #d9efe6 0%, transparent 55%),
+    radial-gradient(900px 400px at 100% 0%, #f0e0c8 0%, transparent 50%), var(--bg);
+  --font-ui: "Syne", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--glow);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+a {
+  color: var(--accent);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1.25rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.brand-mark {
+  font-size: clamp(1.85rem, 3vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.hero {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 3.5rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+h1 {
+  margin: 0 0 0.85rem;
+  font-size: clamp(1.85rem, 4.5vw, 2.75rem);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.lead,
+.lead-sm {
+  margin: 0 0 1.75rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 40rem;
+}
+
+.lead-sm {
+  margin-bottom: 1.1rem;
+  font-size: 0.98rem;
+}
+
+.recommend,
+.grid,
+.android {
+  margin-top: 2.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.detect {
+  margin: 0 0 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.ghost,
+.run {
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  background: var(--editor-bg);
+  color: var(--ink);
+}
+
+.ghost.tight {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+.run {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.ghost:hover,
+.run:hover {
+  filter: brightness(0.97);
+}
+
+.hint {
+  margin: 0.85rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.plat {
+  background: var(--pane);
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  padding: 1rem 1.05rem;
+}
+
+.plat.is-match {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.plat h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.plat p {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+}
+
+.steps {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.foot {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 0 1.25rem 2.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.foot code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero {
+    animation: rise 0.55s ease-out both;
+  }
+
+  .plat {
+    animation: rise 0.5s ease-out both;
+  }
+
+  .plat:nth-child(1) {
+    animation-delay: 0.05s;
+  }
+  .plat:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+  .plat:nth-child(3) {
+    animation-delay: 0.15s;
+  }
+  .plat:nth-child(4) {
+    animation-delay: 0.2s;
+  }
+  .plat:nth-child(5) {
+    animation-delay: 0.25s;
+  }
+  .plat:nth-child(6) {
+    animation-delay: 0.3s;
+  }
+
+  .run {
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+
+  .run:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

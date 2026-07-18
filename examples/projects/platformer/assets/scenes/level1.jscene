@@ -38,6 +38,25 @@
         "transform2d": { "x": 260, "y": 140, "scale": [1, 1], "z_index": 1 },
         "collider2d": { "type": "aabb", "w": 80, "h": 16, "solid": true }
       }
+    },
+    {
+      "id": 5,
+      "name": "Goal",
+      "tag": "goal",
+      "components": {
+        "transform2d": { "x": 300, "y": 100, "scale": [1, 1], "z_index": 2 },
+        "collider2d": { "type": "aabb", "w": 24, "h": 24, "solid": false }
+      }
+    },
+    {
+      "id": 6,
+      "name": "Hazard",
+      "tag": "hazard",
+      "components": {
+        "transform2d": { "x": 180, "y": 200, "scale": [1, 1], "z_index": 2 },
+        "collider2d": { "type": "aabb", "w": 40, "h": 16, "solid": false },
+        "script": { "module": "hazard", "handler": "on_update" }
+      }
     }
   ]
 }

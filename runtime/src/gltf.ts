@@ -89,6 +89,8 @@ function readAccessor(
 /** Parse glTF JSON text into interleaved pos+color verts and indices. */
 export type GltfParseOptions = {
   getBufferBytes?: (uri: string) => ArrayBuffer | null;
+  /** When set (from .glb), used for buffers that omit `uri` (BIN chunk). */
+  glbBinChunk?: ArrayBuffer;
 };
 
 export function parseGltfJson(
@@ -110,6 +112,8 @@ export function parseGltfJson(
         const external = options.getBufferBytes?.(b.uri) ?? null;
         buffers.push(external ?? new ArrayBuffer(b.byteLength));
       }
+    } else if (options.glbBinChunk) {
+      buffers.push(options.glbBinChunk);
     } else {
       buffers.push(new ArrayBuffer(b.byteLength));
     }
@@ -229,4 +233,80 @@ export function makeTriangleGltfJson(): string {
     ],
     meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1 }] }],
   });
+}
+
+const GLB_MAGIC = 0x46546c67; // "glTF"
+const GLB_CHUNK_JSON = 0x4e4f534a; // "JSON"
+const GLB_CHUNK_BIN = 0x004e4942; // "BIN\0"
+
+/** True when bytes look like a glTF Binary (.glb) container. */
+export function isGlbBytes(data: ArrayBuffer | Uint8Array): boolean {
+  const u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+  if (u8.byteLength < 12) return false;
+  const view = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  return view.getUint32(0, true) === GLB_MAGIC;
+}
+
+/**
+ * Parse a glTF Binary (.glb) container into the same mesh data as JSON glTF.
+ * Supports JSON + optional BIN chunks (glTF 2.0).
+ */
+export function parseGlb(
+  data: ArrayBuffer | Uint8Array,
+  options: GltfParseOptions = {}
+): GltfMeshData | null {
+  const u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+  if (u8.byteLength < 12) return null;
+  const view = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (view.getUint32(0, true) !== GLB_MAGIC) return null;
+  const version = view.getUint32(4, true);
+  if (version !== 2) return null;
+
+  let offset = 12;
+  let jsonText: string | null = null;
+  let binChunk: ArrayBuffer | null = null;
+
+  while (offset + 8 <= u8.byteLength) {
+    const chunkLen = view.getUint32(offset, true);
+    const chunkType = view.getUint32(offset + 4, true);
+    offset += 8;
+    if (offset + chunkLen > u8.byteLength) break;
+    const chunkBytes = u8.subarray(offset, offset + chunkLen);
+    offset += chunkLen;
+    if (chunkType === GLB_CHUNK_JSON) {
+      // JSON chunk is padded with spaces (0x20)
+      let end = chunkBytes.length;
+      while (end > 0 && chunkBytes[end - 1] === 0x20) end--;
+      jsonText = new TextDecoder("utf-8").decode(chunkBytes.subarray(0, end));
+    } else if (chunkType === GLB_CHUNK_BIN) {
+      binChunk = chunkBytes.slice().buffer;
+    }
+  }
+
+  if (!jsonText) return null;
+  return parseGltfJson(jsonText, {
+    ...options,
+    glbBinChunk: binChunk ?? options.glbBinChunk,
+  });
+}
+
+/** Parse glTF from either JSON text or GLB binary bytes. */
+export function parseGltfOrGlb(
+  input: string | ArrayBuffer | Uint8Array,
+  options: GltfParseOptions = {}
+): GltfMeshData | null {
+  if (typeof input === "string") {
+    return parseGltfJson(input, options);
+  }
+  if (isGlbBytes(input)) {
+    return parseGlb(input, options);
+  }
+  try {
+    const text = new TextDecoder("utf-8").decode(
+      input instanceof Uint8Array ? input : new Uint8Array(input)
+    );
+    return parseGltfJson(text, options);
+  } catch {
+    return null;
+  }
 }

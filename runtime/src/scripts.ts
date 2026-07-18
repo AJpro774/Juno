@@ -10,8 +10,10 @@
  * 1. JS registry key `player:on_update` (then bare `on_update`)
  * 2. WASM export `player_on_update` (then bare `on_update`)
  *
- * Missing handlers are skipped (no throw). Bind the WASM instance after instantiate
- * via `bindScriptWasm(instance.exports)`.
+ * Prefer Juni: in the entry module, `export fn player_on_update(entity_id: i32, dt: f32) -> i32`
+ * — the compiler emits that WASM export so Inspector script bindings invoke Juni without
+ * `registerScriptHandler`. Missing handlers are skipped (no throw). Bind the WASM instance
+ * after instantiate via `bindScriptWasm(instance.exports)`.
  */
 
 import type { World } from "./world.js";

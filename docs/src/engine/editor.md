@@ -5,7 +5,7 @@ The Juni IDE includes an engine editor shell:
 - **Hierarchy** — create / delete / select entities (badges for mesh / light / cam3d / sprite)
 - **Inspector** — name, tag, Transform2D/3D, Sprite (incl. sheet cols/rows/fps), Mesh3D, Light3D, Camera3D, RigidBody2D, Collider2D, Camera2D, Tilemap, Prefab, Script
 - **Asset browser** — drag images onto the scene view to spawn sprites
-- **Scene view** — grid viewport; drag entities to move them (one undo step per drag)
+- **Scene view** — grid viewport; drag sprites to move them; **tilemap paint** (click = brush, Alt/right-click = erase, ⌘/Ctrl-drag = move); one undo step per gesture
 - **Edit / Play** — Edit mutates `.jscene`; Play snapshots the scene, compiles WASM, and runs `frame`. Scenes with 3D components auto-switch to WebGPU and materialize meshes for `world_draw3d`. **Edit** restores the pre-play snapshot.
 - **Undo / Redo** — toolbar or ⌘Z / ⌘⇧Z in edit mode (when focus is not in Monaco)
 
@@ -20,7 +20,7 @@ The Juni IDE includes an engine editor shell:
 
 A ● indicator appears beside Save Scene when the scene has unsaved edits.
 
-Collider / camera / tilemap / prefab / script fields round-trip through Save Scene. Entity **Script** bindings are dispatched each `world_step` — see [Entity scripts](scripts.md). Game input often still lives in entry `frame` with `entity_find_by_tag`.
+Collider / camera / tilemap / prefab / script fields round-trip through Save Scene. Tilemap **tiles** arrays painted in the scene view are included. Entity **Script** bindings are dispatched each `world_step` — prefer entry-module `export fn {module}_{handler}` (WASM) so Inspector module/handler invokes Juni; see [Entity scripts](scripts.md). Game input often still lives in entry `frame` with `entity_find_by_tag`.
 
 ## Optional local AI
 

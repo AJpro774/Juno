@@ -1,17 +1,36 @@
-/** Classic / Modern IDE chrome. Default: modern. */
+/** IDE chrome appearance themes. Default: classic. */
 
-export type UiAppearance = "modern" | "classic";
+export const UI_APPEARANCES = [
+  "classic",
+  "modern",
+  "cosmic",
+  "froggy",
+  "berryland",
+  "basic",
+  "hacker",
+] as const;
+
+export type UiAppearance = (typeof UI_APPEARANCES)[number];
 
 const STORAGE_KEY = "juni.ui.appearance";
 
+const APPEARANCE_SET = new Set<string>(UI_APPEARANCES);
+
+export function isUiAppearance(value: string | null | undefined): value is UiAppearance {
+  return !!value && APPEARANCE_SET.has(value);
+}
+
+/** Unknown / legacy values migrate to classic. */
+export function normalizeUiAppearance(value: string | null | undefined): UiAppearance {
+  return isUiAppearance(value) ? value : "classic";
+}
+
 export function getUiAppearance(): UiAppearance {
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "classic" || v === "modern") return v;
+    return normalizeUiAppearance(localStorage.getItem(STORAGE_KEY));
   } catch {
-    /* ignore */
+    return "classic";
   }
-  return "classic";
 }
 
 export function setUiAppearance(appearance: UiAppearance): void {
@@ -24,11 +43,12 @@ export function setUiAppearance(appearance: UiAppearance): void {
 }
 
 export function applyUiAppearance(appearance: UiAppearance = getUiAppearance()): void {
-  document.documentElement.dataset.ui = appearance;
+  const next = normalizeUiAppearance(appearance);
+  document.documentElement.dataset.ui = next;
   const app = document.getElementById("app");
-  if (app) app.dataset.ui = appearance;
+  if (app) app.dataset.ui = next;
   const sel = document.getElementById("ui-appearance") as HTMLSelectElement | null;
-  if (sel && sel.value !== appearance) sel.value = appearance;
+  if (sel && sel.value !== next) sel.value = next;
 }
 
 export function wireUiAppearanceSettings(): void {
@@ -37,7 +57,6 @@ export function wireUiAppearanceSettings(): void {
   if (!sel) return;
   sel.value = getUiAppearance();
   sel.addEventListener("change", () => {
-    const v = sel.value === "classic" ? "classic" : "modern";
-    setUiAppearance(v);
+    setUiAppearance(normalizeUiAppearance(sel.value));
   });
 }

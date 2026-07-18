@@ -52,7 +52,7 @@ Entity `script` components are dispatched inside `world_step` — see [Entity sc
 | `mesh3d_box` / `mesh3d_custom` / `set_pose` / `rotate` | Meshes |
 | `material3d_color` / `material3d_texture` / `mesh3d_set_material` | Materials |
 | `light3d_directional` / `light3d_point` | Lights |
-| `mesh_load_gltf(path)` | glTF mesh (multi-primitive, external buffers) |
+| `mesh_load_gltf(path)` | glTF / GLB mesh (multi-primitive, external buffers) |
 | `world_draw3d(cam)` | Draw all ECS `mesh3d` entities |
 | `scene3d_set_ambient` / `scene3d_set_fog` | Atmosphere |
 
@@ -61,6 +61,6 @@ Entity `script` components are dispatched inside `world_step` — see [Entity sc
 | Call | Notes |
 |------|--------|
 | `aabb_overlap` / `aabb_resolve_x` / `aabb_resolve_y` | Legacy AABB |
-| `audio_load` / `audio_play` / `audio_play_loop` / `audio_set_volume` | Web Audio |
+| `audio_load` / `audio_play` / `audio_play_loop` / `audio_set_volume` / `audio_stop` / `audio_set_bus_volume` | Web Audio |
 
 See [Engine overview](overview.md), [`.jscene`](jscene.md), and [Physics](../projects/physics.md).

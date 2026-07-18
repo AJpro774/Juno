@@ -7,7 +7,8 @@
       "image": "step-1.svg",
       "caption": "Open a project",
       "narration": "Click Open Project in the toolbar to load a folder with juni.toml, or choose Demo Project for a ready-made starter. Your files appear in the Project pane on the left.",
-      "highlight": "open-project"
+      "highlight": "open-project",
+      "audio": "step-1.wav"
     },
     {
       "image": "step-2.svg",

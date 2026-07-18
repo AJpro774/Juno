@@ -78,6 +78,26 @@ function ensureComponents(e: { components?: Record<string, unknown> }): void {
   e.components = e.components ?? {};
 }
 
+/** Resize a row-major tile grid, copying overlapping cells. */
+function resizeTiles(
+  prev: number[] | undefined,
+  oldCols: number,
+  oldRows: number,
+  newCols: number,
+  newRows: number
+): number[] {
+  const out = new Array(Math.max(0, newCols * newRows)).fill(0);
+  const src = Array.isArray(prev) ? prev : [];
+  const copyCols = Math.min(oldCols, newCols);
+  const copyRows = Math.min(oldRows, newRows);
+  for (let r = 0; r < copyRows; r++) {
+    for (let c = 0; c < copyCols; c++) {
+      out[r * newCols + c] = src[r * oldCols + c] ?? 0;
+    }
+  }
+  return out;
+}
+
 export function renderInspector(
   host: HTMLElement,
   store: SceneStore,
@@ -434,7 +454,7 @@ export function renderInspector(
             tile_size: 32,
             cols: 8,
             rows: 4,
-            tiles: [],
+            tiles: new Array(8 * 4).fill(0),
             tileset: 0,
           };
         } else delete e.components!.tilemap;
@@ -454,7 +474,11 @@ export function renderInspector(
       numInput("Cols", tm.cols ?? 0, (v) =>
         store.updateSelected((e) => {
           ensureComponents(e);
-          e.components!.tilemap = { ...(e.components!.tilemap ?? {}), cols: v | 0 };
+          const cols = v | 0;
+          const prev = e.components!.tilemap ?? {};
+          const rows = prev.rows ?? 0;
+          const tiles = resizeTiles(prev.tiles, prev.cols ?? 0, rows, cols, rows);
+          e.components!.tilemap = { ...prev, cols, tiles };
         })
       )
     );
@@ -462,7 +486,11 @@ export function renderInspector(
       numInput("Rows", tm.rows ?? 0, (v) =>
         store.updateSelected((e) => {
           ensureComponents(e);
-          e.components!.tilemap = { ...(e.components!.tilemap ?? {}), rows: v | 0 };
+          const rows = v | 0;
+          const prev = e.components!.tilemap ?? {};
+          const cols = prev.cols ?? 0;
+          const tiles = resizeTiles(prev.tiles, cols, prev.rows ?? 0, cols, rows);
+          e.components!.tilemap = { ...prev, rows, tiles };
         })
       )
     );
@@ -474,6 +502,16 @@ export function renderInspector(
         })
       )
     );
+    sectionTm.appendChild(
+      numInput("Brush tile", store.getTileBrush(), (v) => {
+        store.setTileBrush(v | 0);
+      })
+    );
+    const hint = document.createElement("p");
+    hint.className = "inspector-hint";
+    hint.textContent =
+      "Scene: click to paint · Alt/right-click erase · ⌘/Ctrl-drag to move";
+    sectionTm.appendChild(hint);
     const tilesStr = Array.isArray(tm.tiles) ? tm.tiles.join(",") : "";
     sectionTm.appendChild(
       textInput("Tiles CSV", tilesStr, (v) =>
@@ -650,9 +688,12 @@ export function renderInspector(
         );
       }
     } else {
-      const gltfPaths = assetPaths.filter((p) => p.toLowerCase().endsWith(".gltf"));
+      const gltfPaths = assetPaths.filter((p) => {
+        const lower = p.toLowerCase();
+        return lower.endsWith(".gltf") || lower.endsWith(".glb");
+      });
       sectionMesh.appendChild(
-        selectInput("glTF", mesh.gltf ?? "", [""].concat(gltfPaths), (v) =>
+        selectInput("glTF / GLB", mesh.gltf ?? "", [""].concat(gltfPaths), (v) =>
           store.updateSelected((e) => {
             ensureComponents(e);
             e.components!.mesh3d = {

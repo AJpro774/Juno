@@ -11,6 +11,11 @@
       "description": "Colliders, grounded/triggers/slopes, and entity script dispatch."
     },
     {
+      "id": "scripts-tiles",
+      "title": "Scripts and tile paint",
+      "description": "Juni WASM entity scripts and 2D tilemap brush/erase."
+    },
+    {
       "id": "desktop-ide",
       "title": "Desktop IDE",
       "description": "Open projects natively, save to disk, and use hover + diagnostics LSP."

@@ -27,16 +27,19 @@ On a Sprite component (Inspector or `.jscene`):
 
 The 2D renderer samples `frame = floor(time * fps)` across `cols * rows` cells.
 
-## glTF
+## glTF / GLB
 
-`mesh_load_gltf(path)` and Mesh3D authoring (`primitive: "gltf"`) parse glTF **JSON**:
+`mesh_load_gltf(path)` and Mesh3D authoring (`primitive: "gltf"`) accept:
 
-- Multi-primitive meshes merged into one draw mesh
-- Embedded base64 buffers + optional external URI resolver
+- **`.gltf` JSON** — multi-primitive meshes, embedded base64 buffers, optional external URI resolver
+- **`.glb` binary** — glTF 2.0 container (JSON + BIN chunks); same mesh path as JSON
+
+Also:
+
 - `COLOR_0` when present; otherwise a soft tint from `NORMAL`
 - Scene node → first mesh selection when `scenes` / `nodes` are present
 
-Binary `.glb` is not required for the 3D editor slice; prefer `.gltf` (+ embedded buffers) for now.
+Prefer `.gltf` (+ embedded buffers) for hand-authored samples; ship `.glb` when you have a packed binary asset.
 
 ## Runtime APIs
 
@@ -45,7 +48,7 @@ Binary `.glb` is not required for the 3D editor slice; prefer `.gltf` (+ embedde
 | `asset_load_str(path)` | Load a text asset (JSON, shader source) |
 | `sprite_draw(id, x, y, w, h)` | Draw a packed sprite region |
 | `mesh_load_obj(path)` | Load a Wavefront OBJ mesh handle |
-| `mesh_load_gltf(path)` | Load a glTF JSON mesh handle |
+| `mesh_load_gltf(path)` | Load a glTF / GLB mesh handle |
 
 Browser runtime resolves packed assets from the project; Node stubs return safe defaults.
 

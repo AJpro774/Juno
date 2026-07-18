@@ -102,3 +102,108 @@ export function setupGotoDefLite(
     },
   });
 }
+
+type HoverLiteResult = {
+  hover: {
+    contents: string;
+    line: number;
+    col: number;
+    end_line: number;
+    end_col: number;
+  } | null;
+};
+
+export function setupHoverLite(
+  monaco: typeof Monaco,
+  languageId: string,
+  hoverFn: (source: string, line: number, col: number) => string,
+  getSource: () => string,
+): Monaco.IDisposable {
+  return monaco.languages.registerHoverProvider(languageId, {
+    provideHover(_model, position) {
+      const source = getSource();
+      let parsed: HoverLiteResult = { hover: null };
+      try {
+        parsed = JSON.parse(
+          hoverFn(source, position.lineNumber, position.column),
+        ) as HoverLiteResult;
+      } catch {
+        return null;
+      }
+      const h = parsed.hover;
+      if (!h?.contents) return null;
+      return {
+        contents: [{ value: h.contents }],
+        range: {
+          startLineNumber: h.line,
+          startColumn: h.col,
+          endLineNumber: h.end_line || h.line,
+          endColumn: Math.max(h.end_col || h.col + 1, h.col + 1),
+        },
+      };
+    },
+  });
+}
+
+type DiagLiteItem = {
+  severity: string;
+  message: string;
+  line: number;
+  col: number;
+  end_line: number;
+  end_col: number;
+};
+
+type DiagLiteResult = {
+  items?: DiagLiteItem[];
+};
+
+export function setupDiagnosticsLite(
+  monaco: typeof Monaco,
+  languageId: string,
+  diagnosticsFn: (source: string) => string,
+  getSource: () => string,
+): Monaco.IDisposable {
+  let diagTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const severityToMarker = (severity: string): Monaco.MarkerSeverity =>
+    severity === "warning" ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error;
+
+  const refresh = (model: Monaco.editor.ITextModel) => {
+    if (diagTimer) clearTimeout(diagTimer);
+    diagTimer = setTimeout(() => {
+      try {
+        const parsed = JSON.parse(diagnosticsFn(getSource())) as DiagLiteResult;
+        const items = parsed.items ?? [];
+        monaco.editor.setModelMarkers(
+          model,
+          "juni-lsp",
+          items.map((d) => ({
+            severity: severityToMarker(d.severity),
+            message: d.message,
+            startLineNumber: d.line,
+            startColumn: d.col,
+            endLineNumber: d.end_line || d.line,
+            endColumn: Math.max(d.end_col || d.col + 1, d.col + 1),
+          })),
+        );
+      } catch {
+        /* ignore */
+      }
+    }, 350);
+  };
+
+  const modelDisp = monaco.editor.onDidCreateModel((model) => {
+    if (model.getLanguageId() !== languageId) return;
+    refresh(model);
+    model.onDidChangeContent(() => refresh(model));
+  });
+
+  for (const model of monaco.editor.getModels()) {
+    if (model.getLanguageId() !== languageId) continue;
+    refresh(model);
+    model.onDidChangeContent(() => refresh(model));
+  }
+
+  return modelDisp;
+}

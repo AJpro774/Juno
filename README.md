@@ -2,7 +2,7 @@
 
 **Juni** is a systems language that feels like Python and performs like C++: statically typed, no GC, explicit memory and refs, compiling natively to **WebAssembly** — with **Canvas2D**, a small **3D** API on WebGPU, frame loops, and input for games and simulations.
 
-**Juno** is this repository. Author: **Alexander J. Patton**. See [CREDITS.md](CREDITS.md).
+**Juno** is this repository. Author: **Alexander James Patton**. See [CREDITS.md](CREDITS.md).
 
 ## Try it online
 
@@ -10,14 +10,15 @@
 
 Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-## Status (v7.5.0)
+## Status (v9.2.0)
 
+- **Authoring:** Juni entity scripts via WASM `export fn {module}_{handler}`; 2D tilemap brush/erase; **3D Edit** WebGPU viewport for mesh/light/camera
 - **Engine:** host ECS, `.jscene`, prefabs, collision poll, camera follow, `world_draw3d`, ambient/fog
 - **Editor:** hierarchy/inspector, Save to disk, undo/redo, play snapshot, hot reload, Export Web
 - **Optional AI:** WebLLM (model picker) — chat, autocorrect, explain — **off by default**
 - **Projects:** `juni.toml` modules, `juni export-web`, Netlify-ready static export
 - **Examples:** platformer vertical slice, scene3d_lit, paddle, audio, modules
-- **Docs:** engine, levels, Netlify, export-web, AI assistant
+- **Docs:** engine, levels, Netlify, export-web, AI assistant, entity scripts, 3D edit
 - **CI:** `cargo test`, example checks, LSP smoke, IDE / Pages build
 
 ## Browser IDE (local)
@@ -82,3 +83,8 @@ Enable **Settings → Pages → Build and deployment → GitHub Actions**. The I
 ## Docs
 
 See [docs/src/intro.md](docs/src/intro.md), or open **Docs** in the IDE.
+
+## License
+
+- **Source code** is licensed under the [Apache License 2.0](LICENSE) only.
+- **Distributed Juni IDE / runtime apps** (desktop installers, web IDE, PWA) are also subject to the [End User License Agreement](EULA.md).

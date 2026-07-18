@@ -162,6 +162,7 @@ fn parse_manifest_text(text: &str) -> Result<ProjectConfig, ManifestError> {
             "**/*.obj".into(),
             "**/*.jscene".into(),
             "**/*.gltf".into(),
+            "**/*.glb".into(),
             "**/*.json".into(),
         ]
     }

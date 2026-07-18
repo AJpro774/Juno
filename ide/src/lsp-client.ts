@@ -1,5 +1,10 @@
 import type * as Monaco from "monaco-editor";
-import { setupCompletionLite, setupGotoDefLite } from "./completion-lite";
+import {
+  setupCompletionLite,
+  setupDiagnosticsLite,
+  setupGotoDefLite,
+  setupHoverLite,
+} from "./completion-lite";
 
 type LspRequest = {
   method: string;
@@ -262,6 +267,8 @@ export function setupEditorIntelliSense(
   wasmApi: {
     complete_source: (source: string, line: number, col: number) => string;
     goto_def_source: (source: string, line: number, col: number) => string;
+    hover_source: (source: string, line: number, col: number) => string;
+    diagnostics_source: (source: string) => string;
   },
   getSource: () => string,
   getFilePath: () => string,
@@ -278,5 +285,12 @@ export function setupEditorIntelliSense(
       getSource,
     ),
     setupGotoDefLite(monaco, languageId, wasmApi.goto_def_source, getSource),
+    setupHoverLite(monaco, languageId, wasmApi.hover_source, getSource),
+    setupDiagnosticsLite(
+      monaco,
+      languageId,
+      wasmApi.diagnostics_source,
+      getSource,
+    ),
   ];
 }

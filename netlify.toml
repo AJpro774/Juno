@@ -13,10 +13,34 @@
   GITHUB_PAGES = "false"
 
 # Static files in publish dir are served first; keep SPA fallback for app routes only.
+# Explicit download hub + PWA assets (avoid SPA rewrite swallowing them on some hosts).
+[[redirects]]
+  from = "/download"
+  to = "/download/"
+  status = 301
+
+[[redirects]]
+  from = "/download/*"
+  to = "/download/:splat"
+  status = 200
+  force = false
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Service-Worker-Allowed = "/"
 
 [[headers]]
   for = "/sitemap.xml"

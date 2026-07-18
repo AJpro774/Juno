@@ -10,7 +10,7 @@
 
 **[Try the IDE online](https://ajpro774.github.io/Juno/)** (GitHub Pages).
 
-Author: **Alexander J. Patton**. Credits: open **Credits** in the IDE or see `CREDITS.md`.
+Author: **Alexander James Patton**. Credits: open **Credits** in the IDE or see `CREDITS.md`.
 
 ## Quick example (multi-module)
 

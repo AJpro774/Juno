@@ -33,7 +33,7 @@ fn frame(dt: f32) -> i32:
     world_draw3d(cam)
     return 0
 ```
-Author meshes / lights / cameras in the Hierarchy + Inspector (Mesh3D, Light3D, Camera3D). Play switches to WebGPU and materializes box/glTF handles.
+Author meshes / lights / cameras in the Hierarchy + Inspector (Mesh3D, Light3D, Camera3D). Edit mode shows a WebGPU 3D viewport (orbit / select / drag). Play switches to WebGPU and materializes box/glTF handles for `world_draw3d`.
 
 There is no procedural cat mesh API. For a "cat", use `mesh3d_box` / stacked boxes, or `mesh_load_gltf("cat.gltf")` if the asset exists. Say so honestly.
 
@@ -48,7 +48,7 @@ camera3d_perspective, camera3d_look_at, camera3d_orbit,
 mesh3d_box, mesh3d_custom, mesh3d_set_pose, mesh3d_rotate, material3d_color, material3d_texture,
 mesh3d_set_material, light3d_directional, light3d_point, mesh_load_gltf
 Physics: rigidbody2d_set_vel, rigidbody2d_get_grounded, collider2d_set, collision_count, aabb_overlap, aabb_resolve_x, aabb_resolve_y
-Audio: audio_load, audio_play, audio_play_loop, audio_set_volume
+Audio: audio_load, audio_play, audio_play_loop, audio_set_volume, audio_stop, audio_set_bus_volume
 Math: sin, cos, sqrt, abs, clamp, lerp, pi, …
 
 ## Reply rules

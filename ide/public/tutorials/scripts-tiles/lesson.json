@@ -1,0 +1,31 @@
+{
+  "id": "scripts-tiles",
+  "title": "Scripts and tile paint",
+  "description": "Export Juni handlers for entity scripts, then paint a tilemap in the scene view.",
+  "steps": [
+    {
+      "image": "step-1.svg",
+      "caption": "Export a Juni handler",
+      "narration": "In your entry module, write export fn player_on_update with entity_id and dt parameters. The compiler emits that name as a WASM export, same as main and frame.",
+      "highlight": "editor"
+    },
+    {
+      "image": "step-2.svg",
+      "caption": "Bind Script in Inspector",
+      "narration": "Select an entity. Enable Script, set Module to player and Handler to on_update. Save Scene. On Play, world_step calls your Juni export — no JavaScript registerScriptHandler required.",
+      "highlight": "inspector"
+    },
+    {
+      "image": "step-3.svg",
+      "caption": "Enable a tilemap",
+      "narration": "Create or select an entity with Transform2D. Enable Tilemap in the Inspector. Set cols, rows, tile size, and brush tile. The tiles array round-trips into your .jscene file.",
+      "highlight": "inspector"
+    },
+    {
+      "image": "step-4.svg",
+      "caption": "Paint in the scene",
+      "narration": "With the tilemap selected, click cells to paint. Alt or right-click erases. Hold Command or Control and drag to move the whole map. Save Scene, reload, and the tiles match.",
+      "highlight": "scene"
+    }
+  ]
+}

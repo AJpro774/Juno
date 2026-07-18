@@ -97,6 +97,8 @@ export function registerJuniLanguage(monaco: typeof Monaco): void {
       "audio_play",
       "audio_play_loop",
       "audio_set_volume",
+      "audio_stop",
+      "audio_set_bus_volume",
       "world_create",
       "entity_create",
       "entity_destroy",

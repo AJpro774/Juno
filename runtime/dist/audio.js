@@ -1,4 +1,4 @@
-/** Audio intrinsics: audio_load, audio_play, audio_play_loop, audio_set_volume. */
+/** Audio intrinsics: load/play/loop/stop, per-handle volume, master bus. */
 import { readStr } from "./memory.js";
 function mimeForAudio(path) {
     if (path.endsWith(".wav"))
@@ -13,13 +13,27 @@ export function createAudioHandlers(options) {
     const assetBaseUrl = options.assetBaseUrl ?? "";
     const buffers = new Map();
     const volumes = new Map();
+    const active = new Map();
     let sharedCtx = null;
+    let masterGain = null;
+    let busVolume = 1;
     function getCtx() {
         if (typeof AudioContext === "undefined")
             return null;
         if (!sharedCtx)
             sharedCtx = new AudioContext();
         return sharedCtx;
+    }
+    function getMaster() {
+        const ctx = getCtx();
+        if (!ctx)
+            return null;
+        if (!masterGain) {
+            masterGain = ctx.createGain();
+            masterGain.gain.value = busVolume;
+            masterGain.connect(ctx.destination);
+        }
+        return masterGain;
     }
     function lookup(path) {
         if (!pack?.assets)
@@ -49,9 +63,25 @@ export function createAudioHandlers(options) {
         const buf = await ctx.decodeAudioData(data.slice(0));
         buffers.set(entry.id, buf);
     }
+    function trackSource(handle, src) {
+        const list = active.get(handle) ?? [];
+        list.push(src);
+        active.set(handle, list);
+        src.onended = () => {
+            const cur = active.get(handle);
+            if (!cur)
+                return;
+            const next = cur.filter((s) => s !== src);
+            if (next.length)
+                active.set(handle, next);
+            else
+                active.delete(handle);
+        };
+    }
     function play(handle, loop) {
         const ctx = getCtx();
-        if (!ctx)
+        const master = getMaster();
+        if (!ctx || !master)
             return;
         const buf = buffers.get(handle | 0);
         if (!buf)
@@ -62,7 +92,8 @@ export function createAudioHandlers(options) {
         const gain = ctx.createGain();
         gain.gain.value = volumes.get(handle | 0) ?? 1;
         src.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(master);
+        trackSource(handle | 0, src);
         src.start();
     }
     return {
@@ -88,6 +119,25 @@ export function createAudioHandlers(options) {
         audio_set_volume(handle, volume) {
             volumes.set(handle | 0, Math.max(0, Math.min(1, volume)));
         },
+        audio_stop(handle) {
+            const list = active.get(handle | 0);
+            if (!list)
+                return;
+            for (const src of list) {
+                try {
+                    src.stop();
+                }
+                catch {
+                    /* already stopped */
+                }
+            }
+            active.delete(handle | 0);
+        },
+        audio_set_bus_volume(volume) {
+            busVolume = Math.max(0, Math.min(1, volume));
+            if (masterGain)
+                masterGain.gain.value = busVolume;
+        },
     };
 }
 /** Node / headless stub when Web Audio is unavailable. */
@@ -98,6 +148,8 @@ export function createAudioStubs() {
         audio_play: () => { },
         audio_play_loop: () => { },
         audio_set_volume: () => { },
+        audio_stop: () => { },
+        audio_set_bus_volume: () => { },
     };
 }
 //# sourceMappingURL=audio.js.map

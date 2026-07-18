@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download Juni</title>
+    <meta
+      name="description"
+      content="Download Juni IDE for macOS, Windows, and Linux — or install the web IDE as an Android app (PWA)."
+    />
+    <link rel="manifest" href="../manifest.webmanifest" />
+    <meta name="theme-color" content="#0f6e56" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Juni" />
+    <link rel="apple-touch-icon" href="../icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-128.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./download.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <a class="brand-mark" href="../">Juni</a>
+        <span class="brand-tag">Download</span>
+      </div>
+      <nav class="nav">
+        <a class="ghost" href="../">Open web IDE</a>
+        <a class="ghost" id="releases-link" href="https://github.com/AJpro774/Juno/releases">All releases</a>
+      </nav>
+    </header>
+
+    <main class="hero">
+      <p class="eyebrow">Desktop installers · Android as PWA</p>
+      <h1>Install Juni like the web IDE looks.</h1>
+      <p class="lead">
+        Multi-arch Tauri builds for macOS, Windows, and Linux. On Android, add the web IDE to your
+        home screen — same branding, no APK in v9.
+      </p>
+
+      <section class="recommend" aria-labelledby="recommend-heading">
+        <h2 id="recommend-heading">Recommended for you</h2>
+        <p id="detect-line" class="detect">Detecting your system…</p>
+        <div class="cta-row">
+          <a id="primary-download" class="run" href="https://github.com/AJpro774/Juno/releases/latest"
+            >Download latest</a
+          >
+          <a class="ghost" href="https://github.com/AJpro774/Juno/releases/latest">Browse GitHub Releases</a>
+        </div>
+        <p id="asset-hint" class="hint muted"></p>
+      </section>
+
+      <section class="grid" aria-labelledby="platforms-heading">
+        <h2 id="platforms-heading">All platforms</h2>
+        <div class="cards">
+          <article class="plat" data-os="macos" data-arch="aarch64">
+            <h3>macOS · Apple Silicon</h3>
+            <p class="muted">aarch64 · .dmg</p>
+            <a class="ghost tight" data-asset="macos-aarch64" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get build</a
+            >
+          </article>
+          <article class="plat" data-os="macos" data-arch="x86_64">
+            <h3>macOS · Intel</h3>
+            <p class="muted">x86_64 · .dmg</p>
+            <a class="ghost tight" data-asset="macos-x86_64" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get build</a
+            >
+          </article>
+          <article class="plat" data-os="windows" data-arch="x86_64">
+            <h3>Windows · x64</h3>
+            <p class="muted">x86_64 · NSIS / MSI</p>
+            <a class="ghost tight" data-asset="windows-x86_64" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get build</a
+            >
+          </article>
+          <article class="plat" data-os="windows" data-arch="aarch64">
+            <h3>Windows · ARM64</h3>
+            <p class="muted">aarch64 · when published</p>
+            <a class="ghost tight" data-asset="windows-aarch64" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get build</a
+            >
+          </article>
+          <article class="plat" data-os="linux" data-arch="x86_64">
+            <h3>Linux · x86_64</h3>
+            <p class="muted">AppImage / .deb</p>
+            <a class="ghost tight" data-asset="linux-x86_64" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get build</a
+            >
+          </article>
+          <article class="plat" data-os="linux" data-arch="aarch64">
+            <h3>Linux · ARM64</h3>
+            <p class="muted">AppImage / .deb</p>
+            <a class="ghost tight" data-asset="linux-aarch64" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get build</a
+            >
+          </article>
+        </div>
+      </section>
+
+      <section class="android" aria-labelledby="android-heading">
+        <h2 id="android-heading">Android · install as app (PWA)</h2>
+        <p class="lead-sm">
+          Juni does not ship a Play Store APK in v9. Install the web IDE from Chrome with
+          <strong>Add to Home Screen</strong> for an app-like icon and standalone window.
+        </p>
+        <ol class="steps">
+          <li>Open the <a href="../">Juni web IDE</a> in <strong>Chrome</strong> on your phone.</li>
+          <li>Tap the menu (⋮) → <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
+          <li>Confirm. Launch Juni from your home screen like any other app.</li>
+        </ol>
+        <p class="muted hint">
+          Requires HTTPS, a web manifest, and a service worker (already included). On iOS Safari:
+          Share → Add to Home Screen.
+        </p>
+        <div class="cta-row">
+          <a class="run" href="../">Open web IDE</a>
+          <button type="button" id="install-pwa" class="ghost" hidden>Install Juni</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>
+        Artifact names resolve against
+        <a href="https://github.com/AJpro774/Juno/releases">GitHub Releases</a>
+        once a <code>v*</code> tag builds via the Release desktop workflow. Placeholders point at
+        <code>/releases/latest</code> until assets exist.
+      </p>
+      <p class="muted">
+        By downloading or installing Juni you agree to the
+        <a href="https://github.com/AJpro774/Juno/blob/main/EULA.md">EULA</a>.
+        Source code is
+        <a href="https://github.com/AJpro774/Juno/blob/main/LICENSE">Apache License 2.0</a>.
+      </p>
+    </footer>
+
+    <script src="./detect.js" type="module"></script>
+  </body>
+</html>

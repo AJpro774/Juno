@@ -193,6 +193,36 @@ pub fn goto_def_source(source: &str, line: u32, col: u32) -> String {
     }
 }
 
+/// Hover for the browser IDE (parity with desktop LSP).
+///
+/// Returns JSON: `{ hover: { contents, line, col, end_line, end_col } | null }`
+#[wasm_bindgen]
+pub fn hover_source(source: &str, line: u32, col: u32) -> String {
+    match Workspace::from_single_file("main.juni", source) {
+        Ok(ws) => {
+            let hover = ws.hover("main.juni", line, col);
+            serde_json::to_string(&serde_json::json!({ "hover": hover }))
+                .unwrap_or_else(|_| r#"{"hover":null}"#.into())
+        }
+        Err(_) => r#"{"hover":null}"#.into(),
+    }
+}
+
+/// Diagnostics for the browser IDE (parity with desktop LSP).
+///
+/// Returns JSON: `{ items: [{ severity, message, line, col, end_line, end_col, file }] }`
+#[wasm_bindgen]
+pub fn diagnostics_source(source: &str) -> String {
+    match Workspace::from_single_file("main.juni", source) {
+        Ok(ws) => {
+            let items = ws.diagnostics("main.juni");
+            serde_json::to_string(&serde_json::json!({ "items": items }))
+                .unwrap_or_else(|_| r#"{"items":[]}"#.into())
+        }
+        Err(_) => r#"{"items":[]}"#.into(),
+    }
+}
+
 /// Compile a multi-file Juni project.
 ///
 /// Accepts JSON: `{ root?, files: { "juni.toml": "...", "src/main.juni": "..." } }`
@@ -343,5 +373,19 @@ mod tests {
         assert!(parsed.ok, "expected ok, got: {out}");
         assert!(parsed.wasm.is_some());
         assert!(parsed.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn hover_and_diagnostics_source_json() {
+        let src = "fn main() -> i32:\n    let x = 1\n    return x\n";
+        let hover = hover_source(src, 2, 9);
+        assert!(hover.contains("hover"), "hover json: {hover}");
+        let diags = diagnostics_source(src);
+        assert!(diags.contains("items"), "diags json: {diags}");
+        let bad = diagnostics_source("fn main() -> i32:\n    return \"nope\"\n");
+        assert!(
+            bad.contains("error") || bad.contains("message"),
+            "expected diagnostic: {bad}"
+        );
     }
 }

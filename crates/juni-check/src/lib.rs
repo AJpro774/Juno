@@ -630,7 +630,11 @@ impl Checker {
         let body = self.check_block(&f.body);
         self.pop_scope();
 
-        let wasm_export = self.is_entry_module && (f.name == "main" || f.name == "frame");
+        // Entry `main` / `frame` always export. Entry `export fn` also becomes a
+        // WASM export so `.jscene` script module/handler can call Juni by name
+        // (e.g. module "player" + handler "on_update" → `player_on_update`).
+        let wasm_export =
+            self.is_entry_module && (f.name == "main" || f.name == "frame" || exported);
         let codegen_name = if wasm_export {
             f.name.clone()
         } else {
@@ -2790,6 +2794,30 @@ impl Checker {
                     Type::Builtin(Builtin::Void),
                 ))
             }
+            "audio_stop" => {
+                if args.len() != 1 {
+                    self.error(span, "audio_stop(handle) expects 1 arg");
+                }
+                let (handle, ht) = self.check_arg(args, 0);
+                if !matches!(ht, Type::Builtin(Builtin::I32)) {
+                    self.error(span, "audio_stop handle must be i32");
+                }
+                Some((
+                    HirExpr::AudioStop(Box::new(handle)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
+            "audio_set_bus_volume" => {
+                if args.len() != 1 {
+                    self.error(span, "audio_set_bus_volume(volume) expects 1 arg");
+                }
+                let (vol, vt) = self.check_arg(args, 0);
+                self.expect_f32ish(&vt, span, "audio_set_bus_volume volume");
+                Some((
+                    HirExpr::AudioSetBusVolume(Box::new(vol)),
+                    Type::Builtin(Builtin::Void),
+                ))
+            }
             "gamepad_axis" => {
                 if args.len() != 2 {
                     self.error(span, "gamepad_axis(pad, axis) expects 2 args");
@@ -3242,6 +3270,64 @@ fn frame(dt: f32) -> i32:
     }
 
     #[test]
+    fn entry_export_fn_is_wasm_export() {
+        let src = r#"export fn player_on_update(entity_id: i32, dt: f32) -> i32:
+    return entity_id
+
+fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let f = hir
+            .functions
+            .iter()
+            .find(|f| f.name == "player_on_update")
+            .expect("player_on_update");
+        assert!(f.export, "entry export fn should be a WASM export");
+        assert_eq!(f.name, "player_on_update");
+    }
+
+    #[test]
+    fn non_entry_export_fn_is_not_wasm_export() {
+        use crate::program::{check_program_ok, ProgramModule};
+
+        let math = parse(
+            r#"export fn player_on_update(entity_id: i32, dt: f32) -> i32:
+    return entity_id
+"#,
+        )
+        .unwrap();
+        let main = parse(
+            r#"import math
+
+fn main() -> i32:
+    return math.player_on_update(1, 0.0)
+"#,
+        )
+        .unwrap();
+
+        let modules = vec![
+            ProgramModule {
+                name: "math".into(),
+                file: Some("src/math.juni".into()),
+                module: math,
+            },
+            ProgramModule {
+                name: "main".into(),
+                file: Some("src/main.juni".into()),
+                module: main,
+            },
+        ];
+
+        let program = check_program_ok(&modules, "main").unwrap();
+        let math_mod = program.modules.iter().find(|m| m.name == "math").unwrap();
+        let f = &math_mod.functions[0];
+        assert!(!f.export, "library export fn must not be a raw WASM export");
+        assert_eq!(f.name, "math::player_on_update");
+    }
+
+    #[test]
     fn check_multi_module_import() {
         use crate::program::{check_program_ok, ProgramModule};
 
@@ -3424,6 +3510,10 @@ fn main() -> i32:
         let src = r#"fn main() -> i32:
     let h = audio_load("sfx/hit.wav")
     audio_play(h)
+    audio_play_loop(h)
+    audio_set_volume(h, 0.5)
+    audio_set_bus_volume(0.8)
+    audio_stop(h)
     return h
 "#;
         let m = parse(src).unwrap();

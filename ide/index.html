@@ -4,11 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Juni</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0f6e56" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Juni" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" href="/icons/icon-128.png" />
     <script>
       try {
         var u = localStorage.getItem("juni.ui.appearance");
-        if (u === "classic" || u === "modern") document.documentElement.dataset.ui = u;
-        else document.documentElement.dataset.ui = "classic";
+        var ok = {
+          classic: 1,
+          modern: 1,
+          cosmic: 1,
+          froggy: 1,
+          berryland: 1,
+          basic: 1,
+          hacker: 1,
+        };
+        document.documentElement.dataset.ui = ok[u] ? u : "classic";
       } catch (e) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +38,7 @@
       <header class="top">
         <div class="brand">
           <span class="brand-mark">Juni</span>
-          <span class="brand-tag">v8.3</span>
+          <span class="brand-tag">v9.1</span>
         </div>
         <div class="actions">
           <div class="action-group action-primary">
@@ -60,6 +75,9 @@
             <button type="button" id="docs-toggle" class="ghost">Docs</button>
             <button type="button" id="tutorials-toggle" class="ghost">Tutorials</button>
             <button type="button" id="credits-toggle" class="ghost">Credits</button>
+            <button type="button" id="cat-coffee-toggle" class="ghost" title="Buy My Cat a Coffee">
+              Cat Coffee
+            </button>
             <button type="button" id="settings-toggle" class="ghost">Settings</button>
           </div>
           <button type="button" id="run" class="run">Run</button>
@@ -183,17 +201,59 @@
           <div class="settings-body">
             <h3 class="settings-heading">Appearance</h3>
             <p class="settings-blurb">
-              Modern rearranges the workspace and uses a cooler chrome. Classic (default) keeps the original warm layout.
+              Pick an IDE chrome theme. Classic (default) keeps the warm parchment look. Modern rearranges the
+              workspace; Cosmic, Froggy, Berryland, Basic, and Hacker restyle colors only.
             </p>
             <label class="settings-field">
               UI appearance
               <select id="ui-appearance" aria-label="UI appearance">
                 <option value="classic" selected>Classic (default)</option>
                 <option value="modern">Modern</option>
+                <option value="cosmic">Cosmic</option>
+                <option value="froggy">Froggy</option>
+                <option value="berryland">Berryland</option>
+                <option value="basic">Basic</option>
+                <option value="hacker">Hacker</option>
               </select>
             </label>
+            <h3 class="settings-heading">Legal</h3>
+            <p class="settings-blurb">
+              Source code is Apache License 2.0 only. The distributed IDE (web, desktop, PWA) is also
+              covered by the EULA. Your projects stay yours.
+            </p>
+            <div class="settings-legal-actions">
+              <button type="button" id="legal-view-eula" class="ghost tight">View EULA</button>
+              <button type="button" id="legal-view-license" class="ghost tight">View Apache License</button>
+            </div>
           </div>
         </aside>
+        <aside id="cat-coffee-panel" class="docs-panel cat-coffee-panel" aria-hidden="true">
+          <div class="docs-head">
+            <span>Cat Coffee</span>
+            <button type="button" id="cat-coffee-close" class="ghost tight" aria-label="Close Cat Coffee">
+              Close
+            </button>
+          </div>
+          <div id="cat-coffee-body" class="settings-body"></div>
+        </aside>
+      </div>
+    </div>
+    <div id="eula-gate" class="ai-fix-modal eula-gate" hidden>
+      <div class="ai-fix-card eula-gate-card">
+        <h3>Welcome to Juni</h3>
+        <p class="eula-gate-intro">
+          Before you continue, please review and accept the End User License Agreement. Source code is
+          licensed under Apache License 2.0 only.
+        </p>
+        <div id="eula-gate-body" class="eula-gate-body docs-body"></div>
+        <label class="eula-gate-check">
+          <input type="checkbox" id="eula-gate-check" />
+          I agree to the Juni EULA
+        </label>
+        <div class="eula-gate-actions">
+          <button type="button" id="eula-gate-license" class="ghost tight">Include Apache License</button>
+          <button type="button" id="eula-gate-accept" class="run tight" disabled>Continue</button>
+        </div>
       </div>
     </div>
     <div id="ai-fix-modal" class="ai-fix-modal" hidden>

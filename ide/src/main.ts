@@ -11,6 +11,13 @@ import {
 } from "./juni-runtime";
 import { DOC_PAGES } from "./docs-index";
 import { CREDITS_MARKDOWN } from "./credits";
+import {
+  acceptEula,
+  EULA_MARKDOWN,
+  hasAcceptedEula,
+  legalSummaryMarkdown,
+  LICENSE_MARKDOWN,
+} from "./legal";
 import { wireTutorialPlayer, type TutorialPlayer } from "./tutorials";
 import { renderFileTree } from "./file-tree";
 import {
@@ -30,6 +37,7 @@ import { renderScenePanel } from "./editor/scene-panel";
 import { renderInspector } from "./editor/inspector";
 import { renderAssetBrowser } from "./editor/asset-browser";
 import { attachSceneView } from "./editor/scene-view";
+import { attachSceneView3d } from "./editor/scene-view-3d";
 import type { AssetPack } from "../../runtime/src/types";
 import { clearWritableRoot, writeProjectFile } from "./project-persist";
 import type { JScene } from "../../runtime/src/scene-loader";
@@ -47,7 +55,15 @@ import {
 } from "./agent/ui";
 import { setupAiAutocorrect } from "./agent/autocorrect";
 import { wireUiAppearanceSettings } from "./ui-theme";
-import init, { compile, compile_project, complete_source, goto_def_source } from "../public/pkg/juni_wasm.js";
+import { onCleanCompileSuccess, wireCatCoffeePanel } from "./cat-coffee";
+import init, {
+  compile,
+  compile_project,
+  complete_source,
+  diagnostics_source,
+  goto_def_source,
+  hover_source,
+} from "../public/pkg/juni_wasm.js";
 
 self.MonacoEnvironment = {
   getWorker() {
@@ -282,6 +298,11 @@ const aiClose = document.getElementById("ai-close") as HTMLButtonElement;
 const settingsToggle = document.getElementById("settings-toggle") as HTMLButtonElement;
 const settingsPanel = document.getElementById("settings-panel") as HTMLElement;
 const settingsClose = document.getElementById("settings-close") as HTMLButtonElement;
+const legalViewEula = document.getElementById("legal-view-eula") as HTMLButtonElement | null;
+const legalViewLicense = document.getElementById("legal-view-license") as HTMLButtonElement | null;
+const catCoffeeToggle = document.getElementById("cat-coffee-toggle") as HTMLButtonElement;
+const catCoffeePanel = document.getElementById("cat-coffee-panel") as HTMLElement;
+const catCoffeeClose = document.getElementById("cat-coffee-close") as HTMLButtonElement;
 const tutorialPlayer: TutorialPlayer = wireTutorialPlayer({
   panel: tutorialsPanel,
   lessonSelect: document.getElementById("tutorial-lesson") as HTMLSelectElement,
@@ -317,7 +338,16 @@ const hotReloadChk = document.getElementById("hot-reload") as HTMLInputElement;
 const exportWebBtn = document.getElementById("export-web") as HTMLButtonElement;
 
 let previewMode: PreviewMode = "canvas2d";
-let panelMode: "docs" | "credits" | "ai" | "tutorials" | "settings" | null = null;
+let panelMode:
+  | "docs"
+  | "credits"
+  | "license"
+  | "eula"
+  | "ai"
+  | "tutorials"
+  | "settings"
+  | "cat-coffee"
+  | null = null;
 let activeDocId = DOC_PAGES[0]?.id ?? "intro";
 let frameCtl: FrameController | null = null;
 let runGeneration = 0;
@@ -325,16 +355,59 @@ let project: ProjectState | null = null;
 let tabEditor: TabEditor | null = null;
 let currentAssetPack: AssetPack | null = null;
 let sceneView: ReturnType<typeof attachSceneView> | null = null;
+let sceneView3d: ReturnType<typeof attachSceneView3d> | null = null;
+let editViewportIs3d = false;
 let lastDiagnostics: DiagLike[] = [];
 let pendingFixApply: (() => void) | null = null;
 let prePlayScene: JScene | null = null;
 let hotReloadEnabled = false;
 
+function getSceneAssetText(path: string): string | null {
+  if (!project) return null;
+  const candidates = [`assets/${path}`, path, `scenes/${path}`];
+  for (const c of candidates) {
+    const f = project.files.get(c);
+    if (f) return f.content;
+  }
+  return null;
+}
+
+/** Show 2D or 3D edit viewport based on scene contents (Play owns GPU separately). */
+function syncEditViewport(): void {
+  if (getEditorMode() !== "edit") {
+    sceneView3d?.setActive(false);
+    editViewportIs3d = false;
+    return;
+  }
+  const has3d = sceneHas3d(sceneStore.getScene());
+  if (has3d) {
+    if (!editViewportIs3d) {
+      setPreviewMode("webgpu");
+      markPreviewUsed();
+    }
+    editViewportIs3d = true;
+    sceneView3d?.setActive(true);
+    sceneView3d?.redraw();
+  } else {
+    sceneView3d?.setActive(false);
+    if (editViewportIs3d) {
+      setPreviewMode("canvas2d");
+      markPreviewUsed();
+    }
+    editViewportIs3d = false;
+    sceneView?.redraw();
+  }
+}
+
 function refreshEnginePanels() {
   renderScenePanel(scenePanelHost, sceneStore);
   renderInspector(inspectorHost, sceneStore, currentAssetPack);
   renderAssetBrowser(assetBrowserHost, currentAssetPack, sceneStore);
-  sceneView?.redraw();
+  if (getEditorMode() === "edit" && sceneHas3d(sceneStore.getScene())) {
+    sceneView3d?.redraw();
+  } else {
+    sceneView?.redraw();
+  }
 }
 
 function tryLoadSceneFromProject() {
@@ -403,6 +476,7 @@ function stopPlayAndRestore(): void {
     prePlayScene = null;
   }
   refreshEnginePanels();
+  syncEditViewport();
 }
 
 async function loadAssetPackFromProject(): Promise<void> {
@@ -427,7 +501,7 @@ async function loadAssetPackFromProject(): Promise<void> {
     let kind = "blob";
     if (/\.(png|jpg|jpeg|gif|webp)$/.test(lower)) kind = "image";
     else if (lower.endsWith(".jscene")) kind = "scene";
-    else if (lower.endsWith(".gltf")) kind = "gltf";
+    else if (lower.endsWith(".gltf") || lower.endsWith(".glb")) kind = "gltf";
     else if (lower.endsWith(".json")) kind = "tilemap";
     else if (/\.(wav|mp3|ogg)$/.test(lower)) kind = "audio";
     assets[rel] = {
@@ -552,21 +626,36 @@ function markPreviewUsed() {
   previewBody.classList.add("has-frame");
 }
 
-function setPanel(mode: "docs" | "credits" | "ai" | "tutorials" | "settings" | null) {
+function setPanel(
+  mode:
+    | "docs"
+    | "credits"
+    | "license"
+    | "eula"
+    | "ai"
+    | "tutorials"
+    | "settings"
+    | "cat-coffee"
+    | null,
+) {
   const prev = panelMode;
   panelMode = mode;
-  const docsOpen = mode === "docs" || mode === "credits";
+  const docsOpen =
+    mode === "docs" || mode === "credits" || mode === "license" || mode === "eula";
   const aiOpen = mode === "ai";
   const tutorialsOpen = mode === "tutorials";
   const settingsOpen = mode === "settings";
+  const catCoffeeOpen = mode === "cat-coffee";
   workspace.classList.toggle("docs-open", docsOpen);
   workspace.classList.toggle("ai-open", aiOpen);
   workspace.classList.toggle("tutorials-open", tutorialsOpen);
   workspace.classList.toggle("settings-open", settingsOpen);
+  workspace.classList.toggle("cat-coffee-open", catCoffeeOpen);
   docsPanel.setAttribute("aria-hidden", docsOpen ? "false" : "true");
   aiPanel.setAttribute("aria-hidden", aiOpen ? "false" : "true");
   tutorialsPanel.setAttribute("aria-hidden", tutorialsOpen ? "false" : "true");
   settingsPanel.setAttribute("aria-hidden", settingsOpen ? "false" : "true");
+  catCoffeePanel.setAttribute("aria-hidden", catCoffeeOpen ? "false" : "true");
   if (mode === "docs") {
     sideTitle.textContent = "Docs";
     docsNav.style.display = "";
@@ -574,7 +663,18 @@ function setPanel(mode: "docs" | "credits" | "ai" | "tutorials" | "settings" | n
   } else if (mode === "credits") {
     sideTitle.textContent = "Credits";
     docsNav.style.display = "none";
-    docsBody.innerHTML = marked.parse(CREDITS_MARKDOWN, { async: false }) as string;
+    const md = `${CREDITS_MARKDOWN}\n\n${legalSummaryMarkdown()}`;
+    docsBody.innerHTML = marked.parse(md, { async: false }) as string;
+  } else if (mode === "license") {
+    sideTitle.textContent = "Apache License 2.0";
+    docsNav.style.display = "none";
+    docsBody.innerHTML = marked.parse(LICENSE_MARKDOWN, { async: false }) as string;
+  } else if (mode === "eula") {
+    sideTitle.textContent = "EULA";
+    docsNav.style.display = "none";
+    docsBody.innerHTML = marked.parse(EULA_MARKDOWN, { async: false }) as string;
+  } else if (mode === "cat-coffee") {
+    wireCatCoffeePanel();
   }
   if (tutorialsOpen !== (prev === "tutorials")) {
     tutorialPlayer.setActive(tutorialsOpen);
@@ -591,6 +691,42 @@ function showFixPreview(original: string, proposed: string, apply: () => void) {
 function hideFixPreview() {
   pendingFixApply = null;
   aiFixModal.hidden = true;
+}
+
+/** Block IDE until the user accepts the current EULA version (first run / after terms bump). */
+function ensureEulaAccepted(): Promise<void> {
+  if (hasAcceptedEula()) return Promise.resolve();
+  const gate = document.getElementById("eula-gate") as HTMLElement | null;
+  const body = document.getElementById("eula-gate-body") as HTMLElement | null;
+  const check = document.getElementById("eula-gate-check") as HTMLInputElement | null;
+  const accept = document.getElementById("eula-gate-accept") as HTMLButtonElement | null;
+  const viewLicense = document.getElementById("eula-gate-license") as HTMLButtonElement | null;
+  if (!gate || !body || !check || !accept) {
+    acceptEula();
+    return Promise.resolve();
+  }
+  body.innerHTML = marked.parse(EULA_MARKDOWN, { async: false }) as string;
+  gate.hidden = false;
+  accept.disabled = true;
+  return new Promise((resolve) => {
+    const sync = () => {
+      accept.disabled = !check.checked;
+    };
+    check.addEventListener("change", sync);
+    viewLicense?.addEventListener("click", () => {
+      body.innerHTML = marked.parse(
+        `${EULA_MARKDOWN}\n\n---\n\n# Apache License 2.0\n\n${LICENSE_MARKDOWN}`,
+        { async: false },
+      ) as string;
+    });
+    accept.addEventListener("click", () => {
+      if (!check.checked) return;
+      acceptEula();
+      gate.hidden = true;
+      resolve();
+    });
+    sync();
+  });
 }
 
 function currentSource(): string {
@@ -660,6 +796,28 @@ function setupSidePanel() {
     setPanel(panelMode === "settings" ? null : "settings");
   });
   settingsClose.addEventListener("click", () => setPanel(null));
+  // Settings → Legal opens the shared docs side panel (must clear settings-open via setPanel).
+  legalViewEula?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPanel("eula");
+  });
+  legalViewLicense?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPanel("license");
+  });
+  settingsPanel.addEventListener("click", (e) => {
+    const t = (e.target as HTMLElement | null)?.closest?.("#legal-view-eula, #legal-view-license");
+    if (!t) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setPanel(t.id === "legal-view-eula" ? "eula" : "license");
+  });
+  catCoffeeToggle.addEventListener("click", () => {
+    setPanel(panelMode === "cat-coffee" ? null : "cat-coffee");
+  });
+  catCoffeeClose.addEventListener("click", () => setPanel(null));
   void tutorialPlayer.init();
   explainErrorsBtn.addEventListener("click", () => {
     void explainLastDiagnostics();
@@ -733,6 +891,8 @@ async function handleOpenProject() {
 }
 
 async function main() {
+  await ensureEulaAccepted();
+
   const placeholder = document.createElement("option");
   placeholder.value = "";
   placeholder.textContent = "Examples…";
@@ -746,6 +906,7 @@ async function main() {
   }
 
   wireUiAppearanceSettings();
+  wireCatCoffeePanel();
   setupSidePanel();
   setPreviewMode("canvas2d");
 
@@ -753,18 +914,29 @@ async function main() {
   modeGpu.addEventListener("click", () => setPreviewMode("webgpu"));
 
   sceneView = attachSceneView(canvas2d, sceneStore, () => currentAssetPack);
+  sceneView3d = attachSceneView3d(canvasGpu, sceneStore, {
+    getAssetText: getSceneAssetText,
+    fallbackCanvas: canvas2d,
+  });
   sceneStore.subscribe(() => {
     refreshEnginePanels();
     updateSceneDirtyUi();
+    if (getEditorMode() !== "edit") return;
+    const has3d = sceneHas3d(sceneStore.getScene());
+    if (has3d !== editViewportIs3d) syncEditViewport();
+    else if (has3d) sceneView3d?.redraw();
   });
   refreshEnginePanels();
   updateSceneDirtyUi();
+  syncEditViewport();
 
   modeEditBtn.addEventListener("click", () => {
     setEditorMode("edit");
     stopPlayAndRestore();
   });
   modePlayBtn.addEventListener("click", () => {
+    sceneView3d?.setActive(false);
+    editViewportIs3d = false;
     prePlayScene = sceneStore.cloneScene();
     if (sceneHas3d(sceneStore.getScene())) {
       setPreviewMode("webgpu");
@@ -776,10 +948,11 @@ async function main() {
     modeEditBtn.classList.toggle("is-active", mode === "edit");
     modePlayBtn.classList.toggle("is-active", mode === "play");
     if (mode === "edit") {
-      canvas2d.hidden = false;
-      canvas2d.style.display = "block";
-      sceneView?.redraw();
+      syncEditViewport();
       logLine("Edit mode.", "meta");
+    } else {
+      sceneView3d?.setActive(false);
+      editViewportIs3d = false;
     }
   });
 
@@ -833,7 +1006,7 @@ async function main() {
   setupEditorIntelliSense(
     monaco,
     JUNI_LANGUAGE_ID,
-    { complete_source, goto_def_source },
+    { complete_source, goto_def_source, hover_source, diagnostics_source },
     () => {
       const path = tabEditor?.getActivePath() ?? SCRATCH_FILE;
       return tabEditor?.getModel(path)?.getValue() ?? "";
@@ -946,6 +1119,16 @@ async function main() {
       return;
     }
 
+    const errorCount = (result.diagnostics ?? []).filter(
+      (d) => (d.severity ?? "error").toLowerCase() === "error",
+    ).length;
+    if (errorCount === 0) {
+      const minted = onCleanCompileSuccess(currentSource());
+      if (minted > 0) {
+        logLine(`Cat Coffee: +${minted} Cat Coin${minted === 1 ? "" : "s"}.`, "meta");
+      }
+    }
+
     try {
       const bytes = b64ToBytes(result.wasm);
       const opts: RunOptions = {
@@ -1055,6 +1238,11 @@ async function main() {
   loadScratchExample(EXAMPLES["Hello World"]);
   refreshFileTree();
   logLine("Ready. Open a project or press Run (⌘/Ctrl+Enter).", "meta");
+
+  if ("serviceWorker" in navigator && !("__TAURI_INTERNALS__" in window)) {
+    const base = import.meta.env.BASE_URL || "/";
+    void navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch(() => undefined);
+  }
 }
 
 main().catch((e) => {

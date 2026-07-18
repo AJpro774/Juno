@@ -58,6 +58,7 @@ impl Default for AssetConfig {
                 "**/*.obj".into(),
                 "**/*.jscene".into(),
                 "**/*.gltf".into(),
+                "**/*.glb".into(),
                 "**/*.json".into(),
             ],
             embed_max_bytes: 65536,
@@ -117,6 +118,7 @@ fn default_include() -> Vec<String> {
         "**/*.obj".into(),
         "**/*.jscene".into(),
         "**/*.gltf".into(),
+        "**/*.glb".into(),
         "**/*.json".into(),
     ]
 }

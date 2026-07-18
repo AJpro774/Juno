@@ -36,14 +36,38 @@ registerScriptHandler("coin", "on_update", (entityId, dt) => {
 });
 ```
 
+## Authoring in Juni (preferred)
+
+In the **entry** module, declare an `export fn` whose name is `{module}_{handler}`:
+
+```juni
+export fn player_on_update(entity_id: i32, dt: f32) -> i32:
+    # per-entity tick after physics
+    return 0
+
+fn main() -> i32:
+    world_create()
+    let _ = scene_load("scenes/level1.jscene")
+    return 0
+
+fn frame(dt: f32) -> i32:
+    world_step(dt)
+    world_draw(cam)
+    return 0
+```
+
+The compiler exports entry-module `export fn` names to WASM (same as `main` / `frame`). Inspector **Module** `player` + **Handler** `on_update` therefore invokes Juni — no JS `registerScriptHandler` required.
+
+Library modules may still use `export fn` for imports; those stay mangled and are **not** WASM script exports. Put script handlers in the entry file (or re-export a thin wrapper there).
+
 ## Authoring in the IDE
 
 Inspector → **Script**: enable, set **Module** and **Handler**. Values round-trip through Save Scene / `.jscene`.
 
-Game logic can still live in the entry `frame` (input, win/lose). Use entity scripts for per-entity ticks that should run whenever `world_step` runs.
+Game input can still live in entry `frame`. Use entity scripts for per-entity ticks that should run whenever `world_step` runs.
 
 ## Notes
 
-- Only entry `main` / `frame` are exported by the Juni compiler today. Prefer `registerScriptHandler` from the host, or export a matching WASM function from a custom build if you need Juni-side handlers by name.
 - Scripts run **after** physics so `rigidbody2d_get_grounded` and collision polls reflect the current step.
+- JS handlers remain useful for tests and host extensions; Juni WASM handlers are the in-engine path.
 - See [`.jscene`](jscene.md), [Physics](../projects/physics.md), and [Visual editor](editor.md).
