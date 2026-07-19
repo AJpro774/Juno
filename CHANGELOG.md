@@ -2,6 +2,18 @@
 
 All notable changes to Juni are documented here.
 
+## [10.1.0] — 2026-07-19
+
+IDE polish: resizable panes, ten new themes, Cat Coffee badges and local leaderboard.
+
+### IDE
+- **Resizable panes** — drag seams between columns, console height, and side panel width (saved in this browser)
+- **10 new themes** — midnight, sunrise, ocean, lava, mint, grape, paper, neon, forest, desert
+- **Cat Coffee** — multi-badges, nickname, local leaderboard (localStorage), copy/download shareable SVG badge
+
+### Release
+- Brand / package / desktop versions → **10.1.0**
+
 ## [10.0.0] — 2026-07-18
 
 Language borrow checking, 3D physics, animation authoring, deeper optional AI, flat repo, signed desktop hooks.

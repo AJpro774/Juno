@@ -10,8 +10,9 @@
 
 Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-## Status (v10.0.0)
+## Status (v10.1.0)
 
+- **IDE:** resizable panes; 10 new chrome themes; Cat Coffee badges + local leaderboard + shareable SVG badge
 - **Language:** borrow checking (`ref`/`mut`), generics docs, richer diagnostics, const array bounds
 - **Authoring:** entity scripts + Open/Stub; tilemap paint; **3D Edit**; **Code Search**; **Anim** editor
 - **Engine:** ECS / `.jscene`; 2D + **3D AABB physics** + hybrid 2D→3D; `on_collision` / `on_trigger_enter` / `on_trigger_exit`; `world_draw3d`

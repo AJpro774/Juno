@@ -8,6 +8,17 @@ export const UI_APPEARANCES = [
   "berryland",
   "basic",
   "hacker",
+  // v10.1 — ten new themes
+  "midnight",
+  "sunrise",
+  "ocean",
+  "lava",
+  "mint",
+  "grape",
+  "paper",
+  "neon",
+  "forest",
+  "desert",
 ] as const;
 
 export type UiAppearance = (typeof UI_APPEARANCES)[number];

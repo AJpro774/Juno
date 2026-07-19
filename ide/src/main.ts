@@ -62,6 +62,7 @@ import {
   wireUiAppearanceSettings,
 } from "./ui-theme";
 import { onCleanCompileSuccess, wireCatCoffeePanel } from "./cat-coffee";
+import { wireLayoutResize } from "./layout-resize";
 import init, {
   compile,
   compile_project,
@@ -1100,6 +1101,7 @@ async function main() {
 
   wireUiAppearanceSettings();
   wireCatCoffeePanel();
+  wireLayoutResize();
   setupSidePanel();
   setPreviewMode("canvas2d");
 
