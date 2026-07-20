@@ -94,6 +94,8 @@ struct Checker {
     hir: HirModule,
     diagnostics: Vec<Diagnostic>,
     fn_local_types: Vec<Type>,
+    /// Source names for locals in the current function (indexed by LocalId.0).
+    fn_local_names: Vec<String>,
     /// Generic function templates (`fn min[T: Ord](...)`).
     generic_fns: HashMap<String, (FnDef, bool)>,
     /// Active type-parameter substitution while checking a generic template.
@@ -174,6 +176,7 @@ impl Checker {
             },
             diagnostics: Vec::new(),
             fn_local_types: Vec::new(),
+            fn_local_names: Vec::new(),
             generic_fns: HashMap::new(),
             type_param_scope: None,
             borrow: BorrowCx::default(),
@@ -374,6 +377,8 @@ impl Checker {
         let id = LocalId(self.next_local);
         self.next_local += 1;
         self.fn_local_types.push(ty.clone());
+        self.fn_local_names.push(name.clone());
+        self.borrow.set_local_name(id.0, name.clone());
         if let Some(scope) = self.locals.last_mut() {
             scope.insert(name, (ty, id));
         }
@@ -663,6 +668,7 @@ impl Checker {
         let sig = self.functions.get(&f.name).cloned().unwrap();
         self.next_local = 0;
         self.fn_local_types.clear();
+        self.fn_local_names.clear();
         self.borrow.clear();
         self.expr_place = None;
         self.current_ret = sig.ret.clone();
@@ -863,6 +869,7 @@ impl Checker {
                                     index: idx_e,
                                     elem_ty: *elem.clone(),
                                     elem_size,
+                                    len: *len,
                                     value: val,
                                 }
                             }
@@ -1088,8 +1095,8 @@ impl Checker {
         names.extend(self.generic_fns.keys().cloned());
         // Common stdlib / host names for suggestions
         for n in [
-            "print", "clamp", "lerp", "str_len", "str_eq", "str_concat", "min", "max", "abs",
-            "sqrt", "sin", "cos",
+            "print", "clamp", "lerp", "str_len", "str_eq", "str_concat", "str_substr", "array_len",
+            "min", "max", "abs", "sqrt", "sin", "cos",
         ] {
             names.push(n.into());
         }
@@ -1301,6 +1308,7 @@ impl Checker {
                                 index: Box::new(idx_e),
                                 elem_ty: *elem.clone(),
                                 elem_size,
+                                len: *len,
                             },
                             *elem.clone(),
                         )
@@ -1506,12 +1514,14 @@ impl Checker {
         let saved_locals = std::mem::take(&mut self.locals);
         let saved_next_local = self.next_local;
         let saved_fn_local_types = self.fn_local_types.clone();
+        let saved_fn_local_names = self.fn_local_names.clone();
         let saved_current_fn = self.current_fn.clone();
         let saved_current_ret = self.current_ret.clone();
         let saved_borrow = std::mem::take(&mut self.borrow);
 
         self.next_local = 0;
         self.fn_local_types.clear();
+        self.fn_local_names.clear();
         self.borrow.clear();
         self.current_ret = sig.ret.clone();
         self.current_fn = f.name.clone();
@@ -1550,6 +1560,7 @@ impl Checker {
         self.locals = saved_locals;
         self.next_local = saved_next_local;
         self.fn_local_types = saved_fn_local_types;
+        self.fn_local_names = saved_fn_local_names;
         self.current_fn = saved_current_fn;
         self.current_ret = saved_current_ret;
         self.borrow = saved_borrow;
@@ -1990,6 +2001,22 @@ impl Checker {
                     },
                     Type::Builtin(Builtin::Str),
                 ))
+            }
+            "array_len" => {
+                if args.len() != 1 {
+                    self.error(span, "array_len(xs) expects 1 arg");
+                    return Some((HirExpr::Int(0), Type::Builtin(Builtin::I32)));
+                }
+                let (_a, at) = self.check_arg(args, 0);
+                match at {
+                    Type::Array { len, .. } => {
+                        Some((HirExpr::Int(len as i32), Type::Builtin(Builtin::I32)))
+                    }
+                    _ => {
+                        self.error(span, "array_len requires a fixed array `T[N]`");
+                        Some((HirExpr::Int(0), Type::Builtin(Builtin::I32)))
+                    }
+                }
             }
             "len2" => {
                 if args.len() != 2 {
@@ -3686,6 +3713,24 @@ fn frame(dt: f32) -> i32:
     }
 
     #[test]
+    fn array_len_lowers_to_const() {
+        let src = r#"fn main() -> i32:
+    let xs = [1, 2, 3, 4]
+    return array_len(xs)
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let main = hir.functions.iter().find(|f| f.name == "main").unwrap();
+        assert!(
+            main.body.stmts.iter().any(|s| {
+                matches!(s, HirStmt::Return(Some(HirExpr::Int(4))))
+            }),
+            "expected `return array_len(xs)` to lower to `return 4`: {:?}",
+            main.body
+        );
+    }
+
+    #[test]
     fn check_canvas_draw_line() {
         let src = r#"fn main() -> i32:
     canvas_draw_line(0.0, 0.0, 10.0, 10.0, 1.0, 1.0, 1.0, 1.0, 1.0)
@@ -4094,7 +4139,9 @@ fn main() -> i32:
         let r = check(&m);
         assert!(
             r.diagnostics.iter().any(|d| {
-                d.severity == Severity::Error && d.message.contains("conflicting borrows")
+                d.severity == Severity::Error
+                    && d.message.contains("conflicting borrows")
+                    && !d.message.contains("local#")
             }),
             "{:?}",
             r.diagnostics
@@ -4133,7 +4180,10 @@ fn main() -> i32:
         let r = check(&m);
         assert!(
             r.diagnostics.iter().any(|d| {
-                d.severity == Severity::Error && d.message.contains("moved")
+                d.severity == Severity::Error
+                    && d.message.contains("moved")
+                    && d.message.contains("`a`")
+                    && !d.message.contains("local#")
             }),
             "{:?}",
             r.diagnostics
@@ -4190,5 +4240,86 @@ fn main() -> i32:
             "{:?}",
             r.diagnostics
         );
+    }
+
+    fn find_index_len(expr: &HirExpr) -> Option<u32> {
+        match expr {
+            HirExpr::Index { len, base, index, .. } => find_index_len(base)
+                .or_else(|| find_index_len(index))
+                .or(Some(*len)),
+            HirExpr::Unary { expr, .. } | HirExpr::AsI32(expr) | HirExpr::AsF32(expr) => {
+                find_index_len(expr)
+            }
+            HirExpr::Binary { left, right, .. } => {
+                find_index_len(left).or_else(|| find_index_len(right))
+            }
+            HirExpr::Call { args, .. } => args.iter().find_map(find_index_len),
+            _ => None,
+        }
+    }
+
+    fn find_index_len_stmt(stmt: &HirStmt) -> Option<u32> {
+        match stmt {
+            HirStmt::Return(Some(e)) | HirStmt::Expr(e) | HirStmt::Let { init: e, .. } => {
+                find_index_len(e)
+            }
+            HirStmt::AssignIndex { len, .. } => Some(*len),
+            HirStmt::Block(b) | HirStmt::While { body: b, .. } => {
+                b.stmts.iter().find_map(find_index_len_stmt)
+            }
+            HirStmt::If {
+                then_block,
+                else_block,
+                ..
+            } => then_block
+                .stmts
+                .iter()
+                .find_map(find_index_len_stmt)
+                .or_else(|| {
+                    else_block
+                        .as_ref()
+                        .and_then(|b| b.stmts.iter().find_map(find_index_len_stmt))
+                }),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn index_hir_carries_array_len() {
+        let src = r#"fn main() -> i32:
+    let xs = [10, 20, 30]
+    let i = 1
+    return xs[i]
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let main = hir.functions.iter().find(|f| f.name == "main").unwrap();
+        let len = main
+            .body
+            .stmts
+            .iter()
+            .find_map(find_index_len_stmt)
+            .expect("expected Index in main");
+        assert_eq!(len, 3);
+    }
+
+    #[test]
+    fn assign_index_hir_carries_array_len() {
+        let src = r#"fn main() -> i32:
+    let xs = [10, 20, 30]
+    let i = 2
+    xs[i] = 99
+    return xs[0]
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let main = hir.functions.iter().find(|f| f.name == "main").unwrap();
+        let len = main
+            .body
+            .stmts
+            .iter()
+            .find_map(find_index_len_stmt)
+            .expect("expected AssignIndex in main");
+        assert_eq!(len, 3);
     }
 }

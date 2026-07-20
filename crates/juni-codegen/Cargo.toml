@@ -8,3 +8,7 @@ description = "Juni WASM code generator"
 [dependencies]
 juni-check.workspace = true
 wasm-encoder.workspace = true
+
+[dev-dependencies]
+juni-syntax.workspace = true
+juni-check.workspace = true

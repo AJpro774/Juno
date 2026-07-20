@@ -675,6 +675,18 @@ function logLine(text: string, cls?: string) {
   consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
+/** Map WASM unreachable / RuntimeError traps to a clear Juni console message. */
+function formatRunError(e: unknown): string {
+  const raw = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  const isWasmTrap =
+    (typeof WebAssembly !== "undefined" && e instanceof WebAssembly.RuntimeError) ||
+    /RuntimeError|unreachable/i.test(raw);
+  if (isWasmTrap) {
+    return "Juni runtime trap: array index out of bounds or str_substr out of bounds";
+  }
+  return raw;
+}
+
 function clearConsole() {
   consoleEl.textContent = "";
 }
@@ -1452,7 +1464,7 @@ async function main() {
         logLine("frame loop running (click Edit or Run again to stop).", "meta");
       }
     } catch (e) {
-      logLine(String(e), "err");
+      logLine(formatRunError(e), "err");
     }
   }
 

@@ -2,6 +2,23 @@
 
 All notable changes to Juni are documented here.
 
+## [11.0.0] — 2026-07-20
+
+Language harden: runtime bounds traps, safer `str_substr`, named borrow diagnostics, `array_len`.
+
+### Language / checker / codegen
+- Dynamic `T[N]` indexes emit runtime bounds checks and trap via WASM `unreachable`
+- `str_substr` guards `start`/`len` against the source length (overflow-safe) before copy
+- Borrow diagnostics name locals (`` `a` `` / ``mut ref `b` ``) instead of `local#N`
+- Builtin `array_len(xs)` lowers to the compile-time length `N`
+
+### Docs / IDE
+- Sync [stdlib](docs/src/language/stdlib.md) and [types](docs/src/language/types.md) for traps / `array_len`
+- Run console remaps WASM unreachable/`RuntimeError` to a clear Juni out-of-bounds message
+
+### Release
+- Brand / package / desktop versions → **11.0.0**
+
 ## [10.1.0] — 2026-07-19
 
 IDE polish: resizable panes, ten new themes, Cat Coffee badges and local leaderboard.

@@ -84,6 +84,11 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **Author:** Alexander James Patton
 - **Deliverable:** Borrow checking, categorical Code Search, 3D/hybrid physics + `on_trigger_exit`, `platformer_3d`, Anim editor, deeper optional AI, flat repo, signed desktop hooks — `v10.0.0`
 - **v10.1:** Resizable IDE panes; 10 new themes; Cat Coffee multi-badges, local leaderboard, shareable SVG badge — `v10.1.0`
+
+## v11 — Harden
+
+- **Author:** Alexander James Patton
+- **Deliverable:** Runtime array / `str_substr` bounds traps (`unreachable`), named borrow diagnostics, `array_len`, docs + IDE trap console mapping — `v11.0.0`
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
 

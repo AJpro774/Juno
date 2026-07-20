@@ -491,6 +491,7 @@ name = "juni-codegen"
 version = "6.0.0"
 dependencies = [
  "juni-check",
+ "juni-syntax",
  "wasm-encoder",
 ]
 

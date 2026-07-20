@@ -2,6 +2,8 @@
 
 **Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.
 
+**v11.0** hardens the memory model: runtime bounds traps for dynamic `T[N]` indexes and `str_substr`, named borrow diagnostics, and `array_len`.
+
 **v10.0** expands the language and engine: **borrow checking**, categorical **Code Search**, AABB **3D physics** (plus hybrid 2D-phys → 3D-render), `on_trigger_exit`, **Anim** editor, deeper optional AI, flat repo layout, and optional desktop signing/notarization. See `examples/projects/platformer_3d`.
 
 **v9.3** finishes the authoring loop: inspector **Open/Stub** for entry scripts, `on_collision` / `on_trigger_enter` events, Edit-mode **Show colliders**, and a platformer coin `on_trigger_enter` demo.

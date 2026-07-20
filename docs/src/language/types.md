@@ -24,7 +24,7 @@ let v = xs[0]               # index with i32
 xs[1] = 9
 ```
 
-Arrays live in linear memory. Indexing with a **constant** out of range is a checker error. Runtime bounds traps for dynamic indices are optional/future.
+Arrays live in linear memory. Indexing with a **constant** out of range is a checker error. Dynamic indexes are checked at runtime and trap (`unreachable`) if out of bounds. Use `array_len(xs)` to get the compile-time length `N` of a `T[N]` value.
 
 ## Structs
 

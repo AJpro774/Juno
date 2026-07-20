@@ -578,6 +578,25 @@ impl<'a> EmitCtx<'a> {
         f.instruction(&Instruction::I32Const(offset as i32));
     }
 
+    /// Runtime bounds check for `T[N]` indexing. Index must already be in `index_local`.
+    /// On failure emits `unreachable` (WASM trap).
+    fn emit_array_bounds_check(&self, f: &mut Function, index_local: u32, len: u32) {
+        // index < 0
+        f.instruction(&Instruction::LocalGet(index_local));
+        f.instruction(&Instruction::I32Const(0));
+        f.instruction(&Instruction::I32LtS);
+        f.instruction(&Instruction::If(BlockType::Empty));
+        f.instruction(&Instruction::Unreachable);
+        f.instruction(&Instruction::End);
+        // index >= len (unsigned after non-negative check)
+        f.instruction(&Instruction::LocalGet(index_local));
+        f.instruction(&Instruction::I32Const(len as i32));
+        f.instruction(&Instruction::I32GeU);
+        f.instruction(&Instruction::If(BlockType::Empty));
+        f.instruction(&Instruction::Unreachable);
+        f.instruction(&Instruction::End);
+    }
+
     fn emit_heap_alloc_local(&mut self, f: &mut Function, user_size_local: u32) {
         allocator::emit_alloc(
             f,
@@ -699,13 +718,57 @@ impl<'a> EmitCtx<'a> {
         start: &HirExpr,
         len: &HirExpr,
     ) {
-        // scratch2=src, scratch3=start, scratch=sublen, scratch4=result
+        // scratch2=src, scratch3=start, scratch=sublen, scratch4=result, scratch5=temps
         self.emit_expr(f, src);
         f.instruction(&Instruction::LocalSet(self.scratch2));
         self.emit_expr(f, start);
         f.instruction(&Instruction::LocalSet(self.scratch3));
         self.emit_expr(f, len);
         f.instruction(&Instruction::LocalSet(self.scratch));
+
+        // Bounds: start >= 0, len >= 0, start + len <= src_len (no overflow).
+        // Load source byte length from string header.
+        f.instruction(&Instruction::LocalGet(self.scratch2));
+        f.instruction(&Instruction::I32Load(MemArg {
+            offset: 0,
+            align: 2,
+            memory_index: 0,
+        }));
+        f.instruction(&Instruction::LocalSet(self.scratch4)); // src_len
+
+        // start < 0
+        f.instruction(&Instruction::LocalGet(self.scratch3));
+        f.instruction(&Instruction::I32Const(0));
+        f.instruction(&Instruction::I32LtS);
+        f.instruction(&Instruction::If(BlockType::Empty));
+        f.instruction(&Instruction::Unreachable);
+        f.instruction(&Instruction::End);
+
+        // len < 0
+        f.instruction(&Instruction::LocalGet(self.scratch));
+        f.instruction(&Instruction::I32Const(0));
+        f.instruction(&Instruction::I32LtS);
+        f.instruction(&Instruction::If(BlockType::Empty));
+        f.instruction(&Instruction::Unreachable);
+        f.instruction(&Instruction::End);
+
+        // sum = start + len; trap on unsigned overflow or sum > src_len
+        f.instruction(&Instruction::LocalGet(self.scratch3));
+        f.instruction(&Instruction::LocalGet(self.scratch));
+        f.instruction(&Instruction::I32Add);
+        f.instruction(&Instruction::LocalTee(self.scratch5)); // sum
+        f.instruction(&Instruction::LocalGet(self.scratch3));
+        f.instruction(&Instruction::I32LtU); // overflow if sum < start
+        f.instruction(&Instruction::If(BlockType::Empty));
+        f.instruction(&Instruction::Unreachable);
+        f.instruction(&Instruction::End);
+        f.instruction(&Instruction::LocalGet(self.scratch5));
+        f.instruction(&Instruction::LocalGet(self.scratch4));
+        f.instruction(&Instruction::I32GtU); // sum > src_len
+        f.instruction(&Instruction::If(BlockType::Empty));
+        f.instruction(&Instruction::Unreachable);
+        f.instruction(&Instruction::End);
+
         f.instruction(&Instruction::LocalGet(self.scratch));
         f.instruction(&Instruction::I32Const(4));
         f.instruction(&Instruction::I32Add);
@@ -771,10 +834,14 @@ impl<'a> EmitCtx<'a> {
                 index,
                 elem_ty,
                 elem_size,
+                len,
                 value,
             } => {
-                self.emit_expr(f, base);
                 self.emit_expr(f, index);
+                f.instruction(&Instruction::LocalSet(self.scratch));
+                self.emit_array_bounds_check(f, self.scratch, *len);
+                self.emit_expr(f, base);
+                f.instruction(&Instruction::LocalGet(self.scratch));
                 f.instruction(&Instruction::I32Const(*elem_size as i32));
                 f.instruction(&Instruction::I32Mul);
                 f.instruction(&Instruction::I32Add);
@@ -919,9 +986,13 @@ impl<'a> EmitCtx<'a> {
                 index,
                 elem_ty,
                 elem_size,
+                len,
             } => {
-                self.emit_expr(f, base);
                 self.emit_expr(f, index);
+                f.instruction(&Instruction::LocalSet(self.scratch));
+                self.emit_array_bounds_check(f, self.scratch, *len);
+                self.emit_expr(f, base);
+                f.instruction(&Instruction::LocalGet(self.scratch));
                 f.instruction(&Instruction::I32Const(*elem_size as i32));
                 f.instruction(&Instruction::I32Mul);
                 f.instruction(&Instruction::I32Add);
@@ -1847,5 +1918,61 @@ fn expr_ty(expr: &HirExpr) -> Type {
             Type::Builtin(Builtin::I32)
         }
         _ => Type::Builtin(Builtin::Void),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use juni_check::check_ok;
+    use juni_syntax::parse;
+
+    fn wasm_contains_lt_unreachable(wasm: &[u8]) -> bool {
+        // i32.lt_s, if empty, unreachable, end
+        let needle: &[u8] = &[0x48, 0x04, 0x40, 0x00, 0x0b];
+        wasm.windows(needle.len()).any(|w| w == needle)
+    }
+
+    fn wasm_contains_bounds_trap_pattern(wasm: &[u8]) -> bool {
+        // Array bounds: lt_s trap + ge_u trap
+        let geu: &[u8] = &[0x4f, 0x04, 0x40, 0x00, 0x0b];
+        wasm_contains_lt_unreachable(wasm) && wasm.windows(geu.len()).any(|w| w == geu)
+    }
+
+    #[test]
+    fn dynamic_index_emits_unreachable_bounds_trap() {
+        let src = r#"fn main() -> i32:
+    let xs = [1, 2, 3]
+    let i = 1
+    return xs[i]
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let wasm = emit_wasm(&hir);
+        assert!(
+            wasm_contains_bounds_trap_pattern(&wasm),
+            "expected array bounds check with unreachable in wasm"
+        );
+    }
+
+    #[test]
+    fn str_substr_emits_unreachable_bounds_trap() {
+        let src = r#"fn main() -> i32:
+    let s = str_substr("hello", 1, 3)
+    return str_len(s)
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let wasm = emit_wasm(&hir);
+        assert!(
+            wasm_contains_lt_unreachable(&wasm),
+            "expected str_substr bounds check with unreachable in wasm"
+        );
+        // Also overflow / src_len compare uses i32.gt_u + unreachable
+        let gtu: &[u8] = &[0x4b, 0x04, 0x40, 0x00, 0x0b];
+        assert!(
+            wasm.windows(gtu.len()).any(|w| w == gtu),
+            "expected str_substr sum > src_len trap"
+        );
     }
 }

@@ -1,6 +1,8 @@
 # Standard library
 
-Juni v4 ships a small **builtin stdlib** — host intrinsics wired in the compiler and runtime. No `import` syntax yet.
+Juni ships a **builtin stdlib** of host intrinsics wired in the compiler and runtime. Modules (`import` / `export`) have been available since v6; these builtins need no import.
+
+Graphics, input, ECS, audio, and 3D APIs are documented under [Graphics overview](../graphics/overview.md) and related engine pages. This page covers the core math / string / array helpers.
 
 ## Math (`f32`)
 
@@ -42,7 +44,13 @@ Juni v4 ships a small **builtin stdlib** — host intrinsics wired in the compil
 | `str_len` | `str -> i32` | Byte length |
 | `str_eq` | `(str, str) -> bool` | Byte-wise compare |
 | `str_concat` | `(str, str) -> str` | Allocates on the WASM heap |
-| `str_substr` | `(str, i32, i32) -> str` | Substring by byte offset and length |
+| `str_substr` | `(str, i32, i32) -> str` | Substring by byte offset and length. Out-of-bounds `start`/`len` (or overflow) traps at runtime. |
+
+## Arrays
+
+| Function | Signature | Notes |
+|----------|-----------|-------|
+| `array_len` | `T[N] -> i32` | Compile-time length `N` of a fixed array (lowered to a constant) |
 
 ## Example
 
@@ -50,9 +58,11 @@ Juni v4 ships a small **builtin stdlib** — host intrinsics wired in the compil
 fn main() -> i32:
     print(pow(2.0, 10.0))
     print(dist2(0.0, 0.0, 3.0, 4.0))
-    print(str_concat("Juni ", "v4"))
+    print(str_concat("Juni ", "v11"))
     print(iclamp(99, 0, 10))
+    let xs = [1, 2, 3]
+    print(array_len(xs))
     return 0
 ```
 
-Graphics and input APIs are documented under [Graphics overview](../graphics/overview.md) and [Control flow](control-flow.md).
+See also [Types](types.md) for `T[N]` indexing and runtime bounds traps.

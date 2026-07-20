@@ -10,12 +10,12 @@
 
 Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-## Status (v10.1.0)
+## Status (v11.0.0)
 
-- **IDE:** resizable panes; 10 new chrome themes; Cat Coffee badges + local leaderboard + shareable SVG badge
-- **Language:** borrow checking (`ref`/`mut`), generics docs, richer diagnostics, const array bounds
+- **Language:** runtime array / `str_substr` bounds traps; named borrow diagnostics; `array_len`
+- **IDE:** resizable panes; themes; Cat Coffee; trap console remapping for OOB
 - **Authoring:** entity scripts + Open/Stub; tilemap paint; **3D Edit**; **Code Search**; **Anim** editor
-- **Engine:** ECS / `.jscene`; 2D + **3D AABB physics** + hybrid 2D→3D; `on_collision` / `on_trigger_enter` / `on_trigger_exit`; `world_draw3d`
+- **Engine:** ECS / `.jscene`; 2D + **3D AABB physics** + hybrid 2D→3D; collision / trigger events; `world_draw3d`
 - **Optional AI:** WebLLM — deeper RAG / project-aware chat — **off by default**
 - **Projects:** flat `ide/` / `crates/` / `docs/` / `examples/` / `runtime/`; Netlify flat-only; `juni export-web`
 - **Examples:** `platformer_3d`, platformer, scene3d_lit, paddle, audio, modules

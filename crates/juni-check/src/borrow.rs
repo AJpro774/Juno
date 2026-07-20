@@ -28,6 +28,8 @@ pub struct BorrowCx {
     next_unknown: u32,
     /// LocalId.0 → active alias for that local.
     locals: HashMap<u32, Alias>,
+    /// Source names for locals (indexed by LocalId.0).
+    names: Vec<String>,
 }
 
 impl BorrowCx {
@@ -35,6 +37,15 @@ impl BorrowCx {
         self.next_heap = 0;
         self.next_unknown = 0;
         self.locals.clear();
+        self.names.clear();
+    }
+
+    pub fn set_local_name(&mut self, local: u32, name: String) {
+        let idx = local as usize;
+        if self.names.len() <= idx {
+            self.names.resize(idx + 1, String::new());
+        }
+        self.names[idx] = name;
     }
 
     pub fn fresh_heap(&mut self) -> Place {
@@ -80,7 +91,7 @@ impl BorrowCx {
             if !others.is_empty() {
                 return Err(format!(
                     "cannot create `mut ref` alias: place already borrowed ({})",
-                    describe_aliases(&others)
+                    describe_aliases(&others, &self.names)
                 ));
             }
         } else if others.iter().any(|(_, m)| *m) {
@@ -105,19 +116,11 @@ impl BorrowCx {
                 self.clear_local(src);
             }
             // Drop any remaining aliases to this place before taking exclusive mut.
-            let leftovers: Vec<u32> = self
-                .aliases_of(place, Some(to))
-                .into_iter()
-                .map(|(id, _)| id)
-                .collect();
+            let leftovers: Vec<(u32, bool)> = self.aliases_of(place, Some(to));
             if !leftovers.is_empty() {
                 return Err(format!(
                     "cannot move `mut ref`: conflicting aliases still active ({})",
-                    leftovers
-                        .iter()
-                        .map(|id| format!("local#{id}"))
-                        .collect::<Vec<_>>()
-                        .join(", ")
+                    describe_aliases(&leftovers, &self.names)
                 ));
             }
         }
@@ -172,16 +175,57 @@ impl BorrowCx {
     }
 }
 
-fn describe_aliases(others: &[(u32, bool)]) -> String {
+fn local_label(id: u32, names: &[String]) -> String {
+    names
+        .get(id as usize)
+        .map(|s| s.as_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("?")
+        .to_string()
+}
+
+fn describe_aliases(others: &[(u32, bool)], names: &[String]) -> String {
     others
         .iter()
         .map(|(id, m)| {
+            let name = local_label(*id, names);
             if *m {
-                format!("mut local#{id}")
+                format!("mut ref `{name}`")
             } else {
-                format!("ref local#{id}")
+                format!("`{name}`")
             }
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mut_conflict_uses_source_names() {
+        let mut cx = BorrowCx::default();
+        let place = cx.fresh_heap();
+        cx.set_local_name(0, "a".into());
+        cx.set_local_name(1, "b".into());
+        cx.bind_local(0, place, true).unwrap();
+        let err = cx.bind_local(1, place, true).unwrap_err();
+        assert!(err.contains("mut ref `a`"), "{err}");
+        assert!(!err.contains("local#"), "{err}");
+    }
+
+    #[test]
+    fn transfer_conflict_uses_source_names() {
+        let mut cx = BorrowCx::default();
+        let place = Place::Param(0);
+        cx.set_local_name(0, "p".into());
+        cx.set_local_name(1, "a".into());
+        cx.set_local_name(2, "b".into());
+        cx.bind_local(0, place, false).unwrap();
+        cx.bind_local(1, place, false).unwrap();
+        let err = cx.transfer(Some(0), 2, place, true).unwrap_err();
+        assert!(err.contains("`a`"), "{err}");
+        assert!(!err.contains("local#"), "{err}");
+    }
 }

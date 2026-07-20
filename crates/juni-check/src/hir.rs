@@ -121,6 +121,8 @@ pub enum HirStmt {
         index: HirExpr,
         elem_ty: Type,
         elem_size: u32,
+        /// Compile-time fixed array length (`T[N]`).
+        len: u32,
         value: HirExpr,
     },
     If {
@@ -191,6 +193,8 @@ pub enum HirExpr {
         index: Box<HirExpr>,
         elem_ty: Type,
         elem_size: u32,
+        /// Compile-time fixed array length (`T[N]`).
+        len: u32,
     },
     ArrayLit {
         elem_ty: Type,

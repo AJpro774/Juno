@@ -259,7 +259,7 @@ pub fn builtins() -> &'static [&'static str] {
     &[
         "print", "sqrt", "sin", "cos", "tan", "abs", "floor", "ceil", "min", "max", "rand", "now",
         "clamp", "lerp", "pow", "sign", "fmod", "smoothstep", "deg_to_rad", "rad_to_deg", "dist2",
-        "pi", "str_len", "str_eq", "str_concat", "str_substr", "len2", "dot2", "abs_i32", "imin",
+        "pi", "str_len", "str_eq", "str_concat", "str_substr", "array_len", "len2", "dot2", "abs_i32", "imin",
         "imax", "iclamp", "as_i32", "as_f32", "key_down", "mouse_x", "mouse_y", "mouse_down",
         "canvas_init", "canvas_clear", "canvas_fill_rect", "canvas_fill_circle", "canvas_fill_text",
         "canvas_draw_line", "canvas_stroke_rect", "gpu_clear", "gpu_draw_triangle", "scene3d_init",
