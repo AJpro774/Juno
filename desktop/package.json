@@ -9,6 +9,6 @@
     "build:ide": "cd ../ide && npm ci && npm run build:wasm && npm run build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.4.0"
+    "@tauri-apps/cli": "^2.11.4"
   }
 }

@@ -12,6 +12,7 @@ if ((${#projects[@]} == 0)); then
 fi
 
 for dir in "${projects[@]}"; do
+  dir="${dir%/}"
   if [[ ! -f "$dir/juni.toml" ]]; then
     echo "skip $dir (no juni.toml)"
     continue
