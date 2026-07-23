@@ -17,4 +17,4 @@ Juni ships usable graphics in the browser IDE:
 
 ## Hosted IDE
 
-Open the [Juni IDE](https://ajpro774.github.io/Juno/) to run examples without installing locally.
+Open the [Juni IDE](https://junoengine.netlify.app/) to run examples without installing locally.

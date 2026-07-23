@@ -6,7 +6,9 @@
 
 ## Try it online
 
-**[Open the Juni IDE](https://junoengine.netlify.app)** — edit, compile, and run in your browser.
+**[Open the Juni IDE](https://junoengine.netlify.app/)** — edit, compile, and run in your browser.
+
+Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
 ## Status (v11.0.0)
 
@@ -66,6 +68,21 @@ cd desktop && npm install && npm run dev
 | `CHANGELOG.md` | Release notes |
 | `CREDITS.md` | People, models, and software per version |
 
+## Publish (hosted IDE)
+
+Canonical hosted IDE: **https://junoengine.netlify.app/**
+
+Deploy with root [`netlify.toml`](netlify.toml) (import the repo in Netlify, or `npx netlify deploy --build --prod` from a full clone). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
+
+```bash
+git remote add origin https://github.com/AJpro774/Juno.git
+git push -u origin main
+git push origin v6.0.0
+```
+
+### Optional: GitHub Pages (legacy)
+
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) can still publish a Pages build (`GITHUB_PAGES=true`, Vite base `/Juno/`). Enable **Settings → Pages → Build and deployment → GitHub Actions** if you want that mirror. Prefer Netlify for the canonical URL.
 
 ## Docs
 

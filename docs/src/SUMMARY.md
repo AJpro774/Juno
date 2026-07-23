@@ -23,6 +23,10 @@
 - [Visual editor](engine/editor.md)
 - [Making a level](engine/level.md)
 
+# Tutorials
+
+- [Build a 2D platformer](tutorials/platformer.md)
+
 # Projects
 
 - [juni.toml](projects/juni-toml.md)

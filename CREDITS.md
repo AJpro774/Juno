@@ -39,7 +39,7 @@ Built with **Cursor** and the open-source toolchain listed per version.
 ## v4.0 — Initial release
 
 - **Author:** Alexander James Patton
-- **Deliverable:** Hosted browser IDE (GitHub Pages), `v4.0.0` tag
+- **Deliverable:** Hosted browser IDE (GitHub Pages at release; now Netlify), `v4.0.0` tag
 - **Built with:** Cursor
 - **Software:** Rust, wasm-bindgen, Vite, Monaco, GitHub Pages, GitHub Actions
 

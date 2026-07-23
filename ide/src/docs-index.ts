@@ -13,6 +13,7 @@ import engineJscene from "../../docs/src/engine/jscene.md?raw";
 import engineAnimation from "../../docs/src/engine/animation.md?raw";
 import engineEditor from "../../docs/src/engine/editor.md?raw";
 import engineLevel from "../../docs/src/engine/level.md?raw";
+import platformerTutorial from "../../docs/src/tutorials/platformer.md?raw";
 import aiAssistant from "../../docs/src/projects/ai-assistant.md?raw";
 import netlifyDoc from "../../docs/src/projects/netlify.md?raw";
 import exportWebDoc from "../../docs/src/projects/export-web.md?raw";
@@ -44,6 +45,7 @@ export const DOC_PAGES: DocPage[] = [
   { id: "engine-animation", title: "Animation", markdown: engineAnimation },
   { id: "engine-editor", title: "Visual editor", markdown: engineEditor },
   { id: "engine-level", title: "Making a level", markdown: engineLevel },
+  { id: "platformer-tutorial", title: "Build a 2D platformer", markdown: platformerTutorial },
   { id: "ai-assistant", title: "AI assistant", markdown: aiAssistant },
   { id: "netlify", title: "Deploy to Netlify", markdown: netlifyDoc },
   { id: "export-web", title: "Export for web", markdown: exportWebDoc },

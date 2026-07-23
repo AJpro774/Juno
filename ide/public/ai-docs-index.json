@@ -57,9 +57,20 @@
     },
     {
       "id": "SUMMARY.md#3",
+      "title": "Tutorials",
+      "path": "SUMMARY.md",
+      "text": "# Tutorials\n\n- [Build a 2D platformer](tutorials/platformer.md)",
+      "keywords": [
+        "tutorials",
+        "build",
+        "platformer"
+      ]
+    },
+    {
+      "id": "SUMMARY.md#4",
       "title": "Projects",
       "path": "SUMMARY.md",
-      "text": "# Projects\n\n- [juni.toml](projects/juni-toml.md)\n- [Assets](projects/assets.md)\n- [Physics](projects/physics.md)\n- [Audio](projects/audio.md)\n- [Desktop IDE](projects/desktop.md)\n- [AI assistant](projects/ai-assistant.md)\n- [Licensing](projects/licensing.md)\n- [Deploy to Netlify](projects/netlify.md)\n- [Export for web](projects/export-web.md)\n- [Visual tutorials](projects/tutorials.md)\n- [Themes & Cat Coffee](projects/cat-coffee.md)",
+      "text": "# Projects\n\n- [juni.toml](projects/juni-toml.md)\n- [Assets](projects/assets.md)\n- [Physics](projects/physics.md)\n- [Audio](projects/audio.md)\n- [Desktop IDE](projects/desktop.md)\n- [AI assistant](projects/ai-assistant.md)\n- [Licensing](projects/licensing.md)\n- [Deploy to Netlify](projects/netlify.md)\n- [Deploy to Cloudflare](projects/cloudflare.md)\n- [Export for web](projects/export-web.md)\n- [Visual tutorials](projects/tutorials.md)\n- [Themes & Cat Coffee](projects/cat-coffee.md)",
       "keywords": [
         "projects",
         "juni",
@@ -72,15 +83,15 @@
         "licensing",
         "deploy",
         "netlify",
+        "cloudflare",
         "export",
         "visual",
         "tutorials",
-        "themes",
-        "coffee"
+        "themes"
       ]
     },
     {
-      "id": "SUMMARY.md#4",
+      "id": "SUMMARY.md#5",
       "title": "Graphics",
       "path": "SUMMARY.md",
       "text": "# Graphics\n\n- [Overview](graphics/overview.md)\n- [Canvas2D](graphics/2d.md)\n- [3D](graphics/3d.md)",
@@ -91,7 +102,7 @@
       ]
     },
     {
-      "id": "SUMMARY.md#5",
+      "id": "SUMMARY.md#6",
       "title": "WebGPU",
       "path": "SUMMARY.md",
       "text": "# WebGPU\n\n- [Runtime](webgpu/runtime.md)",
@@ -392,7 +403,7 @@
       "id": "graphics/overview.md#0",
       "title": "Graphics overview",
       "path": "graphics/overview.md",
-      "text": "# Graphics overview\n\nJuni ships usable graphics in the browser IDE:\n\n| Path | Status |\n|------|--------|\n| [Canvas2D](2d.md) | Implemented — `canvas_*` fill + stroke |\n| [3D](3d.md) | WebGPU API + Edit viewport + ECS Play via `world_draw3d` |\n| [WebGPU runtime](../webgpu/runtime.md) | Triangle sample + 3D host |\n\n## Games & simulation\n\n- Use `state:` or module `let` for shared game state across `main` and `frame`\n- Export `fn frame(dt: f32) -> i32` for a host `requestAnimationFrame` loop\n- Poll `key_down`, `mouse_x` / `mouse_y` / `mouse_down`\n- Math/stdlib: see [Standard library](../language/stdlib.md) (`clamp`, `lerp`, `len2`, `dist2`, …)\n\n## Hosted IDE\n\nOpen the [Juni IDE](https://ajpro774.github.io/Juno/) to run examples without installing locally.",
+      "text": "# Graphics overview\n\nJuni ships usable graphics in the browser IDE:\n\n| Path | Status |\n|------|--------|\n| [Canvas2D](2d.md) | Implemented — `canvas_*` fill + stroke |\n| [3D](3d.md) | WebGPU API + Edit viewport + ECS Play via `world_draw3d` |\n| [WebGPU runtime](../webgpu/runtime.md) | Triangle sample + 3D host |\n\n## Games & simulation\n\n- Use `state:` or module `let` for shared game state across `main` and `frame`\n- Export `fn frame(dt: f32) -> i32` for a host `requestAnimationFrame` loop\n- Poll `key_down`, `mouse_x` / `mouse_y` / `mouse_down`\n- Math/stdlib: see [Standard library](../language/stdlib.md) (`clamp`, `lerp`, `len2`, `dist2`, …)\n\n## Hosted IDE\n\nOpen the [Juni IDE](https://junoengine.netlify.app/) to run examples without installing locally.",
       "keywords": [
         "graphics",
         "overview",
@@ -424,7 +435,7 @@
       "id": "intro.md#0",
       "title": "Introduction",
       "path": "intro.md",
-      "text": "# Introduction\n\n**Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.\n\n**v10.0** expands the language and engine: **borrow checking**, categorical **Code Search**, AABB **3D physics** (plus hybrid 2D-phys → 3D-render), `on_trigger_exit`, **Anim** editor, deeper optional AI, flat repo layout, and optional desktop signing/notarization. See `examples/projects/platformer_3d`.\n\n**v9.3** finishes the authoring loop: inspector **Open/Stub** for entry scripts, `on_collision` / `on_trigger_enter` events, Edit-mode **Show colliders**, and a platformer coin `on_trigger_enter` demo.\n\n**v9.2** brings browser IDE **LSP hover/diagnostics** closer to desktop, ",
+      "text": "# Introduction\n\n**Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.\n\n**v11.0** hardens the memory model: runtime bounds traps for dynamic `T[N]` indexes and `str_substr`, named borrow diagnostics, and `array_len`.\n\n**v10.0** expands the language and engine: **borrow checking**, categorical **Code Search**, AABB **3D physics** (plus hybrid 2D-phys → 3D-render), `on_trigger_exit`, **Anim** editor, deeper optional AI, flat repo layout, and optional desktop signing/notarization. See `examples/projects/platformer_3d`.\n\n**v9.3** finishes the authoring loop: inspector **Open/Stub** for entry scripts, `on_collision` / `on_trigger_enter` events, Edit-",
       "keywords": [
         "introduction",
         "juni",
@@ -446,10 +457,10 @@
         "input",
         "games",
         "simulations",
-        "expands",
-        "engine",
-        "borrow",
-        "checking"
+        "hardens",
+        "memory",
+        "model",
+        "runtime"
       ]
     },
     {
@@ -672,13 +683,12 @@
       "id": "language/stdlib.md#0",
       "title": "Standard library",
       "path": "language/stdlib.md",
-      "text": "# Standard library\n\nJuni v4 ships a small **builtin stdlib** — host intrinsics wired in the compiler and runtime. No `import` syntax yet.\n\n## Math (`f32`)\n\n| Function | Signature | Notes |\n|----------|-----------|-------|\n| `sqrt` | `f32 -> f32` | |\n| `sin` / `cos` / `tan` | `f32 -> f32` | |\n| `abs` | `f32 -> f32` | |\n| `floor` / `ceil` | `f32 -> f32` | |\n| `min` / `max` | `(f32, f32) -> f32` | |\n| `pow` | `(f32, f32) -> f32` | |\n| `sign` | `f32 -> f32` | Returns `-1`, `0`, or `1` |\n| `fmod` | `(f32, f32) -> f32` | Floating remainder |\n| `clamp` | `(f32, f32, f32) -> f32` | Clamp `x` to `[lo, hi]` |\n| `lerp` | `(f32, f32, f32) -> f32` | Linear interpolate |\n| `smoothstep` | `(f32, f32, f32) -> f32` | Hermite edge blend |\n| `deg_to_rad` / `rad_to_deg` | `f32 -> f32` | Angle conversion |\n| `",
+      "text": "# Standard library\n\nJuni ships a **builtin stdlib** of host intrinsics wired in the compiler and runtime. Modules (`import` / `export`) have been available since v6; these builtins need no import.\n\nGraphics, input, ECS, audio, and 3D APIs are documented under [Graphics overview](../graphics/overview.md) and related engine pages. This page covers the core math / string / array helpers.\n\n## Math (`f32`)\n\n| Function | Signature | Notes |\n|----------|-----------|-------|\n| `sqrt` | `f32 -> f32` | |\n| `sin` / `cos` / `tan` | `f32 -> f32` | |\n| `abs` | `f32 -> f32` | |\n| `floor` / `ceil` | `f32 -> f32` | |\n| `min` / `max` | `(f32, f32) -> f32` | |\n| `pow` | `(f32, f32) -> f32` | |\n| `sign` | `f32 -> f32` | Returns `-1`, `0`, or `1` |\n| `fmod` | `(f32, f32) -> f32` | Floating remainder |\n| `clamp",
       "keywords": [
         "standard",
         "library",
         "juni",
         "ships",
-        "small",
         "builtin",
         "stdlib",
         "host",
@@ -686,18 +696,19 @@
         "wired",
         "compiler",
         "runtime",
+        "modules",
         "import",
-        "syntax",
-        "math",
-        "function",
-        "signature",
-        "notes",
-        "sqrt",
-        "floor",
-        "ceil",
-        "sign",
-        "returns",
-        "fmod"
+        "export",
+        "have",
+        "been",
+        "available",
+        "since",
+        "these",
+        "builtins",
+        "need",
+        "graphics",
+        "input",
+        "audio"
       ]
     },
     {
@@ -754,7 +765,7 @@
       "id": "language/types.md#0",
       "title": "Types",
       "path": "language/types.md",
-      "text": "# Types\n\nJuni is **statically typed**. There is no dynamic typing and no garbage collector.\n\n## Built-ins\n\n| Type | Meaning |\n|------|---------|\n| `i32` | 32-bit signed integer |\n| `i64` | 64-bit signed integer |\n| `f32` | 32-bit float |\n| `f64` | 64-bit float |\n| `bool` | boolean (`true` / `false`) |\n| `str` | UTF-8 string (pointer to len-prefixed bytes in memory) |\n| `void` | no value (e.g. `print`) |\n| `T[N]` | Fixed-length array of `N` elements of type `T` |\n\n## Fixed arrays\n\n```juni\nlet xs = [1, 2, 3]          # inferred i32[3]\nlet ys: i32[8] = [0, 1, 2, 3, 4, 5, 6, 7]\nlet v = xs[0]               # index with i32\nxs[1] = 9\n```\n\nArrays live in linear memory. Indexing with a **constant** out of range is a checker error. Runtime bounds traps for dynamic indices are optional/future.\n\n## S",
+      "text": "# Types\n\nJuni is **statically typed**. There is no dynamic typing and no garbage collector.\n\n## Built-ins\n\n| Type | Meaning |\n|------|---------|\n| `i32` | 32-bit signed integer |\n| `i64` | 64-bit signed integer |\n| `f32` | 32-bit float |\n| `f64` | 64-bit float |\n| `bool` | boolean (`true` / `false`) |\n| `str` | UTF-8 string (pointer to len-prefixed bytes in memory) |\n| `void` | no value (e.g. `print`) |\n| `T[N]` | Fixed-length array of `N` elements of type `T` |\n\n## Fixed arrays\n\n```juni\nlet xs = [1, 2, 3]          # inferred i32[3]\nlet ys: i32[8] = [0, 1, 2, 3, 4, 5, 6, 7]\nlet v = xs[0]               # index with i32\nxs[1] = 9\n```\n\nArrays live in linear memory. Indexing with a **constant** out of range is a checker error. Dynamic indexes are checked at runtime and trap (`unreachable`) if ",
       "keywords": [
         "types",
         "juni",
@@ -908,6 +919,88 @@
         "workspace",
         "cosmic",
         "deep"
+      ]
+    },
+    {
+      "id": "projects/cloudflare.md#0",
+      "title": "Deploy to Cloudflare Workers",
+      "path": "projects/cloudflare.md",
+      "text": "# Deploy to Cloudflare Workers\n\nHost the **Juni IDE** as a static SPA on [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) (git-connected **Workers Builds**). Root [`wrangler.toml`](../../wrangler.toml) points assets at `ide/dist` with SPA `not_found_handling`.\n\n## Dashboard build settings\n\nWorker name: **`juno`** (or match `name` in `wrangler.toml`).\n\n| Setting | Value |\n|--------|--------|\n| Root directory | `/` (repo root) |\n| Build command | `(cp -f sitemap.xml ide/public/sitemap.xml \\|\\| true) && cd ide && npm install && npm run build` |\n| Deploy command | `npx wrangler deploy` |\n| Preview deploy | `npx wrangler versions upload` (default is fine) |\n\n**Do not** use `wrangler pages deploy` or `npm run build:wasm` on Cloudflare CI — `wasm-pack` is not install",
+      "keywords": [
+        "deploy",
+        "cloudflare",
+        "workers",
+        "host",
+        "juni",
+        "static",
+        "https",
+        "developers",
+        "assets",
+        "connected",
+        "builds",
+        "root",
+        "wrangler",
+        "toml",
+        "points",
+        "dist",
+        "with",
+        "not_found_handling",
+        "dashboard",
+        "build",
+        "settings",
+        "worker",
+        "name",
+        "juno"
+      ]
+    },
+    {
+      "id": "projects/cloudflare.md#1",
+      "title": "from repo root",
+      "path": "projects/cloudflare.md",
+      "text": "# from repo root\n(cp -f sitemap.xml ide/public/sitemap.xml || true) && (cd ide && npm install && npm run build)\nnpx wrangler deploy",
+      "keywords": [
+        "from",
+        "repo",
+        "root",
+        "sitemap",
+        "public",
+        "true",
+        "install",
+        "build",
+        "wrangler",
+        "deploy"
+      ]
+    },
+    {
+      "id": "projects/cloudflare.md#2",
+      "title": "first time: npx wrangler login",
+      "path": "projects/cloudflare.md",
+      "text": "# first time: npx wrangler login\n```\n\n## SPA / download hub\n\nSPA fallback is set in `wrangler.toml` via `assets.not_found_handling = \"single-page-application\"`.  \n[`ide/public/_redirects`](../../ide/public/_redirects) only handles `/download` (do **not** add a `/* → /index.html` rule — Workers rejects it as an infinite loop).\n\n## Alongside Netlify\n\nNetlify can stay on `*.netlify.app`; point your custom domain at Cloudflare when ready. Both can build from the same `main` push.",
+      "keywords": [
+        "first",
+        "time",
+        "wrangler",
+        "login",
+        "download",
+        "fallback",
+        "toml",
+        "assets",
+        "not_found_handling",
+        "single",
+        "page",
+        "application",
+        "public",
+        "_redirects",
+        "only",
+        "handles",
+        "index",
+        "html",
+        "rule",
+        "workers",
+        "rejects",
+        "infinite",
+        "loop",
+        "alongside"
       ]
     },
     {
@@ -1291,6 +1384,38 @@
         "move",
         "through",
         "steps"
+      ]
+    },
+    {
+      "id": "tutorials/platformer.md#0",
+      "title": "Build a 2D platformer",
+      "path": "tutorials/platformer.md",
+      "text": "# Build a 2D platformer\n\nWalk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../examples/projects/platformer).\n\nOpen the [Juni IDE](https://junoengine.netlify.app/) (Chrome works best) or follow along in the desktop app.\n\nRelated: [Making a level](../engine/level.md), [`.jscene` scenes](../engine/jscene.md), [Entity scripts](../engine/scripts.md), [Visual editor](../engine/editor.md), [Physics](../projects/physics.md). For screenshot lessons in the IDE, see [Visual tutorials](../projects/tutorials.md).\n\n## What you will build\n\n- A `.jscene` with camera, ground, player, platform, and goal\n- `main` that loads the scene, wires tags, and sets a sprite\n- `frame` that reads input, applies veloc",
+      "keywords": [
+        "build",
+        "platformer",
+        "walk",
+        "through",
+        "small",
+        "juni",
+        "scene",
+        "player",
+        "movement",
+        "gravity",
+        "camera",
+        "goal",
+        "finished",
+        "shape",
+        "matches",
+        "examples",
+        "projects",
+        "open",
+        "https",
+        "junoengine",
+        "netlify",
+        "chrome",
+        "works",
+        "best"
       ]
     },
     {

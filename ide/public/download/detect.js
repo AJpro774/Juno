@@ -7,7 +7,7 @@
 const REPO = "AJpro774/Juno";
 const RELEASES = `https://github.com/${REPO}/releases`;
 const LATEST = `${RELEASES}/latest`;
-/** Site root (handles Netlify `/` and GitHub Pages `/Juno/`). */
+/** Site root (Netlify `/` and same-origin relative paths). */
 const SITE_ROOT = new URL("../", import.meta.url);
 const IDE_HREF = SITE_ROOT.href;
 const SW_HREF = new URL("sw.js", SITE_ROOT).href;
