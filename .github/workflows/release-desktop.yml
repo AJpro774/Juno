@@ -126,9 +126,45 @@ jobs:
             echo "Windows signing secrets absent — building unsigned."
           fi
 
+      # Broken/partial Apple certs make bundling fail; fall back to unsigned macOS builds.
+      - name: Validate Apple certificate or clear for unsigned
+        id: apple_cert
+        if: runner.os == 'macOS' && steps.signing.outputs.macos == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CERT_PATH="${RUNNER_TEMP}/apple-cert.p12"
+          KEYCHAIN="${RUNNER_TEMP}/juni-signing.keychain-db"
+          PASS="$(openssl rand -base64 32)"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$PASS" "$KEYCHAIN"
+          if security import "$CERT_PATH" -P "${APPLE_CERTIFICATE_PASSWORD:-}" -A -t cert -f pkcs12 -k "$KEYCHAIN"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "Apple certificate import OK."
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "Apple certificate import failed — clearing APPLE_* for unsigned macOS build."
+            {
+              echo "APPLE_CERTIFICATE="
+              echo "APPLE_CERTIFICATE_PASSWORD="
+              echo "APPLE_SIGNING_IDENTITY="
+            } >> "$GITHUB_ENV"
+          fi
+          security delete-keychain "$KEYCHAIN" 2>/dev/null || true
+          rm -f "$CERT_PATH"
+
       # App Store Connect API key (.p8) for notarytool when not using APPLE_ID/APPLE_PASSWORD.
       - name: Write Apple API key
-        if: runner.os == 'macOS' && steps.signing.outputs.macos == 'true'
+        if: runner.os == 'macOS' && steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true'
         env:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
@@ -232,15 +268,15 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS codesign + notarization (no-ops when secrets are empty)
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Only pass Apple cert when import validation succeeded (avoids broken-secret bundle failures).
+          APPLE_CERTIFICATE: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_API_KEY: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_API_KEY || '' }}
+          APPLE_API_ISSUER: ${{ steps.signing.outputs.macos == 'true' && steps.apple_cert.outputs.ok == 'true' && secrets.APPLE_API_ISSUER || '' }}
           APPLE_API_KEY_PATH: ${{ env.APPLE_API_KEY_PATH }}
           # Azure Trusted Signing credentials (used when signCommand is configured)
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -253,11 +289,14 @@ jobs:
           releaseBody: |
             Desktop installers for Juni IDE (multi-arch).
 
-            Download the build that matches your OS and CPU, or use the [web download hub](https://junoengine.netlify.app/download/).
+            Download the build that matches your OS and CPU, or use the [web download hub](/download/).
 
-            macOS/Windows artifacts are signed and notarized when repository signing secrets are configured; otherwise builds are unsigned.
+            Platforms: macOS (Apple Silicon + Intel), Windows 10/11 (x64 + ARM64), Linux (x86_64 + ARM64).
+            Android: install the web IDE as a PWA (Add to Home Screen / Install app) — no native APK.
 
-            See CHANGELOG.md for notes. Android: install the web IDE as a PWA (Add to Home Screen) — no native APK in v9.
+            macOS/Windows artifacts are signed when repository signing secrets validate; otherwise builds are unsigned.
+
+            See CHANGELOG.md for notes.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
