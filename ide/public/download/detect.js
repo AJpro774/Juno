@@ -23,11 +23,11 @@ const ASSETS = {
     patterns: ["x64.dmg", "x86_64.dmg", "darwin-x86_64", "x64.app.tar.gz"],
   },
   "windows-x86_64": {
-    label: "Windows x64 (NSIS / MSI)",
+    label: "Windows 10/11 x64 (NSIS / MSI)",
     patterns: ["x64-setup.exe", "x64_en-US.msi", "x64-setup", "windows-x86_64"],
   },
   "windows-aarch64": {
-    label: "Windows ARM64",
+    label: "Windows 10/11 ARM64",
     patterns: ["arm64-setup.exe", "aarch64-setup.exe", "arm64_en-US.msi", "windows-aarch64"],
   },
   "linux-x86_64": {
@@ -139,7 +139,13 @@ async function main() {
   document.querySelectorAll("[data-asset]").forEach((a) => {
     const assetKey = a.getAttribute("data-asset");
     if (!assetKey) return;
-    a.setAttribute("href", resolveAssetUrl(assetKey, assets));
+    const url = resolveAssetUrl(assetKey, assets);
+    a.setAttribute("href", url);
+    if (!assets?.length || url === LATEST) {
+      a.setAttribute("title", "Installers not published yet for this platform — opens GitHub Releases.");
+    } else {
+      a.removeAttribute("title");
+    }
   });
 
   if (primary) {
@@ -148,18 +154,28 @@ async function main() {
       primary.setAttribute("href", IDE_HREF);
       if (hint) {
         hint.textContent =
-          "Native desktop installers are for macOS / Windows / Linux. Mobile uses the installable web app.";
+          "Native desktop installers are for macOS / Windows 10–11 / Linux. Mobile uses the installable web app.";
       }
     } else if (key) {
       const url = resolveAssetUrl(key, assets);
       primary.setAttribute("href", url);
       primary.textContent = `Download ${ASSETS[key]?.label ?? "for your system"}`;
       if (hint) {
-        hint.textContent =
-          url === LATEST
-            ? "No matching release asset yet — opening GitHub Releases (placeholders until v* publish)."
-            : "Linked to the matching asset on the latest GitHub Release.";
+        if (!assets) {
+          hint.textContent =
+            "Could not reach GitHub Releases — browse the releases page, or try again later.";
+        } else if (!assets.length || url === LATEST) {
+          hint.textContent =
+            "Installers not published yet for this platform — opening GitHub Releases until a v* build uploads assets.";
+        } else {
+          hint.textContent = "Linked to the matching asset on the latest GitHub Release.";
+        }
       }
+    } else if (hint) {
+      hint.textContent =
+        assets && assets.length === 0
+          ? "Installers not published yet — check GitHub Releases after a v* desktop build."
+          : "";
     }
   }
 
