@@ -6,9 +6,7 @@
 
 ## Try it online
 
-**[Open the Juni IDE](https://ajpro774.github.io/Juno/)** — edit, compile, and run in your browser (GitHub Pages).
-
-Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
+**[Open the Juni IDE](https://junoengine.netlify.app)** — edit, compile, and run in your browser.
 
 ## Status (v11.0.0)
 
@@ -68,17 +66,6 @@ cd desktop && npm install && npm run dev
 | `CHANGELOG.md` | Release notes |
 | `CREDITS.md` | People, models, and software per version |
 
-## Publish (GitHub Pages)
-
-```bash
-git remote add origin https://github.com/AJpro774/Juno.git
-git push -u origin main
-git push origin v6.0.0
-```
-
-Enable **Settings → Pages → Build and deployment → GitHub Actions**. The IDE will be live at:
-
-**https://ajpro774.github.io/Juno/**
 
 ## Docs
 
