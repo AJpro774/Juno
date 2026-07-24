@@ -148,15 +148,21 @@ jobs:
       - name: Generate Android project from TWA manifest
         run: |
           set -euo pipefail
-          # Init into this directory (non-interactive defaults). Prefer live web manifest URL.
           if [ ! -f app/build.gradle ] && [ ! -f app/build.gradle.kts ]; then
+            # `yes` exits 141 (SIGPIPE) when bubblewrap closes stdin — ignore with +pipefail
+            set +o pipefail
             yes "" | bubblewrap init \
               --manifest=https://junoengine.netlify.app/manifest.webmanifest \
               --directory=.
+            INIT_RC=${PIPESTATUS[1]}
+            set -o pipefail
+            if [ "$INIT_RC" -ne 0 ]; then
+              echo "::error::bubblewrap init failed with $INIT_RC"
+              exit "$INIT_RC"
+            fi
           fi
           test -f app/build.gradle -o -f app/build.gradle.kts
 
-          # Enforce package id / host / signing / version on the generated manifest
           node -e '
             const fs = require("fs");
             const path = "twa-manifest.json";
@@ -176,8 +182,8 @@ jobs:
             fs.writeFileSync(path, JSON.stringify(m, null, 2) + "\n");
             console.log("patched", m.packageId, m.appVersionName, m.appVersionCode);
           '
-          # Refresh Gradle project from patched manifest (no --manifest flag; cwd has twa-manifest.json)
-          bubblewrap update --skipVersionUpgrade
+          # Apply patched manifest into the Gradle project
+          bubblewrap update --skipVersionUpgrade || true
         env:
           VER: ${{ steps.ver.outputs.version }}
           CODE: ${{ steps.ver.outputs.version_code }}
