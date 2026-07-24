@@ -148,29 +148,26 @@ jobs:
       - name: Generate Android project from TWA manifest
         run: |
           set -euo pipefail
-          # Prefer committed twa-manifest; regenerate Gradle project non-interactively.
-          # `update` refreshes templates when a project already exists; otherwise init.
           if [ -f app/build.gradle ] || [ -f app/build.gradle.kts ]; then
             bubblewrap update --skipVersionUpgrade --manifest=.
           else
-            # init expects to create files; feed newlines for any leftover prompts
-            printf '%s\n' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' |
-              bubblewrap init \
-                --manifest=https://junoengine.netlify.app/manifest.webmanifest \
-                --directory=. || true
-            # Ensure our committed manifest wins (init may overwrite)
+            # Non-interactive init; accept defaults
+            yes "" | bubblewrap init \
+              --manifest=https://junoengine.netlify.app/manifest.webmanifest \
+              --directory=. || true
+            # Restore committed manifest (init may overwrite), then re-apply version/signing
             git checkout -- twa-manifest.json 2>/dev/null || true
-            # Re-apply version + signing after checkout
-            node <<'NODE'
-            const fs = require('fs');
-            const m = JSON.parse(fs.readFileSync('twa-manifest.json', 'utf8'));
-            m.appVersionName = process.env.VER;
-            m.appVersionCode = Number(process.env.CODE);
-            m.signingKey = { path: './android.keystore', alias: process.env.ALIAS || 'juni' };
-            fs.writeFileSync('twa-manifest.json', JSON.stringify(m, null, 2) + '\n');
-            NODE
-            bubblewrap update --skipVersionUpgrade --manifest=. || true
+            node -e '
+              const fs = require("fs");
+              const m = JSON.parse(fs.readFileSync("twa-manifest.json", "utf8"));
+              m.appVersionName = process.env.VER;
+              m.appVersionCode = Number(process.env.CODE);
+              m.signingKey = { path: "./android.keystore", alias: process.env.ALIAS || "juni" };
+              fs.writeFileSync("twa-manifest.json", JSON.stringify(m, null, 2) + "\n");
+            '
+            bubblewrap update --skipVersionUpgrade --manifest=.
           fi
+          test -f app/build.gradle -o -f app/build.gradle.kts
         env:
           VER: ${{ steps.ver.outputs.version }}
           CODE: ${{ steps.ver.outputs.version_code }}
