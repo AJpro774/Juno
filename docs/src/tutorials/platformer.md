@@ -2,7 +2,7 @@
 
 Walk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../examples/projects/platformer).
 
-Open the [Juni IDE](https://junoengine.netlify.app/) (Chrome works best) or follow along in the desktop app.
+Open the [Juni IDE](https://jkengine.netlify.app/) (Chrome works best) or follow along in the desktop app.
 
 Related: [Making a level](../engine/level.md), [`.jscene` scenes](../engine/jscene.md), [Entity scripts](../engine/scripts.md), [Visual editor](../engine/editor.md), [Physics](../projects/physics.md). For screenshot lessons in the IDE, see [Visual tutorials](../projects/tutorials.md).
 

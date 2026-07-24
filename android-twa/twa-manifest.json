@@ -1,6 +1,6 @@
 {
   "packageId": "dev.juni.ide",
-  "host": "junoengine.netlify.app",
+  "host": "jkengine.netlify.app",
   "name": "Juni IDE",
   "launcherName": "Juni",
   "display": "standalone",
@@ -13,8 +13,8 @@
   "backgroundColor": "#F3EFE6",
   "enableNotifications": true,
   "startUrl": "/",
-  "iconUrl": "https://junoengine.netlify.app/icons/icon-512.png",
-  "maskableIconUrl": "https://junoengine.netlify.app/icons/icon-512.png",
+  "iconUrl": "https://jkengine.netlify.app/icons/icon-512.png",
+  "maskableIconUrl": "https://jkengine.netlify.app/icons/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./android.keystore",
@@ -24,7 +24,7 @@
   "appVersionCode": 12000,
   "shortcuts": [],
   "generatorApp": "bubblewrap",
-  "webManifestUrl": "https://junoengine.netlify.app/manifest.webmanifest",
+  "webManifestUrl": "https://jkengine.netlify.app/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -33,7 +33,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://junoengine.netlify.app/",
+  "fullScopeUrl": "https://jkengine.netlify.app/",
   "minSdkVersion": 21,
   "orientation": "any",
   "fingerprints": [],

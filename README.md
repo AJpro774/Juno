@@ -6,9 +6,9 @@
 
 ## Try it online
 
-**[Open the Juni IDE](https://junoengine.netlify.app/)** — edit, compile, and run in your browser.
+**[Open the Juni IDE](https://jkengine.netlify.app/)** — edit, compile, and run in your browser.
 
-**[Open Kuni](https://junoengine.netlify.app/kuni/)** — local AI chatbot on KunoEngine (WebLLM + WASM, FP8 · 6GB).
+**[Open Kuni](https://jkengine.netlify.app/kuni/)** — local AI chatbot on KunoEngine (WebLLM + WASM, FP8 · 6GB).
 
 Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
@@ -75,7 +75,7 @@ cd desktop && npm install && npm run dev
 
 ## Publish (hosted IDE)
 
-Canonical hosted IDE: **https://junoengine.netlify.app/**
+Canonical hosted IDE: **https://jkengine.netlify.app/**
 
 Deploy with root [`netlify.toml`](netlify.toml) (import the repo in Netlify, or `npx netlify deploy --build --prod` from a full clone). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 

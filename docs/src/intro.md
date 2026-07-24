@@ -30,7 +30,7 @@
 
 **v6.0** added Python-style **modules**, **`juni.toml` projects**, multi-tab IDE, asset manifest, richer 3D samples, physics/audio foundations, **`juni lsp`**, and a **Tauri desktop** shell.
 
-**[Try the IDE online](https://junoengine.netlify.app/)**.
+**[Try the IDE online](https://jkengine.netlify.app/)**.
 
 Author: **Alexander James Patton**. Credits: open **Credits** in the IDE or see `CREDITS.md`.
 
