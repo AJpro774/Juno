@@ -224,13 +224,24 @@ jobs:
           name: Juni-IDE-android-apk
           path: android-twa/Juni-IDE-android.apk
 
+      # Prefer `gh release upload` over softprops: softprops PATCHes release metadata
+      # (name/draft) which fails with "Resource not accessible by integration" when the
+      # release already exists from another workflow. Upload-only needs contents:write.
       - name: Attach APK to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.tag }}
-          draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name == '' }}
-          files: android-twa/Juni-IDE-android.apk
-          fail_on_unmatched_files: true
+        working-directory: .
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          APK="android-twa/Juni-IDE-android.apk"
+          test -f "$APK"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            DRAFT_ARGS=()
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${{ github.event.inputs.tag_name }}" ]; then
+              DRAFT_ARGS+=(--draft)
+            fi
+            gh release create "$TAG" "$APK" --title "Juni IDE ${TAG}" --notes "Android APK for Juni IDE ${TAG}." "${DRAFT_ARGS[@]}"
+          fi
