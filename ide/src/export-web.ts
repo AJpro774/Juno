@@ -2,6 +2,12 @@
 
 import type { AssetPack } from "../../runtime/src/types";
 import type { ProjectState } from "./project-store";
+import { ensureProjectProvenance } from "./project-store";
+import {
+  JUNI_BUILT_WITH,
+  JUNI_REQUIRED_NOTICE,
+  juniNoticeFileBody,
+} from "./juni-notice";
 import { buildZip, downloadBlob, textToBytes, type ZipEntry } from "./zip-write";
 
 export type ExportWebArgs = {
@@ -38,6 +44,8 @@ function buildIndexHtml(title: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ${JUNI_REQUIRED_NOTICE} -->
+  <!-- ${JUNI_BUILT_WITH} -->
   <title>${escapeHtml(title)}</title>
   <style>
     html, body { margin: 0; height: 100%; background: #0e0f12; color: #e8e1d4; font-family: system-ui, sans-serif; }
@@ -63,7 +71,9 @@ function escapeHtml(s: string): string {
 }
 
 function buildPlayJs(): string {
-  return `// Juni web player — self-contained (relative paths for itch / Netlify)
+  return `// ${JUNI_REQUIRED_NOTICE}
+// ${JUNI_BUILT_WITH}
+// Juni web player — self-contained (relative paths for itch / Netlify)
 import { instantiateJuni, startFrameLoop } from "./runtime/browser.js";
 
 const logEl = document.getElementById("log");
@@ -121,6 +131,7 @@ function safeZipName(name: string): string {
 /** Download a self-contained ZIP (index + play + wasm + runtime/). */
 export async function exportProjectWeb(args: ExportWebArgs): Promise<void> {
   if (!args.project) throw new Error("Open a juni.toml project first.");
+  ensureProjectProvenance(args.project);
   args.logLine("Exporting web build…", "meta");
   const { wasmB64, assetPack } = await args.compileProject();
   const title = args.project.name || "Juni Game";
@@ -131,8 +142,23 @@ export async function exportProjectWeb(args: ExportWebArgs): Promise<void> {
     { path: "play.js", data: textToBytes(buildPlayJs()) },
     {
       path: "game.wasm.json",
-      data: textToBytes(JSON.stringify({ wasm: wasmB64, assets: assetPack }, null, 2)),
+      data: textToBytes(
+        JSON.stringify(
+          {
+            wasm: wasmB64,
+            assets: assetPack,
+            juni: {
+              engine: "Juni",
+              notice: JUNI_REQUIRED_NOTICE,
+              builtWith: JUNI_BUILT_WITH,
+            },
+          },
+          null,
+          2
+        )
+      ),
     },
+    { path: "NOTICE.txt", data: textToBytes(juniNoticeFileBody()) },
     { path: "netlify.toml", data: textToBytes(buildNetlifyToml()) },
     ...runtimeEntries,
   ];

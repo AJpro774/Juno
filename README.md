@@ -6,11 +6,13 @@
 
 ## Try it online
 
-**[Open the Juni IDE](https://jkengine.netlify.app/)** — edit, compile, and run in your browser.
+**[Open the Juni IDE](https://junoengine.netlify.app/)** — edit, compile, and run in your browser.
+
+**[Open Kuni](https://junoengine.netlify.app/kuni/)** — local AI chatbot on KunoEngine (WebLLM + WASM, FP8 · 6GB).
 
 Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-## Status (v11.0.0)
+## Status (v12.0.0)
 
 - **Language:** runtime array / `str_substr` bounds traps; named borrow diagnostics; `array_len`
 - **IDE:** resizable panes; themes; Cat Coffee; trap console remapping for OOB
@@ -31,6 +33,8 @@ cd ide && npm install && npm run dev
 ```
 
 Open http://localhost:5173 — **Run** (⌘/Ctrl+Enter) compiles and executes; starts `frame` when exported.
+
+**Kuni** (same origin): header switcher **Juni | Kuni**, or http://localhost:5173/kuni/
 
 ## CLI quick start
 
@@ -60,6 +64,7 @@ cd desktop && npm install && npm run dev
 |------|------|
 | `crates/*` | Compiler (syntax, check, codegen, driver, lsp, CLI, wasm) |
 | `ide/` | Vite + Monaco browser IDE |
+| `kuni/` | Kuni local AI chatbot (KunoEngine / WebLLM) |
 | `desktop/` | Tauri 2 native shell |
 | `runtime/` | JS host + stubs |
 | `examples/` | Single-file `.juni` programs |
@@ -70,7 +75,7 @@ cd desktop && npm install && npm run dev
 
 ## Publish (hosted IDE)
 
-Canonical hosted IDE: **https://jkengine.netlify.app/**
+Canonical hosted IDE: **https://junoengine.netlify.app/**
 
 Deploy with root [`netlify.toml`](netlify.toml) (import the repo in Netlify, or `npx netlify deploy --build --prod` from a full clone). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
@@ -90,5 +95,8 @@ See [docs/src/intro.md](docs/src/intro.md), or open **Docs** in the IDE.
 
 ## License
 
-- **Source code** is licensed under the [Apache License 2.0](LICENSE) only.
-- **Distributed Juni IDE / runtime apps** (desktop installers, web IDE, PWA) are also subject to the [End User License Agreement](EULA.md).
+Juni is under the [Juni Software License and Commercial Contract 1.0](LICENSE) (modified [PolyForm Small Business 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0)) plus the [EULA](EULA.md). **Binding contract** on use/accept.
+
+- **Free:** personal/hobby, and companies under PolyForm Small Business limits (<100 workers, <$1M USD 2019 CPI-adjusted prior-year revenue)
+- **Required above that:** **USD $200/month**, paid directly to Alexander James Patton (AJpro774)
+- Games you create remain yours (export exception in `LICENSE`)

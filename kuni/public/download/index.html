@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download Kuni</title>
+    <meta
+      name="description"
+      content="Download Kuni for macOS (.dmg), Windows (.exe), and Android (.apk) — local AI on KunoEngine."
+    />
+    <meta name="theme-color" content="#0f6e56" />
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/icon-128.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./download.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <a class="brand-mark" href="../">Kuni</a>
+        <span class="brand-tag">Download</span>
+      </div>
+      <nav class="nav">
+        <a class="ghost" href="/">Juni IDE</a>
+        <a class="ghost" href="../">Open chat</a>
+        <a class="ghost" id="releases-link" href="https://github.com/AJpro774/Juno/releases">All releases</a>
+      </nav>
+    </header>
+
+    <main class="hero">
+      <p class="eyebrow">APK · DMG · EXE · KunoEngine</p>
+      <h1>Install Kuni. Chat stays on your device.</h1>
+      <p class="lead">
+        Local AI chatbot powered by <strong>KunoEngine</strong> (WebLLM + WASM). Default model profile
+        targets <strong>FP8 · ~6GB</strong> GPU memory. macOS and Windows ship via Tauri; Android via
+        Capacitor APK.
+      </p>
+
+      <section class="recommend" aria-labelledby="recommend-heading">
+        <h2 id="recommend-heading">Recommended for you</h2>
+        <p id="detect-line" class="detect">Detecting your system…</p>
+        <div class="cta-row">
+          <a id="primary-download" class="run" href="https://github.com/AJpro774/Juno/releases/latest"
+            >Download latest</a
+          >
+          <a class="ghost" href="../">Use in browser</a>
+        </div>
+        <p id="asset-hint" class="hint muted"></p>
+      </section>
+
+      <section class="grid" aria-labelledby="platforms-heading">
+        <h2 id="platforms-heading">Installers</h2>
+        <div class="cards">
+          <article class="plat" data-os="macos" data-arch="aarch64" data-kind="dmg">
+            <h3>macOS · Apple Silicon</h3>
+            <p class="muted">aarch64 · .dmg</p>
+            <a class="ghost tight" data-asset="macos-aarch64-dmg" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get .dmg</a
+            >
+          </article>
+          <article class="plat" data-os="macos" data-arch="x86_64" data-kind="dmg">
+            <h3>macOS · Intel</h3>
+            <p class="muted">x86_64 · .dmg</p>
+            <a class="ghost tight" data-asset="macos-x86_64-dmg" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get .dmg</a
+            >
+          </article>
+          <article class="plat" data-os="windows" data-arch="x86_64" data-kind="exe">
+            <h3>Windows 10/11 · x64</h3>
+            <p class="muted">x86_64 · .exe (NSIS)</p>
+            <a class="ghost tight" data-asset="windows-x86_64-exe" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get .exe</a
+            >
+          </article>
+          <article class="plat" data-os="windows" data-arch="aarch64" data-kind="exe">
+            <h3>Windows · ARM64</h3>
+            <p class="muted">aarch64 · .exe</p>
+            <a class="ghost tight" data-asset="windows-aarch64-exe" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get .exe</a
+            >
+          </article>
+          <article class="plat" data-os="android" data-arch="arm64" data-kind="apk">
+            <h3>Android</h3>
+            <p class="muted">arm64-v8a · .apk</p>
+            <a class="ghost tight" data-asset="android-apk" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get .apk</a
+            >
+          </article>
+          <article class="plat" data-os="web" data-kind="pwa">
+            <h3>Web / PWA</h3>
+            <p class="muted">Chrome · Add to Home Screen</p>
+            <a class="ghost tight" href="../">Open Kuni</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="android" aria-labelledby="build-heading">
+        <h2 id="build-heading">Build from source</h2>
+        <ol class="steps">
+          <li><code>cd kuni && npm install && npm run build</code></li>
+          <li>Desktop: <code>cd desktop && npm install && npm run build</code> → .dmg / .exe</li>
+          <li>Android: <code>npx cap add android && npm run android:sync</code> then open Android Studio → APK</li>
+        </ol>
+        <p class="muted hint">
+          Requires WebGPU on the device for KunoEngine inference. First model load downloads ~6GB weights.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./download.js"></script>
+  </body>
+</html>

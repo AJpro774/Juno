@@ -1,14 +1,16 @@
 //! WASM code generation for Juni HIR.
 
 mod allocator;
+mod notice;
 
 use allocator::{heap_base, heap_start};
 use juni_check::hir::*;
 use juni_check::types::{Builtin, Type};
+pub use notice::{BUILT_WITH, REQUIRED_NOTICE};
 use wasm_encoder::{
-    BlockType, CodeSection, ConstExpr, EntityType, ExportKind, ExportSection, Function,
-    FunctionSection, GlobalSection, GlobalType, ImportSection, Instruction, MemArg, MemorySection,
-    MemoryType, Module, TypeSection, ValType,
+    BlockType, CodeSection, ConstExpr, CustomSection, EntityType, ExportKind, ExportSection,
+    Function, FunctionSection, GlobalSection, GlobalType, ImportSection, Instruction, MemArg,
+    MemorySection, MemoryType, Module, ProducersField, ProducersSection, TypeSection, ValType,
 };
 
 /// Import indices (must match host `env`):
@@ -425,6 +427,22 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
         codes.function(&emit_function(func, hir));
     }
     module.section(&codes);
+
+    // Permanent provenance: producers convention + custom notice section.
+    let mut processed_by = ProducersField::new();
+    processed_by.value("juni", env!("CARGO_PKG_VERSION"));
+    let mut producers = ProducersSection::new();
+    producers.field("processed-by", &processed_by);
+    let mut language = ProducersField::new();
+    language.value("Juni", env!("CARGO_PKG_VERSION"));
+    producers.field("language", &language);
+    module.section(&producers);
+
+    let notice = notice::notice_section_bytes();
+    module.section(&CustomSection {
+        name: "juni.notice".into(),
+        data: notice.into(),
+    });
 
     module.finish()
 }
@@ -1973,6 +1991,21 @@ mod tests {
         assert!(
             wasm.windows(gtu.len()).any(|w| w == gtu),
             "expected str_substr sum > src_len trap"
+        );
+    }
+
+    #[test]
+    fn emitted_wasm_embeds_juni_notice() {
+        let src = r#"fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let wasm = emit_wasm(&hir);
+        let text = String::from_utf8_lossy(&wasm);
+        assert!(
+            text.contains("Required Notice:") && text.contains("juni.notice"),
+            "expected juni.notice custom section with Required Notice"
         );
     }
 }

@@ -1,6 +1,19 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly BASE_URL: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 declare module "*.md?raw" {
+  const content: string;
+  export default content;
+}
+
+declare module "*.juni?raw" {
   const content: string;
   export default content;
 }
@@ -14,7 +27,13 @@ declare module "*?worker" {
 
 declare module "../public/pkg/juni_wasm.js" {
   export default function init(
-    input?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module
+    input?:
+      | RequestInfo
+      | URL
+      | Response
+      | BufferSource
+      | WebAssembly.Module
+      | { module_or_path?: RequestInfo | URL | Response | BufferSource | WebAssembly.Module }
   ): Promise<unknown>;
   export function compile(source: string): string;
   export function compile_project(json: string): string;

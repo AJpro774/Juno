@@ -1,6 +1,7 @@
 /target/
 node_modules/
 ide/dist/
+kuni/dist/
 .DS_Store
 *.swp
 .cursor/
@@ -18,3 +19,9 @@ _github_upload/
 
 # Local Netlify folder
 .netlify
+
+# Local env / secrets (Cesium ion token, etc.) — never commit
+.env
+.env.local
+ide/.env
+ide/.env.local

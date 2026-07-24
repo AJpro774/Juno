@@ -115,7 +115,7 @@
       "id": "engine/animation.md#0",
       "title": "Animation",
       "path": "engine/animation.md",
-      "text": "# Animation\n\nJuni’s first animation slice is **sprite-sheet frames** and **discrete keyframe clips** — not skeletal / glTF skinning.\n\n## Authoring (IDE)\n\n1. Open the **Anim** toolbar panel (separate from Code Search).\n2. Name a clip, set FPS + sheet frame indices (e.g. `0, 1, 2, 3`), optionally paste discrete keys JSON.\n3. **Save clip JSON** writes `assets/anims/<name>.json`.\n4. Select an entity → **Attach to entity** (or enable **SpriteAnimator** in the Inspector).\n5. **Save Scene** so `.jscene` keeps the `sprite_animator` component.\n\n### Clip JSON\n\n```json\n{\n  \"version\": 1,\n  \"name\": \"walk\",\n  \"fps\": 8,\n  \"loop\": true,\n  \"frames\": [0, 1, 2, 3]\n}\n```\n\nOptional discrete keys (hold until the next `t`):\n\n```json\n{\n  \"version\": 1,\n  \"name\": \"bob\",\n  \"loop\": true,\n  \"keys\": [\n    { \"t\": 0, \"y\"",
+      "text": "# Animation\n\nJuni\u2019s first animation slice is **sprite-sheet frames** and **discrete keyframe clips** \u2014 not skeletal / glTF skinning.\n\n## Authoring (IDE)\n\n1. Open the **Anim** toolbar panel (separate from Code Search).\n2. Name a clip, set FPS + sheet frame indices (e.g. `0, 1, 2, 3`), optionally paste discrete keys JSON.\n3. **Save clip JSON** writes `assets/anims/<name>.json`.\n4. Select an entity \u2192 **Attach to entity** (or enable **SpriteAnimator** in the Inspector).\n5. **Save Scene** so `.jscene` keeps the `sprite_animator` component.\n\n### Clip JSON\n\n```json\n{\n  \"version\": 1,\n  \"name\": \"walk\",\n  \"fps\": 8,\n  \"loop\": true,\n  \"frames\": [0, 1, 2, 3]\n}\n```\n\nOptional discrete keys (hold until the next `t`):\n\n```json\n{\n  \"version\": 1,\n  \"name\": \"bob\",\n  \"loop\": true,\n  \"keys\": [\n    { \"t\": 0, \"y\"",
       "keywords": [
         "animation",
         "juni",
@@ -147,7 +147,7 @@
       "id": "engine/editor.md#0",
       "title": "Visual editor",
       "path": "engine/editor.md",
-      "text": "# Visual editor\n\nThe Juni IDE includes an engine editor shell:\n\n- **Hierarchy** — create / delete / select entities (badges for mesh / light / cam3d / sprite)\n- **Inspector** — name, tag, Transform2D/3D, Sprite (incl. sheet cols/rows/fps), SpriteAnimator, Mesh3D, Light3D, Camera3D, RigidBody2D, Collider2D, Camera2D, Tilemap, Prefab, Script\n- **Anim panel** — sprite-sheet / keyframe clips → `assets/anims/*.json` + entity `sprite_animator` (not skeletal)\n- **Asset browser** — drag images onto the scene view to spawn sprites\n- **Scene view** — grid viewport; drag sprites to move them; **tilemap paint** (click = brush, Alt/right-click = erase, ⌘/Ctrl-drag = move); one undo step per gesture\n- **Code Search** — query + token category filters across project `.juni` files; jump results in Monaco\n-",
+      "text": "# Visual editor\n\nThe Juni IDE includes an engine editor shell:\n\n- **Hierarchy** \u2014 create / delete / select entities (badges for mesh / light / cam3d / sprite)\n- **Inspector** \u2014 name, tag, Transform2D/3D, Sprite (incl. sheet cols/rows/fps), SpriteAnimator, Mesh3D, Light3D, Camera3D, RigidBody2D, Collider2D, Camera2D, Tilemap, Prefab, Script\n- **Anim panel** \u2014 sprite-sheet / keyframe clips \u2192 `assets/anims/*.json` + entity `sprite_animator` (not skeletal)\n- **Asset browser** \u2014 drag images onto the scene view to spawn sprites\n- **Scene view** \u2014 grid viewport; drag sprites to move them; **tilemap paint** (click = brush, Alt/right-click = erase, \u2318/Ctrl-drag = move); one undo step per gesture\n- **Code Search** \u2014 query + token category filters across project `.juni` files; jump results in Monaco\n-",
       "keywords": [
         "visual",
         "editor",
@@ -243,7 +243,7 @@
       "id": "engine/level.md#0",
       "title": "Making a level",
       "path": "engine/level.md",
-      "text": "# Making a level\n\nBuild a playable Juni level with `.jscene`, ECS physics, and a short `frame` loop.\n\n## Pieces\n\n1. **Scene** — `scenes/level1.jscene` with tagged entities (`player`, `camera`, platforms, triggers)\n2. **Prefabs** — `prefabs/*.jscene` fragments spawned with `prefab_spawn(path, x, y)`\n3. **Script** — `main` loads the scene; `frame` drives input and draws; entity scripts / collision events react inside `world_step`\n\n## Intrinsics\n\n| API | Role |\n|-----|------|\n| `scene_load(path)` | Replace world with a scene |\n| `prefab_spawn(path, x, y)` | Merge a prefab (no reset) |\n| `camera2d_follow(cam, target, smooth)` | Lerp camera toward target each `world_step` |\n| `rigidbody2d_set_vel` / `rigidbody2d_get_grounded` | Control / query the player body |\n| `collider2d_set` | Configure AA",
+      "text": "# Making a level\n\nBuild a playable Juni level with `.jscene`, ECS physics, and a short `frame` loop.\n\n## Pieces\n\n1. **Scene** \u2014 `scenes/level1.jscene` with tagged entities (`player`, `camera`, platforms, triggers)\n2. **Prefabs** \u2014 `prefabs/*.jscene` fragments spawned with `prefab_spawn(path, x, y)`\n3. **Script** \u2014 `main` loads the scene; `frame` drives input and draws; entity scripts / collision events react inside `world_step`\n\n## Intrinsics\n\n| API | Role |\n|-----|------|\n| `scene_load(path)` | Replace world with a scene |\n| `prefab_spawn(path, x, y)` | Merge a prefab (no reset) |\n| `camera2d_follow(cam, target, smooth)` | Lerp camera toward target each `world_step` |\n| `rigidbody2d_set_vel` / `rigidbody2d_get_grounded` | Control / query the player body |\n| `collider2d_set` | Configure AA",
       "keywords": [
         "making",
         "level",
@@ -403,7 +403,7 @@
       "id": "graphics/overview.md#0",
       "title": "Graphics overview",
       "path": "graphics/overview.md",
-      "text": "# Graphics overview\n\nJuni ships usable graphics in the browser IDE:\n\n| Path | Status |\n|------|--------|\n| [Canvas2D](2d.md) | Implemented — `canvas_*` fill + stroke |\n| [3D](3d.md) | WebGPU API + Edit viewport + ECS Play via `world_draw3d` |\n| [WebGPU runtime](../webgpu/runtime.md) | Triangle sample + 3D host |\n\n## Games & simulation\n\n- Use `state:` or module `let` for shared game state across `main` and `frame`\n- Export `fn frame(dt: f32) -> i32` for a host `requestAnimationFrame` loop\n- Poll `key_down`, `mouse_x` / `mouse_y` / `mouse_down`\n- Math/stdlib: see [Standard library](../language/stdlib.md) (`clamp`, `lerp`, `len2`, `dist2`, …)\n\n## Hosted IDE\n\nOpen the [Juni IDE](https://jkengine.netlify.app/) to run examples without installing locally.",
+      "text": "# Graphics overview\n\nJuni ships usable graphics in the browser IDE:\n\n| Path | Status |\n|------|--------|\n| [Canvas2D](2d.md) | Implemented \u2014 `canvas_*` fill + stroke |\n| [3D](3d.md) | WebGPU API + Edit viewport + ECS Play via `world_draw3d` |\n| [WebGPU runtime](../webgpu/runtime.md) | Triangle sample + 3D host |\n\n## Games & simulation\n\n- Use `state:` or module `let` for shared game state across `main` and `frame`\n- Export `fn frame(dt: f32) -> i32` for a host `requestAnimationFrame` loop\n- Poll `key_down`, `mouse_x` / `mouse_y` / `mouse_down`\n- Math/stdlib: see [Standard library](../language/stdlib.md) (`clamp`, `lerp`, `len2`, `dist2`, \u2026)\n\n## Hosted IDE\n\nOpen the [Juni IDE](https://junoengine.netlify.app/) to run examples without installing locally.",
       "keywords": [
         "graphics",
         "overview",
@@ -435,7 +435,7 @@
       "id": "intro.md#0",
       "title": "Introduction",
       "path": "intro.md",
-      "text": "# Introduction\n\n**Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.\n\n**v11.0** hardens the memory model: runtime bounds traps for dynamic `T[N]` indexes and `str_substr`, named borrow diagnostics, and `array_len`.\n\n**v10.0** expands the language and engine: **borrow checking**, categorical **Code Search**, AABB **3D physics** (plus hybrid 2D-phys → 3D-render), `on_trigger_exit`, **Anim** editor, deeper optional AI, flat repo layout, and optional desktop signing/notarization. See `examples/projects/platformer_3d`.\n\n**v9.3** finishes the authoring loop: inspector **Open/Stub** for entry scripts, `on_collision` / `on_trigger_enter` events, Edit-",
+      "text": "# Introduction\n\n**Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.\n\n**v12.0** ships the Juni Software License and Commercial Contract, WASM/export provenance (`juni.notice`), Android APK release pipeline, Kuni nested app, and IDE promo/switcher polish.\n\n**v11.0** hardens the memory model: runtime bounds traps for dynamic `T[N]` indexes and `str_substr`, named borrow diagnostics, and `array_len`.\n\n**v10.0** expands the language and engine: **borrow checking**, categorical **Code Search**, AABB **3D physics** (plus hybrid 2D-phys \u2192 3D-render), `on_trigger_exit`, **Anim** editor, deeper optional AI, flat repo layout, and optional desktop signing/notarization. See `examples/projects/platformer_3d`.\n\n**v9.3** finishes the authoring loop: inspector **Open/Stub** for entry scripts, `on_collision` / `on_trigger_enter` events, Edit-",
       "keywords": [
         "introduction",
         "juni",
@@ -563,7 +563,7 @@
       "id": "language/modules.md#0",
       "title": "Modules and imports",
       "path": "language/modules.md",
-      "text": "# Modules and imports\n\nJuni v6 adds **Python-style modules** for multi-file projects. Each `.juni` file under `src/` is a module; names default to the file stem (`src/math.juni` → module `math`).\n\n## Import forms\n\n```juni\nimport math\nimport utils as u\n\nfrom math import clamp\nfrom math import greet as hello\n```\n\n- `import math` brings the module into scope as `math` (or an alias).\n- `from math import clamp` imports a single exported symbol for unqualified use.\n\n## Exports\n\nMark items with `export` to make them visible to other modules:\n\n```juni\nexport fn greet() -> i32:\n    return 42\n\nexport fn clamp(x: f32, lo: f32, hi: f32) -> f32:\n    if x < lo:\n        return lo\n    if x > hi:\n        return hi\n    return x\n```\n\nEntry module (`juni.toml` → `entry`) is the only place that may define `mai",
+      "text": "# Modules and imports\n\nJuni v6 adds **Python-style modules** for multi-file projects. Each `.juni` file under `src/` is a module; names default to the file stem (`src/math.juni` \u2192 module `math`).\n\n## Import forms\n\n```juni\nimport math\nimport utils as u\n\nfrom math import clamp\nfrom math import greet as hello\n```\n\n- `import math` brings the module into scope as `math` (or an alias).\n- `from math import clamp` imports a single exported symbol for unqualified use.\n\n## Exports\n\nMark items with `export` to make them visible to other modules:\n\n```juni\nexport fn greet() -> i32:\n    return 42\n\nexport fn clamp(x: f32, lo: f32, hi: f32) -> f32:\n    if x < lo:\n        return lo\n    if x > hi:\n        return hi\n    return x\n```\n\nEntry module (`juni.toml` \u2192 `entry`) is the only place that may define `mai",
       "keywords": [
         "modules",
         "imports",
@@ -594,7 +594,7 @@
       "id": "language/physics.md#0",
       "title": "Physics",
       "path": "language/physics.md",
-      "text": "# Physics\n\nJuni includes 2D AABB/circle helpers and ECS physics (`rigidbody2d` / `collider2d`), plus 3D AABB physics (`rigidbody3d` / `collider3d`). See [Projects → Physics](../projects/physics.md) for pure 2D, pure 3D, and hybrid 2D-phys → 3D-render.\n\n## `Aabb` struct\n\nAn `Aabb` is a rectangle stored as top-left position plus size:\n\n```juni\nstruct Aabb:\n    x: f32\n    y: f32\n    w: f32\n    h: f32\n```\n\n- `x`, `y` — top-left corner in pixels\n- `w`, `h` — width and height\n\nCreate a value with a struct literal or `new`:\n\n```juni\nlet box = Aabb(x=10.0, y=20.0, w=32.0, h=32.0)\n```\n\n## Intrinsics\n\n| Function | Description |\n|----------|-------------|\n| `aabb_overlap(a, b)` | Returns `true` when two `Aabb` values overlap |\n| `aabb_resolve_x(moving, other, vel_x)` | Zeroes horizontal velocity when",
+      "text": "# Physics\n\nJuni includes 2D AABB/circle helpers and ECS physics (`rigidbody2d` / `collider2d`), plus 3D AABB physics (`rigidbody3d` / `collider3d`). See [Projects \u2192 Physics](../projects/physics.md) for pure 2D, pure 3D, and hybrid 2D-phys \u2192 3D-render.\n\n## `Aabb` struct\n\nAn `Aabb` is a rectangle stored as top-left position plus size:\n\n```juni\nstruct Aabb:\n    x: f32\n    y: f32\n    w: f32\n    h: f32\n```\n\n- `x`, `y` \u2014 top-left corner in pixels\n- `w`, `h` \u2014 width and height\n\nCreate a value with a struct literal or `new`:\n\n```juni\nlet box = Aabb(x=10.0, y=20.0, w=32.0, h=32.0)\n```\n\n## Intrinsics\n\n| Function | Description |\n|----------|-------------|\n| `aabb_overlap(a, b)` | Returns `true` when two `Aabb` values overlap |\n| `aabb_resolve_x(moving, other, vel_x)` | Zeroes horizontal velocity when",
       "keywords": [
         "physics",
         "juni",
@@ -656,9 +656,9 @@
     },
     {
       "id": "language/state.md#1",
-      "title": "Wrong — cam is not visible in frame",
+      "title": "Wrong \u2014 cam is not visible in frame",
       "path": "language/state.md",
-      "text": "# Wrong — cam is not visible in frame\nfn main() -> i32:\n    let cam = camera3d_perspective(60.0, 1.777, 0.1, 100.0)",
+      "text": "# Wrong \u2014 cam is not visible in frame\nfn main() -> i32:\n    let cam = camera3d_perspective(60.0, 1.777, 0.1, 100.0)",
       "keywords": [
         "wrong",
         "visible",
@@ -797,7 +797,7 @@
       "id": "projects/ai-assistant.md#0",
       "title": "Optional AI assistant",
       "path": "projects/ai-assistant.md",
-      "text": "# Optional AI assistant\n\nThe Juni IDE can run a **fully optional**, **off-by-default** local coding assistant in the browser:\n\n- **Engine:** [WebLLM](https://github.com/mlc-ai/web-llm) (WebGPU)\n- **Default model:** Qwen2.5-Coder-1.5B-Instruct (MLC q4) — best Juni grounding for the download size\n- **Picker:** Coder 1.5B (default), Coder 3B (stronger, larger), Instruct 1.5B (general chat)\n- **RAG grounding:** curated keyword chunks + optional `ai-docs-index.json` over Juni docs (ECS, 3D/`world_draw3d`, **3D/hybrid physics**, **borrow checking**, sprite-sheet animation, **Code Search**, scripts/`on_trigger_exit`, desktop LSP, assets)\n- **Project-aware chat:** open file path + contents, Monaco selection, and recent diagnostics are injected into the prompt\n- **No cloud API** — weights download ",
+      "text": "# Optional AI assistant\n\nThe Juni IDE can run a **fully optional**, **off-by-default** local coding assistant in the browser:\n\n- **Engine:** [WebLLM](https://github.com/mlc-ai/web-llm) (WebGPU)\n- **Default model:** Qwen2.5-Coder-1.5B-Instruct (MLC q4) \u2014 best Juni grounding for the download size\n- **Picker:** Coder 1.5B (default), Coder 3B (stronger, larger), Instruct 1.5B (general chat)\n- **RAG grounding:** curated keyword chunks + optional `ai-docs-index.json` over Juni docs (ECS, 3D/`world_draw3d`, **3D/hybrid physics**, **borrow checking**, sprite-sheet animation, **Code Search**, scripts/`on_trigger_exit`, desktop LSP, assets)\n- **Project-aware chat:** open file path + contents, Monaco selection, and recent diagnostics are injected into the prompt\n- **No cloud API** \u2014 weights download ",
       "keywords": [
         "optional",
         "assistant",
@@ -893,7 +893,7 @@
       "id": "projects/cat-coffee.md#0",
       "title": "Appearance themes & Cat Coffee",
       "path": "projects/cat-coffee.md",
-      "text": "# Appearance themes & Cat Coffee\n\nThe Juni IDE ships a small set of **appearance themes** and a playful **Cat Coffee** side panel (v9.0).\n\n## Appearance\n\nOpen **Settings** → **UI appearance**. Themes:\n\n| Id | Feel |\n|----|------|\n| Classic | Warm parchment (default) |\n| Modern | Cool dark chrome + rearranged workspace |\n| Cosmic | Deep space with soft teal/blue nebula accents |\n| Froggy | Leafy greens / pond |\n| Berryland | Berry jam pinks, kept readable |\n| Basic | High-contrast neutral |\n| Hacker | Terminal green on near-black |\n\nUnknown or legacy values migrate to **Classic**. Preference is stored in `localStorage` (`juni.ui.appearance`).\n\n## Cat Coffee\n\nToolbar **Cat Coffee** opens a panel like Settings:\n\n- **Cat Coins** mint when **Run** / compile succeeds with **0 errors**\n- Award ≈ ",
+      "text": "# Appearance themes & Cat Coffee\n\nThe Juni IDE ships a small set of **appearance themes** and a playful **Cat Coffee** side panel (v9.0).\n\n## Appearance\n\nOpen **Settings** \u2192 **UI appearance**. Themes:\n\n| Id | Feel |\n|----|------|\n| Classic | Warm parchment (default) |\n| Modern | Cool dark chrome + rearranged workspace |\n| Cosmic | Deep space with soft teal/blue nebula accents |\n| Froggy | Leafy greens / pond |\n| Berryland | Berry jam pinks, kept readable |\n| Basic | High-contrast neutral |\n| Hacker | Terminal green on near-black |\n\nUnknown or legacy values migrate to **Classic**. Preference is stored in `localStorage` (`juni.ui.appearance`).\n\n## Cat Coffee\n\nToolbar **Cat Coffee** opens a panel like Settings:\n\n- **Cat Coins** mint when **Run** / compile succeeds with **0 errors**\n- Award \u2248 ",
       "keywords": [
         "appearance",
         "themes",
@@ -925,7 +925,7 @@
       "id": "projects/cloudflare.md#0",
       "title": "Deploy to Cloudflare Workers",
       "path": "projects/cloudflare.md",
-      "text": "# Deploy to Cloudflare Workers\n\nHost the **Juni IDE** as a static SPA on [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) (git-connected **Workers Builds**). Root [`wrangler.toml`](../../wrangler.toml) points assets at `ide/dist` with SPA `not_found_handling`.\n\n## Dashboard build settings\n\nWorker name: **`juno`** (or match `name` in `wrangler.toml`).\n\n| Setting | Value |\n|--------|--------|\n| Root directory | `/` (repo root) |\n| Build command | `(cp -f sitemap.xml ide/public/sitemap.xml \\|\\| true) && cd ide && npm install && npm run build` |\n| Deploy command | `npx wrangler deploy` |\n| Preview deploy | `npx wrangler versions upload` (default is fine) |\n\n**Do not** use `wrangler pages deploy` or `npm run build:wasm` on Cloudflare CI — `wasm-pack` is not install",
+      "text": "# Deploy to Cloudflare Workers\n\nHost the **Juni IDE** as a static SPA on [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) (git-connected **Workers Builds**). Root [`wrangler.toml`](../../wrangler.toml) points assets at `ide/dist` with SPA `not_found_handling`.\n\n## Dashboard build settings\n\nWorker name: **`juno`** (or match `name` in `wrangler.toml`).\n\n| Setting | Value |\n|--------|--------|\n| Root directory | `/` (repo root) |\n| Build command | `(cp -f sitemap.xml ide/public/sitemap.xml \\|\\| true) && cd ide && npm install && npm run build` |\n| Deploy command | `npx wrangler deploy` |\n| Preview deploy | `npx wrangler versions upload` (default is fine) |\n\n**Do not** use `wrangler pages deploy` or `npm run build:wasm` on Cloudflare CI \u2014 `wasm-pack` is not install",
       "keywords": [
         "deploy",
         "cloudflare",
@@ -975,7 +975,7 @@
       "id": "projects/cloudflare.md#2",
       "title": "first time: npx wrangler login",
       "path": "projects/cloudflare.md",
-      "text": "# first time: npx wrangler login\n```\n\n## SPA / download hub\n\nSPA fallback is set in `wrangler.toml` via `assets.not_found_handling = \"single-page-application\"`.  \n[`ide/public/_redirects`](../../ide/public/_redirects) only handles `/download` (do **not** add a `/* → /index.html` rule — Workers rejects it as an infinite loop).\n\n## Alongside Netlify\n\nNetlify can stay on `*.netlify.app`; point your custom domain at Cloudflare when ready. Both can build from the same `main` push.",
+      "text": "# first time: npx wrangler login\n```\n\n## SPA / download hub\n\nSPA fallback is set in `wrangler.toml` via `assets.not_found_handling = \"single-page-application\"`.  \n[`ide/public/_redirects`](../../ide/public/_redirects) only handles `/download` (do **not** add a `/* \u2192 /index.html` rule \u2014 Workers rejects it as an infinite loop).\n\n## Alongside Netlify\n\nNetlify can stay on `*.netlify.app`; point your custom domain at Cloudflare when ready. Both can build from the same `main` push.",
       "keywords": [
         "first",
         "time",
@@ -1007,7 +1007,7 @@
       "id": "projects/desktop.md#0",
       "title": "Desktop IDE",
       "path": "projects/desktop.md",
-      "text": "# Desktop IDE\n\nJuni ships a **Tauri 2** desktop shell around the same Vite + Monaco IDE used in the browser. On desktop, project open/save and language services use native filesystem + `juni-lsp` instead of browser Folder Access / WASM completion-lite.\n\n## Location\n\n```\ndesktop/\n  package.json\n  app-icon.png          # source for `tauri icon`\n  src-tauri/\n    tauri.conf.json\n    icons/              # platform icons (png / icns / ico)\n```\n\n## Development\n\n```bash\ncd ide && npm install && npm run build:wasm\ncd ../desktop && npm install && npm run dev\n```\n\n`tauri dev` starts the IDE dev server and opens a native window with folder-picker integration.\n\n## Features\n\n- Native **Open Project** via `tauri-plugin-dialog`\n- **Reliable project FS** — `load_project_files` / `read_project_file` / `writ",
+      "text": "# Desktop IDE\n\nJuni ships a **Tauri 2** desktop shell around the same Vite + Monaco IDE used in the browser. On desktop, project open/save and language services use native filesystem + `juni-lsp` instead of browser Folder Access / WASM completion-lite.\n\n## Location\n\n```\ndesktop/\n  package.json\n  app-icon.png          # source for `tauri icon`\n  src-tauri/\n    tauri.conf.json\n    icons/              # platform icons (png / icns / ico)\n```\n\n## Development\n\n```bash\ncd ide && npm install && npm run build:wasm\ncd ../desktop && npm install && npm run dev\n```\n\n`tauri dev` starts the IDE dev server and opens a native window with folder-picker integration.\n\n## Features\n\n- Native **Open Project** via `tauri-plugin-dialog`\n- **Reliable project FS** \u2014 `load_project_files` / `read_project_file` / `writ",
       "keywords": [
         "desktop",
         "juni",
@@ -1039,7 +1039,7 @@
       "id": "projects/export-web.md#0",
       "title": "Export for web",
       "path": "projects/export-web.md",
-      "text": "# Export for web\n\nShip a Juni **game** as a self-contained static folder or ZIP (itch HTML, Netlify, GitHub Pages, drag-and-drop hosts).\n\nThe export always includes the Juni JS runtime under `./runtime/` and uses **relative** asset paths (`./play.js`, `./runtime/browser.js`) so itch embeds and nested publish URLs work.\n\n## IDE\n\n1. Open a `juni.toml` project\n2. Click **Export Web**\n3. Save the downloaded `*-web.zip`\n\nThe ZIP is complete — unzip and serve, or upload the ZIP to itch as an HTML game. You do **not** need to copy `runtime/dist` yourself.\n\nContents:\n\n| Path | Role |\n|------|------|\n| `index.html` | Canvas shell |\n| `play.js` | Loads WASM + assets, starts the frame loop |\n| `game.wasm.json` | Base64 WASM + embedded asset pack |\n| `runtime/*.js` | Juni browser runtime (ESM) |\n| `ne",
+      "text": "# Export for web\n\nShip a Juni **game** as a self-contained static folder or ZIP (itch HTML, Netlify, GitHub Pages, drag-and-drop hosts).\n\nThe export always includes the Juni JS runtime under `./runtime/` and uses **relative** asset paths (`./play.js`, `./runtime/browser.js`) so itch embeds and nested publish URLs work.\n\n## IDE\n\n1. Open a `juni.toml` project\n2. Click **Export Web**\n3. Save the downloaded `*-web.zip`\n\nThe ZIP is complete \u2014 unzip and serve, or upload the ZIP to itch as an HTML game. You do **not** need to copy `runtime/dist` yourself.\n\nContents:\n\n| Path | Role |\n|------|------|\n| `index.html` | Canvas shell |\n| `play.js` | Loads WASM + assets, starts the frame loop |\n| `game.wasm.json` | Base64 WASM + embedded asset pack |\n| `runtime/*.js` | Juni browser runtime (ESM) |\n| `ne",
       "keywords": [
         "export",
         "ship",
@@ -1154,39 +1154,39 @@
       "id": "projects/licensing.md#0",
       "title": "Licensing",
       "path": "projects/licensing.md",
-      "text": "# Licensing\n\nJuni / Juno uses a clear split:\n\n| What | Terms |\n|------|--------|\n| **Source code** in this repository | [Apache License 2.0](../../LICENSE) only |\n| **Distributed IDE / apps** (web IDE, desktop installers, PWA) | [EULA](../../EULA.md) **and** Apache-2.0 for the underlying source |\n\nIn the IDE:\n\n1. **First launch** — accept the EULA (stored locally as `juni.eula.accepted.v1`).\n2. **Settings → Legal** — open the full EULA or Apache License.\n3. **Credits** — includes a short license summary.\n\nYour Juni projects and games remain yours (see EULA).",
+      "text": "# Licensing\n\nJuni / Juno uses the **Juni Software License and Commercial Contract 1.0** (a modified [PolyForm Small Business License 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0)) plus an EULA for distributed apps. Together they form a **binding contract** on download, install, use, or IDE acceptance.\n\n| What | Terms |\n|------|--------|\n| **Source code** and official builds | [LICENSE](../../LICENSE) |\n| **Distributed IDE / apps** | [EULA](../../EULA.md) **and** [LICENSE](../../LICENSE) |\n\n### Free vs paid\n\n| Who | Cost |\n|-----|------|\n| Personal / hobby | Free |\n| Company under Small Business limits (&lt;100 workers, &lt;$1M USD 2019 CPI-adjusted prior-year revenue) | Free |\n| Company above those limits | **USD $200 / month**, paid directly to Alexander James Patton (",
       "keywords": [
         "licensing",
         "juni",
         "juno",
         "uses",
-        "clear",
-        "split",
-        "what",
-        "terms",
-        "source",
-        "code",
-        "this",
-        "repository",
-        "apache",
+        "software",
         "license",
-        "only",
+        "commercial",
+        "contract",
+        "modified",
+        "polyform",
+        "small",
+        "business",
+        "https",
+        "polyformproject",
+        "licenses",
+        "plus",
+        "eula",
         "distributed",
         "apps",
-        "desktop",
-        "installers",
-        "eula",
-        "underlying",
-        "first",
-        "launch",
-        "accept"
+        "together",
+        "they",
+        "form",
+        "binding",
+        "download"
       ]
     },
     {
       "id": "projects/netlify.md#0",
       "title": "Deploy to Netlify",
       "path": "projects/netlify.md",
-      "text": "# Deploy to Netlify\n\nHost the **Juni IDE** (or a game export) as a static site on [Netlify](https://www.netlify.com/).\n\n## IDE (recommended)\n\nThe repo root [`netlify.toml`](../../netlify.toml) builds the flat canonical IDE:\n\n| Setting | Value |\n|---------|--------|\n| Base directory | *(empty)* |\n| Build command | `cd ide && npm install && npm run build` (see `netlify.toml`) |\n| Publish directory | `ide/dist` |\n| Asset base path | `/` (default Vite base) |\n\nRequires root `ide/package.json` (the standard clone layout).\n\n### Connect the repo\n\n1. New site → Import from Git → this repository\n2. Netlify reads `netlify.toml` automatically\n3. Deploy\n\nOr CLI from a full local clone:\n\n```bash",
+      "text": "# Deploy to Netlify\n\nHost the **Juni IDE** (or a game export) as a static site on [Netlify](https://www.netlify.com/).\n\n## IDE (recommended)\n\nThe repo root [`netlify.toml`](../../netlify.toml) builds the flat canonical IDE:\n\n| Setting | Value |\n|---------|--------|\n| Base directory | *(empty)* |\n| Build command | `cd ide && npm install && npm run build` (see `netlify.toml`) |\n| Publish directory | `ide/dist` |\n| Asset base path | `/` (default Vite base) |\n\nRequires root `ide/package.json` (the standard clone layout).\n\n### Connect the repo\n\n1. New site \u2192 Import from Git \u2192 this repository\n2. Netlify reads `netlify.toml` automatically\n3. Deploy\n\nOr CLI from a full local clone:\n\n```bash",
       "keywords": [
         "deploy",
         "netlify",
@@ -1250,7 +1250,7 @@
       "id": "projects/netlify.md#2",
       "title": "commit ide/public/pkg, then push",
       "path": "projects/netlify.md",
-      "text": "# commit ide/public/pkg, then push\n```\n\nGitHub Pages CI still runs `build:wasm` on every deploy — see [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml).\n\n### SPA redirects\n\n`netlify.toml` includes a `/* → /index.html` rewrite so refreshes on deep paths still serve the IDE shell. If you add a root `sitemap.xml`, the build copies it into `ide/public` so `/sitemap.xml` is a real static file (not swallowed by the SPA rewrite).\n\n---\n\n## Game export on Netlify\n\n1. In the IDE, open a `juni.toml` project → **Export Web** (downloads a self-contained `*-web.zip` with `runtime/` included), **or** run `juni export-web` (writes `dist/web/` with runtime copied).\n2. Unzip if needed. Create a Netlify site with **publish directory** = that folder (no build command), **or** drag-and-drop th",
+      "text": "# commit ide/public/pkg, then push\n```\n\nGitHub Pages CI still runs `build:wasm` on every deploy \u2014 see [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml).\n\n### SPA redirects\n\n`netlify.toml` includes a `/* \u2192 /index.html` rewrite so refreshes on deep paths still serve the IDE shell. If you add a root `sitemap.xml`, the build copies it into `ide/public` so `/sitemap.xml` is a real static file (not swallowed by the SPA rewrite).\n\n---\n\n## Game export on Netlify\n\n1. In the IDE, open a `juni.toml` project \u2192 **Export Web** (downloads a self-contained `*-web.zip` with `runtime/` included), **or** run `juni export-web` (writes `dist/web/` with runtime copied).\n2. Unzip if needed. Create a Netlify site with **publish directory** = that folder (no build command), **or** drag-and-drop th",
       "keywords": [
         "commit",
         "public",
@@ -1282,7 +1282,7 @@
       "id": "projects/physics.md#0",
       "title": "Physics",
       "path": "projects/physics.md",
-      "text": "# Physics\n\nJuni ships 2D and 3D physics that **coexist** in the same `world_step`. The 2D solver always runs first; the 3D AABB solver runs after. Contacts from both share one `collision_*` buffer and the same script events.\n\n## Modes\n\n| Mode | Components | Notes |\n|------|------------|--------|\n| **Pure 2D** | `transform2d` + `rigidbody2d` + `collider2d` | Existing platformer / paddle path — unchanged |\n| **Pure 3D** | `transform3d` + `rigidbody3d` + `collider3d` | AABB only (`kind` / `type`: `aabb`); gravity pulls −Y |\n| **Hybrid** | 2D phys + `transform3d` / `mesh3d` | After 2D step, host syncs `x,y` → `tx,ty` (keeps `tz`) for entities with 2D transform and 3D pose/mesh but **no** `rigidbody3d` |\n\nDo not put both `rigidbody2d` and `rigidbody3d` on the same entity — hybrid means **2D phy",
+      "text": "# Physics\n\nJuni ships 2D and 3D physics that **coexist** in the same `world_step`. The 2D solver always runs first; the 3D AABB solver runs after. Contacts from both share one `collision_*` buffer and the same script events.\n\n## Modes\n\n| Mode | Components | Notes |\n|------|------------|--------|\n| **Pure 2D** | `transform2d` + `rigidbody2d` + `collider2d` | Existing platformer / paddle path \u2014 unchanged |\n| **Pure 3D** | `transform3d` + `rigidbody3d` + `collider3d` | AABB only (`kind` / `type`: `aabb`); gravity pulls \u2212Y |\n| **Hybrid** | 2D phys + `transform3d` / `mesh3d` | After 2D step, host syncs `x,y` \u2192 `tx,ty` (keeps `tz`) for entities with 2D transform and 3D pose/mesh but **no** `rigidbody3d` |\n\nDo not put both `rigidbody2d` and `rigidbody3d` on the same entity \u2014 hybrid means **2D phy",
       "keywords": [
         "physics",
         "juni",
@@ -1312,9 +1312,9 @@
     },
     {
       "id": "projects/physics.md#1",
-      "title": "Authoring sketch — 2D body, 3D mesh",
+      "title": "Authoring sketch \u2014 2D body, 3D mesh",
       "path": "projects/physics.md",
-      "text": "# Authoring sketch — 2D body, 3D mesh",
+      "text": "# Authoring sketch \u2014 2D body, 3D mesh",
       "keywords": [
         "authoring",
         "sketch",
@@ -1326,7 +1326,7 @@
       "id": "projects/physics.md#2",
       "title": "transform2d + rigidbody2d + collider2d + transform3d + mesh3d",
       "path": "projects/physics.md",
-      "text": "# transform2d + rigidbody2d + collider2d + transform3d + mesh3d\nfn frame(dt: f32) -> i32:\n    rigidbody2d_set_vel(player, vx, jump_or_sentinel)\n    world_step(dt)\n    world_draw3d(cam)\n    return 0\n```\n\n## Aabb struct (legacy 2D helpers)\n\n```juni\nstruct Aabb:\n    x: f32\n    y: f32\n    w: f32\n    h: f32\n```\n\n## Intrinsics\n\n| Function | Description |\n|----------|-------------|\n| `aabb_overlap` / `aabb_resolve_x` / `aabb_resolve_y` | Legacy AABB helpers |\n| `world_step(dt)` | 2D phys → hybrid sync → 3D phys → scripts |\n| `rigidbody2d_set_vel` / `rigidbody2d_get_grounded` | 2D body |\n| `collider2d_set(id, kind, w, h, radius, solid)` | kind `0`=aabb, `1`=circle |\n| `rigidbody3d_set_vel(id, vx, vy, vz)` | 3D body (`1e6` sentinel keeps current `vy`/`vz`) |\n| `rigidbody3d_get_grounded(id)` | 3D gr",
+      "text": "# transform2d + rigidbody2d + collider2d + transform3d + mesh3d\nfn frame(dt: f32) -> i32:\n    rigidbody2d_set_vel(player, vx, jump_or_sentinel)\n    world_step(dt)\n    world_draw3d(cam)\n    return 0\n```\n\n## Aabb struct (legacy 2D helpers)\n\n```juni\nstruct Aabb:\n    x: f32\n    y: f32\n    w: f32\n    h: f32\n```\n\n## Intrinsics\n\n| Function | Description |\n|----------|-------------|\n| `aabb_overlap` / `aabb_resolve_x` / `aabb_resolve_y` | Legacy AABB helpers |\n| `world_step(dt)` | 2D phys \u2192 hybrid sync \u2192 3D phys \u2192 scripts |\n| `rigidbody2d_set_vel` / `rigidbody2d_get_grounded` | 2D body |\n| `collider2d_set(id, kind, w, h, radius, solid)` | kind `0`=aabb, `1`=circle |\n| `rigidbody3d_set_vel(id, vx, vy, vz)` | 3D body (`1e6` sentinel keeps current `vy`/`vz`) |\n| `rigidbody3d_get_grounded(id)` | 3D gr",
       "keywords": [
         "transform2d",
         "rigidbody2d",
@@ -1358,7 +1358,7 @@
       "id": "projects/tutorials.md#0",
       "title": "Visual tutorials",
       "path": "projects/tutorials.md",
-      "text": "# Visual tutorials\n\nThe Juni IDE includes a **Tutorials** panel (next to Docs) with screenshot-style lessons, captions, and spoken narration.\n\n## In the IDE\n\n1. Click **Tutorials** in the toolbar.\n2. Pick a lesson from the dropdown.\n3. Use **Prev** / **Next** (or ← / →) to move through steps.\n4. **Speak** plays narration; **Stop** cancels it.\n\n### Narration\n\n- If `step-N.mp3` (or a step’s `audio` override such as `step-1.wav`) exists beside the step image, the player plays that file.\n- Otherwise it uses the browser `speechSynthesis` API with the step’s `narration` text (works offline after the IDE loads).\n- **Ship a game** ships a tiny `step-1.wav` sample so Speak has a committed audio path; remaining steps use `speechSynthesis` unless you generate MP3s.\n\n## Lesson pack format\n\nPacks live ",
+      "text": "# Visual tutorials\n\nThe Juni IDE includes a **Tutorials** panel (next to Docs) with screenshot-style lessons, captions, and spoken narration.\n\n## In the IDE\n\n1. Click **Tutorials** in the toolbar.\n2. Pick a lesson from the dropdown.\n3. Use **Prev** / **Next** (or \u2190 / \u2192) to move through steps.\n4. **Speak** plays narration; **Stop** cancels it.\n\n### Narration\n\n- If `step-N.mp3` (or a step\u2019s `audio` override such as `step-1.wav`) exists beside the step image, the player plays that file.\n- Otherwise it uses the browser `speechSynthesis` API with the step\u2019s `narration` text (works offline after the IDE loads).\n- **Ship a game** ships a tiny `step-1.wav` sample so Speak has a committed audio path; remaining steps use `speechSynthesis` unless you generate MP3s.\n\n## Lesson pack format\n\nPacks live ",
       "keywords": [
         "visual",
         "tutorials",
@@ -1390,7 +1390,7 @@
       "id": "tutorials/platformer.md#0",
       "title": "Build a 2D platformer",
       "path": "tutorials/platformer.md",
-      "text": "# Build a 2D platformer\n\nWalk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../examples/projects/platformer).\n\nOpen the [Juni IDE](https://jkengine.netlify.app/) (Chrome works best) or follow along in the desktop app.\n\nRelated: [Making a level](../engine/level.md), [`.jscene` scenes](../engine/jscene.md), [Entity scripts](../engine/scripts.md), [Visual editor](../engine/editor.md), [Physics](../projects/physics.md). For screenshot lessons in the IDE, see [Visual tutorials](../projects/tutorials.md).\n\n## What you will build\n\n- A `.jscene` with camera, ground, player, platform, and goal\n- `main` that loads the scene, wires tags, and sets a sprite\n- `frame` that reads input, applies veloc",
+      "text": "# Build a 2D platformer\n\nWalk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../examples/projects/platformer).\n\nOpen the [Juni IDE](https://junoengine.netlify.app/) (Chrome works best) or follow along in the desktop app.\n\nRelated: [Making a level](../engine/level.md), [`.jscene` scenes](../engine/jscene.md), [Entity scripts](../engine/scripts.md), [Visual editor](../engine/editor.md), [Physics](../projects/physics.md). For screenshot lessons in the IDE, see [Visual tutorials](../projects/tutorials.md).\n\n## What you will build\n\n- A `.jscene` with camera, ground, player, platform, and goal\n- `main` that loads the scene, wires tags, and sets a sprite\n- `frame` that reads input, applies veloc",
       "keywords": [
         "build",
         "platformer",
@@ -1411,7 +1411,7 @@
         "projects",
         "open",
         "https",
-        "jkengine",
+        "junoengine",
         "netlify",
         "chrome",
         "works",
@@ -1422,7 +1422,7 @@
       "id": "webgpu/runtime.md#0",
       "title": "WebGPU runtime",
       "path": "webgpu/runtime.md",
-      "text": "# WebGPU runtime\n\n## Imports\n\n| Import | Role |\n|--------|------|\n| `env.gpu_clear` / `gpu_draw_triangle` | v2 colored triangle sample |\n| `env.scene3d_*` / `camera3d_*` / `mesh3d_*` | v3 small 3D API |\n| `env.sin_f32` … `now_f32` | Math helpers |\n| `env.key_down` / `mouse_*` | Input polling |\n\n## Frame loop\n\nIf the module exports `frame(dt: f32)`, the IDE runs it every animation frame after `main`. Return nonzero to stop.\n\n## CLI\n\nNode stubs GPU and input. Use the browser IDE for real draws and keys.",
+      "text": "# WebGPU runtime\n\n## Imports\n\n| Import | Role |\n|--------|------|\n| `env.gpu_clear` / `gpu_draw_triangle` | v2 colored triangle sample |\n| `env.scene3d_*` / `camera3d_*` / `mesh3d_*` | v3 small 3D API |\n| `env.sin_f32` \u2026 `now_f32` | Math helpers |\n| `env.key_down` / `mouse_*` | Input polling |\n\n## Frame loop\n\nIf the module exports `frame(dt: f32)`, the IDE runs it every animation frame after `main`. Return nonzero to stop.\n\n## CLI\n\nNode stubs GPU and input. Use the browser IDE for real draws and keys.",
       "keywords": [
         "webgpu",
         "runtime",

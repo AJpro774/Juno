@@ -2,6 +2,30 @@
 
 All notable changes to Juni are documented here.
 
+## [12.0.0] — 2026-07-24
+
+License contract, permanent provenance, Android APK pipeline, and Kuni nested in the hosted IDE.
+
+### License / legal
+- Adopt **Juni Software License and Commercial Contract 1.0** (modified PolyForm Small Business) + updated EULA
+- Docs/README/CREDITS describe free Small Business tier and **USD $200/mo** commercial license above that
+
+### Provenance
+- Embed `juni.notice` WASM custom section + producers metadata from codegen
+- Project `JUNI.NOTICE` / export notices and runtime Required Notice header
+
+### Android / release
+- Bubblewrap TWA APK workflow uploads to GitHub Releases (version from tag / `ide/package.json`)
+- TWA manifest brand version → **12.0.0** (`appVersionCode` 12000)
+
+### IDE / Kuni
+- App switcher and promo rail for **Juni** + **Kuni** (nested Vite build under `/kuni/`)
+- Netlify routing for Kuni; wasm init `BASE_URL` fix; layout-resize console noise fix
+- Platformer tutorial / Cat Coffee polish from recent IDE work
+
+### Release
+- Brand / package / desktop versions → **12.0.0**
+
 ## [11.0.0] — 2026-07-20
 
 Language harden: runtime bounds traps, safer `str_substr`, named borrow diagnostics, `array_len`.

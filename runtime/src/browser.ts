@@ -1,4 +1,8 @@
-/** Browser-facing Juni runtime: wires canvas, input, and WebGPU hosts. */
+/** Browser-facing Juni runtime: wires canvas, input, and WebGPU hosts.
+ *
+ * Required Notice: Copyright © 2026 Alexander James Patton (AJpro774) — Juni / Juno under the Juni Software License and Commercial Contract 1.0
+ * Built with Juni
+ */
 
 import { createCanvasHandlers, createGpuHandlers } from "./canvas.js";
 import { createEnvImports } from "./env.js";
@@ -154,5 +158,8 @@ export async function instantiateJuni(
       : (result as WebAssembly.Instance);
   envMemoryRef.current = instance.exports.memory as WebAssembly.Memory;
   bindScriptWasm(instance.exports);
+  write(
+    "Required Notice: Copyright © 2026 Alexander James Patton (AJpro774) — Juni / Juno under the Juni Software License and Commercial Contract 1.0"
+  );
   return instance;
 }

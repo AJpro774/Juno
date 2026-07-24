@@ -57,6 +57,57 @@ body {
   gap: 0.55rem;
 }
 
+.brand-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.app-switch {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  overflow: hidden;
+  background: var(--editor-bg);
+}
+
+.app-switch-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.38rem 0.7rem;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.app-switch-btn:hover {
+  color: var(--ink);
+  background: rgba(15, 110, 86, 0.08);
+}
+
+.app-switch-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.app-switch-btn + .app-switch-btn {
+  border-left: 1px solid var(--line);
+}
+
+.app-switch-btn.is-active + .app-switch-btn,
+.app-switch-btn + .app-switch-btn.is-active {
+  border-left-color: transparent;
+}
+
 .brand-mark {
   font-size: clamp(1.85rem, 3vw, 2.5rem);
   font-weight: 800;

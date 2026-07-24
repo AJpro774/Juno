@@ -1,4 +1,4 @@
-/** Apache-2.0 + EULA texts and first-run acceptance. */
+/** Juni Software License / Commercial Contract + EULA; first-run acceptance. */
 
 import licenseMd from "../../LICENSE?raw";
 import eulaMd from "../../EULA.md?raw";
@@ -6,8 +6,8 @@ import eulaMd from "../../EULA.md?raw";
 export const LICENSE_MARKDOWN = licenseMd;
 export const EULA_MARKDOWN = eulaMd;
 
-/** Bump when EULA terms change meaningfully (forces re-accept). */
-export const EULA_ACCEPTANCE_VERSION = "1";
+/** Bump when EULA/LICENSE terms change meaningfully (forces re-accept). */
+export const EULA_ACCEPTANCE_VERSION = "3";
 
 const STORAGE_KEY = `juni.eula.accepted.v${EULA_ACCEPTANCE_VERSION}`;
 
@@ -29,12 +29,14 @@ export function acceptEula(): void {
 }
 
 export function legalSummaryMarkdown(): string {
-  return `## License & EULA
+  return `## License & EULA (binding contract)
 
-- **Source code** is licensed under the **Apache License 2.0** only (see repository \`LICENSE\`).
-- **Distributed Juni IDE / runtime apps** (web, desktop installers, PWA) are also subject to the **End User License Agreement** (\`EULA.md\`).
-- Your Juni projects and games remain **yours**.
+- **Juni / Juno** is under the **Juni Software License and Commercial Contract 1.0** (modified PolyForm Small Business 1.0.0) — see \`LICENSE\`.
+- **Distributed IDE / apps** are also subject to the **EULA** (\`EULA.md\`).
+- **Free** for personal/hobby and Small Business (&lt;100 workers, &lt;$1M USD 2019 CPI-adjusted prior-year revenue).
+- **Above that:** **USD $200/month** paid directly to Alexander James Patton (AJpro774) — mandatory.
+- Your projects/games remain **yours** (export exception in \`LICENSE\`).
 
-Open **Settings → Legal** to read the full texts, or use the Credits panel shortcuts.
+Open **Settings → Legal** for full texts.
 `;
 }

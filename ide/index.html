@@ -36,9 +36,15 @@
   <body>
     <div id="app" data-ui="classic">
       <header class="top">
-        <div class="brand">
-          <span class="brand-mark">Juni</span>
-          <span class="brand-tag">v11</span>
+        <div class="brand-cluster">
+          <div class="brand">
+            <span class="brand-mark">Juni</span>
+            <span class="brand-tag">v12</span>
+          </div>
+          <nav class="app-switch" aria-label="Switch app">
+            <a class="app-switch-btn is-active" href="/" aria-current="page">Juni</a>
+            <a class="app-switch-btn" href="/kuni/">Kuni</a>
+          </nav>
         </div>
         <div class="actions">
           <div class="action-group action-primary">
@@ -133,18 +139,18 @@
                   <span class="promo-app-name">Juni</span>
                   <span class="promo-app-desc">IDE · Desktop · APK</span>
                 </a>
-                <span
-                  class="promo-app is-soon"
+                <a
+                  class="promo-app"
                   role="listitem"
-                  title="Kuni — AI chatbot (coming soon)"
-                  aria-disabled="true"
+                  href="/kuni/"
+                  title="Kuni — local AI chatbot on KunoEngine (WebLLM + WASM)"
                 >
                   <span class="promo-app-name">Kuni</span>
-                  <span class="promo-app-desc">AI chatbot · Soon</span>
-                </span>
+                  <span class="promo-app-desc">AI · FP8 · 6GB</span>
+                </a>
               </div>
               <p class="promo-copy promo-copy-aside">
-                Ecosystem from the same creator — Juni ships now; Kuni is next.
+                Ecosystem from the same creator — Juni IDE and Kuni chat.
               </p>
               <a class="promo-cta" href="/download/" data-asset-banner="android-apk">Get Juni</a>
               <a class="promo-link" href="/download/#android-apk">APK</a>

@@ -1,0 +1,14 @@
+{
+  "name": "kuni-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:web": "cd .. && npm ci && npm run build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.4.0"
+  }
+}

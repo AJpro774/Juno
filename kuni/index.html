@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kuni — local AI on KunoEngine</title>
+    <meta
+      name="description"
+      content="Kuni is a local AI chatbot built on KunoEngine — WebLLM + WASM, FP8 · 6GB profile. Private by default."
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#0f6e56" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kuni" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-128.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <header class="top">
+        <div class="brand-cluster">
+          <div class="brand">
+            <span class="brand-mark">Kuni</span>
+            <span class="brand-tag">Chat</span>
+          </div>
+          <nav class="app-switch" aria-label="Switch app">
+            <a class="app-switch-btn" href="/">Juni</a>
+            <a class="app-switch-btn is-active" href="/kuni/" aria-current="page">Kuni</a>
+          </nav>
+        </div>
+        <div class="actions">
+          <span id="engine-status" class="engine-status" aria-live="polite">Idle</span>
+          <a class="ghost tight" id="link-download" href="./download/">Download</a>
+          <button type="button" id="btn-load" class="run tight">Load model</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <aside class="side-pane" aria-label="Sessions">
+          <div class="pane-head-light">Sessions</div>
+          <div class="side-actions">
+            <button type="button" id="btn-new" class="ghost tight">New chat</button>
+            <button type="button" id="btn-clear" class="ghost tight">Clear</button>
+          </div>
+          <ul id="session-list" class="session-list"></ul>
+          <div class="side-foot">
+            <label class="model-label">
+              Model
+              <select id="model-select"></select>
+            </label>
+            <p id="model-note" class="model-note"></p>
+            <p class="engine-blurb">
+              Powered by <strong>KunoEngine</strong> — WebLLM + WASM, local WebGPU.
+              Default profile: <strong>FP8 · 6GB</strong>.
+            </p>
+          </div>
+        </aside>
+
+        <main class="chat-stage">
+          <div class="chat-head">
+            <div>
+              <h1 class="chat-title">Talk to Kuni</h1>
+              <p class="chat-sub">Runs on your device. Nothing leaves the browser.</p>
+            </div>
+            <button type="button" id="btn-cancel" class="ghost tight" hidden>Cancel</button>
+          </div>
+
+          <div id="progress" class="ai-progress" hidden></div>
+
+          <div id="chat-log" class="ai-chat-log" aria-live="polite"></div>
+
+          <form id="compose" class="ai-compose">
+            <textarea
+              id="prompt"
+              rows="2"
+              placeholder="Message Kuni…"
+              autocomplete="off"
+            ></textarea>
+            <button type="submit" id="btn-send" class="run">Send</button>
+          </form>
+        </main>
+      </div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

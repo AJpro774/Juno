@@ -1,3 +1,8 @@
+import {
+  ensureJuniTomlProvenance,
+  juniNoticeFileBody,
+} from "./juni-notice";
+
 export type ProjectFile = {
   path: string;
   content: string;
@@ -62,8 +67,40 @@ function cloneProject(project: ProjectState): ProjectState {
   return { ...project, files };
 }
 
+/** Ensure juni.toml + JUNI.NOTICE carry Required Notice (mutates in place). */
+export function ensureProjectProvenance(project: ProjectState): boolean {
+  let changed = false;
+  const toml = project.files.get("juni.toml");
+  if (toml) {
+    const next = ensureJuniTomlProvenance(toml.content);
+    if (next.changed) {
+      toml.content = next.content;
+      toml.dirty = true;
+      changed = true;
+    }
+  }
+  const notice = project.files.get("JUNI.NOTICE");
+  const body = juniNoticeFileBody();
+  if (!notice) {
+    project.files.set("JUNI.NOTICE", {
+      path: "JUNI.NOTICE",
+      content: body,
+      dirty: true,
+    });
+    changed = true;
+  } else if (!notice.content.includes("Required Notice:")) {
+    notice.content = body;
+    notice.dirty = true;
+    changed = true;
+  }
+  return changed;
+}
+
 export function createDemoProject(): ProjectState {
-  return cloneProject(DEMO_PROJECT);
+  const p = cloneProject(DEMO_PROJECT);
+  ensureProjectProvenance(p);
+  for (const f of p.files.values()) f.dirty = false;
+  return p;
 }
 
 /** In-memory platformer_3d vertical slice (pure 3D phys + world_draw3d). */
@@ -344,7 +381,10 @@ fn frame(dt: f32) -> i32:
 };
 
 export function createPlatformer3dDemoProject(): ProjectState {
-  return cloneProject(PLATFORMER_3D_DEMO);
+  const p = cloneProject(PLATFORMER_3D_DEMO);
+  ensureProjectProvenance(p);
+  for (const f of p.files.values()) f.dirty = false;
+  return p;
 }
 
 function parseEntryFromToml(toml: string): string | null {
@@ -373,12 +413,14 @@ export function projectFromFiles(
     });
   }
   const juniToml = projectFiles.get("juni.toml")?.content ?? "";
-  return {
+  const project: ProjectState = {
     name,
     root,
     files: projectFiles,
     entry: parseEntryFromToml(juniToml),
   };
+  ensureProjectProvenance(project);
+  return project;
 }
 
 export function projectFilePaths(project: ProjectState): string[] {

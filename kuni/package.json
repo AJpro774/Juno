@@ -1,0 +1,28 @@
+{
+  "name": "kuni",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Kuni — local AI chatbot on KunoEngine (WebLLM + WASM)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:nested": "tsc && KUNI_BASE=/kuni/ vite build",
+    "preview": "vite preview",
+    "desktop:dev": "npm --prefix desktop run dev",
+    "desktop:build": "npm --prefix desktop run build",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.84",
+    "marked": "^15.0.12"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/cli": "^7.2.0",
+    "@capacitor/core": "^7.2.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
+  }
+}

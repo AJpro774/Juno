@@ -25,6 +25,7 @@ import { renderFileTree } from "./file-tree";
 import {
   buildCompilePayload,
   createPlatformer3dDemoProject,
+  ensureProjectProvenance,
   isProjectMode,
   openProjectFromFileInput,
   openProjectFromPicker,
@@ -744,12 +745,28 @@ function refreshFileTree() {
 }
 
 function loadProject(next: ProjectState, focusPath?: string | null) {
+  const stamped = ensureProjectProvenance(next);
   project = next;
   examplesSel.value = "";
   tabEditor?.loadProject(next, focusPath);
   refreshFileTree();
   clearConsole();
   logLine(`Loaded project "${next.name}".`, "meta");
+  if (stamped) {
+    logLine("Packed Juni provenance into juni.toml / JUNI.NOTICE.", "meta");
+    for (const path of ["juni.toml", "JUNI.NOTICE"] as const) {
+      const file = next.files.get(path);
+      if (file?.dirty) {
+        void writeProjectFile(path, file.content)
+          .then(() => {
+            file.dirty = false;
+          })
+          .catch(() => {
+            /* in-memory / no writable root */
+          });
+      }
+    }
+  }
   void loadAssetPackFromProject().then(() => {
     tryLoadSceneFromProject();
     refreshEnginePanels();
@@ -836,7 +853,7 @@ function setPanel(
     const md = `${CREDITS_MARKDOWN}\n\n${legalSummaryMarkdown()}`;
     docsBody.innerHTML = marked.parse(md, { async: false }) as string;
   } else if (mode === "license") {
-    sideTitle.textContent = "Apache License 2.0";
+    sideTitle.textContent = "Juni Software License";
     docsNav.style.display = "none";
     docsBody.innerHTML = marked.parse(LICENSE_MARKDOWN, { async: false }) as string;
   } else if (mode === "eula") {
@@ -889,7 +906,7 @@ function ensureEulaAccepted(): Promise<void> {
     check.addEventListener("change", sync);
     viewLicense?.addEventListener("click", () => {
       body.innerHTML = marked.parse(
-        `${EULA_MARKDOWN}\n\n---\n\n# Apache License 2.0\n\n${LICENSE_MARKDOWN}`,
+        `${EULA_MARKDOWN}\n\n---\n\n# Juni Software License and Commercial Contract 1.0\n\n${LICENSE_MARKDOWN}`,
         { async: false },
       ) as string;
     });
@@ -1213,7 +1230,8 @@ async function main() {
     void exportWebBuild();
   });
 
-  await init();
+  const wasmUrl = `${import.meta.env.BASE_URL}pkg/juni_wasm_bg.wasm`;
+  await init({ module_or_path: wasmUrl });
   registerJuniLanguage(monaco);
   applyJuniEditorTheme(monaco, getUiAppearance());
   onUiAppearanceChange((appearance) => {
@@ -1360,8 +1378,21 @@ async function main() {
     loadScratchExample(ex);
   });
 
+  /** Enter Play so frame loops are not killed by getShouldStop (edit mode). */
+  function ensurePlayModeForRun(): void {
+    if (getEditorMode() === "play") return;
+    sceneView3d?.setActive(false);
+    editViewportIs3d = false;
+    prePlayScene = sceneStore.cloneScene();
+    if (sceneHas3d(sceneStore.getScene())) {
+      setPreviewMode("webgpu");
+    }
+    setEditorMode("play");
+  }
+
   async function run() {
     if (!tabEditor) return;
+    ensurePlayModeForRun();
     frameCtl?.stop();
     frameCtl = null;
     const gen = ++runGeneration;
@@ -1421,11 +1452,13 @@ async function main() {
 
     try {
       const bytes = b64ToBytes(result.wasm);
+      const runMode: "canvas2d" | "webgpu" =
+        previewMode === "webgpu" ? "webgpu" : "canvas2d";
       const opts: RunOptions = {
         onPrint: (text: string) => logLine(text),
         canvasEl: canvas2d,
         gpuCanvasEl: canvasGpu,
-        mode: previewMode,
+        mode: runMode,
         getShouldStop: () => gen !== runGeneration || getEditorMode() === "edit",
         assetPack: currentAssetPack,
         initialScene: getEditorMode() === "play" ? sceneStore.getScene() : null,
@@ -1439,8 +1472,15 @@ async function main() {
           return null;
         },
       };
+
       const instance = await instantiateJuni(bytes, opts);
       if (gen !== runGeneration) return;
+
+      const exports = instance.exports as WebAssembly.Exports & {
+        main?: () => number;
+        frame?: (dt: number) => number;
+      };
+
       markPreviewUsed();
       if (previewMode === "canvas2d") {
         canvas2d.hidden = false;
@@ -1449,10 +1489,6 @@ async function main() {
         canvasGpu.hidden = false;
         canvasGpu.style.display = "block";
       }
-      const exports = instance.exports as {
-        main?: () => number;
-        frame?: (dt: number) => number;
-      };
       if (typeof exports.main === "function") {
         const ret = exports.main();
         logLine(`main() => ${ret}`, "meta");

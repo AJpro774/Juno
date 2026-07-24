@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Default capability for Kuni desktop",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

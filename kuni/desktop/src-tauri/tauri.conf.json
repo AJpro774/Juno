@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Kuni",
+  "version": "1.0.0",
+  "identifier": "app.kuni.chat",
+  "build": {
+    "beforeDevCommand": "cd .. && npm run dev",
+    "devUrl": "http://localhost:5174",
+    "beforeBuildCommand": "npm run build:web",
+    "frontendDist": "../../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Kuni",
+        "width": 1180,
+        "height": 780,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "nsis"],
+    "category": "Utility",
+    "shortDescription": "Kuni local AI chatbot",
+    "longDescription": "Kuni is a local AI chatbot built on KunoEngine (WebLLM + WASM). Default FP8 · 6GB model profile. Ships macOS .dmg and Windows .exe.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  }
+}

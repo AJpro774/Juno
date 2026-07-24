@@ -226,6 +226,8 @@ fn export_web_cmd(project: Option<PathBuf>, output: Option<PathBuf>, zip: bool) 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- {notice} -->
+  <!-- Built with Juni -->
   <title>{title}</title>
   <style>
     html, body {{ margin: 0; height: 100%; background: #0e0f12; color: #e8e1d4; font-family: system-ui, sans-serif; }}
@@ -243,38 +245,53 @@ fn export_web_cmd(project: Option<PathBuf>, output: Option<PathBuf>, zip: bool) 
   <script type="module" src="./play.js"></script>
 </body>
 </html>
-"#
+"#,
+        notice = juni_codegen::REQUIRED_NOTICE,
+        title = title
     );
     fs::write(out_dir.join("index.html"), index)?;
 
     // Relative paths only — suitable for itch HTML embeds and static hosts.
-    let play = r#"// Juni web player — self-contained (relative paths for itch / Netlify)
-import { instantiateJuni, startFrameLoop } from "./runtime/browser.js";
+    let play = format!(
+        r#"// {notice}
+// Built with Juni
+// Juni web player — self-contained (relative paths for itch / Netlify)
+import {{ instantiateJuni, startFrameLoop }} from "./runtime/browser.js";
 const logEl = document.getElementById("log");
-const log = (t) => { if (logEl) logEl.textContent += t + "\n"; };
+const log = (t) => {{ if (logEl) logEl.textContent += t + "\n"; }};
 const wasm = await (await fetch("./game.wasm")).arrayBuffer();
 const assets = await (await fetch("./assets.pack.json")).json();
 const canvas2d = document.getElementById("c2d");
 const canvasGpu = document.getElementById("cgpu");
-const opts = {
+const opts = {{
   onPrint: log,
   canvasEl: canvas2d,
   gpuCanvasEl: canvasGpu,
   mode: "canvas2d",
   assetPack: assets,
-  getAssetText: (path) => {
+  getAssetText: (path) => {{
     const a = assets?.assets?.[path];
     if (!a?.embed) return null;
-    try { return atob(a.embed); } catch { return null; }
-  },
-};
+    try {{ return atob(a.embed); }} catch {{ return null; }}
+  }},
+}};
 const instance = await instantiateJuni(new Uint8Array(wasm), opts);
 const exports = instance.exports;
 if (typeof exports.main === "function") log("main() => " + exports.main());
 startFrameLoop(instance, opts);
 log("Running.");
-"#;
+"#,
+        notice = juni_codegen::REQUIRED_NOTICE
+    );
     fs::write(out_dir.join("play.js"), play)?;
+
+    fs::write(
+        out_dir.join("NOTICE.txt"),
+        format!(
+            "{}\nBuilt with Juni\n\nThis build was created with the Juni language and tooling.\n",
+            juni_codegen::REQUIRED_NOTICE
+        ),
+    )?;
 
     // Copy runtime/dist/*.js → out_dir/runtime (ESM only; no .map / .d.ts)
     let runtime_src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/dist");
