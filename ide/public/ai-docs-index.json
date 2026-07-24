@@ -403,7 +403,7 @@
       "id": "graphics/overview.md#0",
       "title": "Graphics overview",
       "path": "graphics/overview.md",
-      "text": "# Graphics overview\n\nJuni ships usable graphics in the browser IDE:\n\n| Path | Status |\n|------|--------|\n| [Canvas2D](2d.md) | Implemented — `canvas_*` fill + stroke |\n| [3D](3d.md) | WebGPU API + Edit viewport + ECS Play via `world_draw3d` |\n| [WebGPU runtime](../webgpu/runtime.md) | Triangle sample + 3D host |\n\n## Games & simulation\n\n- Use `state:` or module `let` for shared game state across `main` and `frame`\n- Export `fn frame(dt: f32) -> i32` for a host `requestAnimationFrame` loop\n- Poll `key_down`, `mouse_x` / `mouse_y` / `mouse_down`\n- Math/stdlib: see [Standard library](../language/stdlib.md) (`clamp`, `lerp`, `len2`, `dist2`, …)\n\n## Hosted IDE\n\nOpen the [Juni IDE](https://junoengine.netlify.app/) to run examples without installing locally.",
+      "text": "# Graphics overview\n\nJuni ships usable graphics in the browser IDE:\n\n| Path | Status |\n|------|--------|\n| [Canvas2D](2d.md) | Implemented — `canvas_*` fill + stroke |\n| [3D](3d.md) | WebGPU API + Edit viewport + ECS Play via `world_draw3d` |\n| [WebGPU runtime](../webgpu/runtime.md) | Triangle sample + 3D host |\n\n## Games & simulation\n\n- Use `state:` or module `let` for shared game state across `main` and `frame`\n- Export `fn frame(dt: f32) -> i32` for a host `requestAnimationFrame` loop\n- Poll `key_down`, `mouse_x` / `mouse_y` / `mouse_down`\n- Math/stdlib: see [Standard library](../language/stdlib.md) (`clamp`, `lerp`, `len2`, `dist2`, …)\n\n## Hosted IDE\n\nOpen the [Juni IDE](https://jkengine.netlify.app/) to run examples without installing locally.",
       "keywords": [
         "graphics",
         "overview",
@@ -1390,7 +1390,7 @@
       "id": "tutorials/platformer.md#0",
       "title": "Build a 2D platformer",
       "path": "tutorials/platformer.md",
-      "text": "# Build a 2D platformer\n\nWalk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../examples/projects/platformer).\n\nOpen the [Juni IDE](https://junoengine.netlify.app/) (Chrome works best) or follow along in the desktop app.\n\nRelated: [Making a level](../engine/level.md), [`.jscene` scenes](../engine/jscene.md), [Entity scripts](../engine/scripts.md), [Visual editor](../engine/editor.md), [Physics](../projects/physics.md). For screenshot lessons in the IDE, see [Visual tutorials](../projects/tutorials.md).\n\n## What you will build\n\n- A `.jscene` with camera, ground, player, platform, and goal\n- `main` that loads the scene, wires tags, and sets a sprite\n- `frame` that reads input, applies veloc",
+      "text": "# Build a 2D platformer\n\nWalk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../examples/projects/platformer).\n\nOpen the [Juni IDE](https://jkengine.netlify.app/) (Chrome works best) or follow along in the desktop app.\n\nRelated: [Making a level](../engine/level.md), [`.jscene` scenes](../engine/jscene.md), [Entity scripts](../engine/scripts.md), [Visual editor](../engine/editor.md), [Physics](../projects/physics.md). For screenshot lessons in the IDE, see [Visual tutorials](../projects/tutorials.md).\n\n## What you will build\n\n- A `.jscene` with camera, ground, player, platform, and goal\n- `main` that loads the scene, wires tags, and sets a sprite\n- `frame` that reads input, applies veloc",
       "keywords": [
         "build",
         "platformer",
@@ -1411,7 +1411,7 @@
         "projects",
         "open",
         "https",
-        "junoengine",
+        "jkengine",
         "netlify",
         "chrome",
         "works",
