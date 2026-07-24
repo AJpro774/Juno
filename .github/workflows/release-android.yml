@@ -148,26 +148,36 @@ jobs:
       - name: Generate Android project from TWA manifest
         run: |
           set -euo pipefail
-          if [ -f app/build.gradle ] || [ -f app/build.gradle.kts ]; then
-            bubblewrap update --skipVersionUpgrade --manifest=.
-          else
-            # Non-interactive init; accept defaults
+          # Init into this directory (non-interactive defaults). Prefer live web manifest URL.
+          if [ ! -f app/build.gradle ] && [ ! -f app/build.gradle.kts ]; then
             yes "" | bubblewrap init \
               --manifest=https://junoengine.netlify.app/manifest.webmanifest \
-              --directory=. || true
-            # Restore committed manifest (init may overwrite), then re-apply version/signing
-            git checkout -- twa-manifest.json 2>/dev/null || true
-            node -e '
-              const fs = require("fs");
-              const m = JSON.parse(fs.readFileSync("twa-manifest.json", "utf8"));
-              m.appVersionName = process.env.VER;
-              m.appVersionCode = Number(process.env.CODE);
-              m.signingKey = { path: "./android.keystore", alias: process.env.ALIAS || "juni" };
-              fs.writeFileSync("twa-manifest.json", JSON.stringify(m, null, 2) + "\n");
-            '
-            bubblewrap update --skipVersionUpgrade --manifest=.
+              --directory=.
           fi
           test -f app/build.gradle -o -f app/build.gradle.kts
+
+          # Enforce package id / host / signing / version on the generated manifest
+          node -e '
+            const fs = require("fs");
+            const path = "twa-manifest.json";
+            const m = JSON.parse(fs.readFileSync(path, "utf8"));
+            m.packageId = "dev.juni.ide";
+            m.host = "junoengine.netlify.app";
+            m.name = "Juni IDE";
+            m.launcherName = "Juni";
+            m.startUrl = "/";
+            m.webManifestUrl = "https://junoengine.netlify.app/manifest.webmanifest";
+            m.fullScopeUrl = "https://junoengine.netlify.app/";
+            m.iconUrl = "https://junoengine.netlify.app/icons/icon-512.png";
+            m.maskableIconUrl = "https://junoengine.netlify.app/icons/icon-512.png";
+            m.appVersionName = process.env.VER;
+            m.appVersionCode = Number(process.env.CODE);
+            m.signingKey = { path: "./android.keystore", alias: process.env.ALIAS || "juni" };
+            fs.writeFileSync(path, JSON.stringify(m, null, 2) + "\n");
+            console.log("patched", m.packageId, m.appVersionName, m.appVersionCode);
+          '
+          # Refresh Gradle project from patched manifest (no --manifest flag; cwd has twa-manifest.json)
+          bubblewrap update --skipVersionUpgrade
         env:
           VER: ${{ steps.ver.outputs.version }}
           CODE: ${{ steps.ver.outputs.version_code }}
@@ -176,8 +186,8 @@ jobs:
       - name: Build signed APK
         run: |
           set -euo pipefail
-          bubblewrap build --skipPwaValidation --manifest=.
-          ls -la app-release-signed.apk app-release-unsigned.apk 2>/dev/null || ls -la *.apk
+          bubblewrap build --skipPwaValidation
+          ls -la app-release-signed.apk 2>/dev/null || ls -la *.apk
 
       - name: Stage release asset
         id: apk
