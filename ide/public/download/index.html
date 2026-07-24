@@ -6,7 +6,7 @@
     <title>Download Juni</title>
     <meta
       name="description"
-      content="Download Juni IDE for macOS, Windows, and Linux — or install the web IDE as an Android app (PWA)."
+      content="Download Juni IDE for macOS, Windows, Linux, and Android APK — or install the web IDE as a PWA."
     />
     <link rel="manifest" href="../manifest.webmanifest" />
     <meta name="theme-color" content="#0f6e56" />
@@ -36,13 +36,12 @@
     </header>
 
     <main class="hero">
-      <p class="eyebrow">Desktop installers · Android as PWA</p>
+      <p class="eyebrow">Desktop installers · Android APK · PWA</p>
       <h1>Install Juni like the web IDE looks.</h1>
       <p class="lead">
         Multi-arch Tauri builds for macOS, Windows 10/11, and Linux (ARM64 and x86_64). On Android,
-        install the web IDE as an app via Add to Home Screen — same branding, no APK.
+        grab the <strong>APK</strong> from GitHub Releases, or install the web IDE as a PWA.
       </p>
-
       <section class="recommend" aria-labelledby="recommend-heading">
         <h2 id="recommend-heading">Recommended for you</h2>
         <p id="detect-line" class="detect">Detecting your system…</p>
@@ -100,28 +99,43 @@
               >Get build</a
             >
           </article>
+          <article class="plat" data-os="android" data-arch="aarch64" id="android-apk">
+            <h3>Android · APK</h3>
+            <p class="muted">arm64-v8a · sideload</p>
+            <a class="ghost tight" data-asset="android-apk" href="https://github.com/AJpro774/Juno/releases/latest"
+              >Get APK</a
+            >
+          </article>
         </div>
       </section>
 
       <section class="android" aria-labelledby="android-heading">
-        <h2 id="android-heading">Android · install as app (PWA)</h2>
+        <h2 id="android-heading">Android</h2>
         <p class="lead-sm">
-          Juni does not ship a Play Store APK. Install the web IDE from Chrome with
-          <strong>Add to Home Screen</strong> / <strong>Install app</strong> for an app-like icon and
-          standalone window.
+          <strong>APK</strong> — download the latest
+          <a data-asset="android-apk" href="https://github.com/AJpro774/Juno/releases/latest">Juni APK</a>
+          from GitHub Releases and sideload (enable Install unknown apps for your browser/file manager).
+          Prefer the release asset named <code>Juni-IDE-android.apk</code> (built by the
+          <strong>Release Android APK</strong> GitHub Action / Bubblewrap TWA).
+        </p>
+        <p class="lead-sm">
+          <strong>PWA (optional)</strong> — install the web IDE from Chrome with
+          <strong>Add to Home Screen</strong> / <strong>Install app</strong> for an app-like icon without
+          sideloading.
         </p>
         <ol class="steps">
-          <li>Open the <a href="../">Juni web IDE</a> in <strong>Chrome</strong> on your phone.</li>
+          <li>Open the <a href="../">Juni web IDE</a> in <strong>Chrome</strong> on your phone (PWA path).</li>
           <li>Tap the menu (⋮) → <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
-          <li>Confirm. Launch Juni from your home screen like any other app.</li>
+          <li>Or download the APK from Releases and open the file to install.</li>
         </ol>
         <p class="muted hint">
-          Requires HTTPS, a web manifest, and a service worker (already included). On iOS Safari:
-          Share → Add to Home Screen.
+          PWA requires HTTPS, a web manifest, and a service worker (already included). On iOS Safari:
+          Share → Add to Home Screen (no APK on iOS).
         </p>
         <div class="cta-row">
-          <a class="run" href="../">Open web IDE</a>
-          <button type="button" id="install-pwa" class="ghost" hidden>Install Juni</button>
+          <a class="run" data-asset="android-apk" href="https://github.com/AJpro774/Juno/releases/latest">Download APK</a>
+          <a class="ghost" href="../">Open web IDE</a>
+          <button type="button" id="install-pwa" class="ghost" hidden>Install PWA</button>
         </div>
       </section>
     </main>
@@ -134,10 +148,11 @@
         <code>/releases/latest</code> until assets exist.
       </p>
       <p class="muted">
-        By downloading or installing Juni you agree to the
-        <a href="https://github.com/AJpro774/Juno/blob/main/EULA.md">EULA</a>.
-        Source code is
-        <a href="https://github.com/AJpro774/Juno/blob/main/LICENSE">Apache License 2.0</a>.
+        By downloading or installing Juni you agree to the binding
+        <a href="https://github.com/AJpro774/Juno/blob/main/EULA.md">EULA</a>
+        and
+        <a href="https://github.com/AJpro774/Juno/blob/main/LICENSE">Software License</a>
+        (Small Business free; above that USD $200/month to the creator).
       </p>
     </footer>
 

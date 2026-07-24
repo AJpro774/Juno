@@ -71,7 +71,12 @@ function applyConsole(): void {
   consolePane.style.flex = "none";
   consolePane.style.height = `${state.consoleH}px`;
   if (stage) {
-    stage.style.gridTemplateRows = `minmax(0, 1fr) ${state.consoleH}px`;
+    // Rows: main | promo rail | resize handle | console
+    // (handle is inserted before .console-pane; without an explicit track it stole console height)
+    const hasPromo = !!stage.querySelector(".promo-rail");
+    stage.style.gridTemplateRows = hasPromo
+      ? `minmax(0, 1fr) auto 5px ${state.consoleH}px`
+      : `minmax(0, 1fr) 5px ${state.consoleH}px`;
   }
 }
 

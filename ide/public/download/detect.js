@@ -38,6 +38,10 @@ const ASSETS = {
     label: "Linux ARM64 (AppImage / deb)",
     patterns: ["aarch64.AppImage", "arm64.deb", "aarch64.deb", "linux-aarch64"],
   },
+  "android-apk": {
+    label: "Android APK",
+    patterns: ["juni-ide-android.apk", "Juni-IDE-android.apk", ".apk", "android", "arm64-v8a"],
+  },
 };
 
 /**
@@ -73,7 +77,9 @@ function detectPlatform() {
   }
 
   let key = null;
-  if (os === "macos" || os === "windows" || os === "linux") {
+  if (os === "android") {
+    key = "android-apk";
+  } else if (os === "macos" || os === "windows" || os === "linux") {
     key = `${os}-${arch}`;
     if (!ASSETS[key]) key = `${os}-x86_64`;
   }
@@ -93,6 +99,11 @@ function resolveAssetUrl(assetKey, assets) {
   for (const pat of spec.patterns) {
     const hit = lower.find((a) => a.n.includes(pat.toLowerCase()));
     if (hit) return hit.browser_download_url;
+  }
+  // Android: any .apk on the release
+  if (assetKey === "android-apk") {
+    const apk = lower.find((a) => a.n.endsWith(".apk"));
+    if (apk) return apk.browser_download_url;
   }
   return LATEST;
 }
@@ -114,7 +125,10 @@ function highlightMatch(key) {
   document.querySelectorAll(".plat").forEach((el) => {
     const os = el.getAttribute("data-os");
     const arch = el.getAttribute("data-arch");
-    el.classList.toggle("is-match", key === `${os}-${arch}`);
+    const asset = el.querySelector("[data-asset]")?.getAttribute("data-asset");
+    const match =
+      key === asset || (key !== "android-apk" && key === `${os}-${arch}`);
+    el.classList.toggle("is-match", !!match);
   });
 }
 
@@ -126,9 +140,9 @@ async function main() {
 
   const label =
     os === "android"
-      ? "Android detected — use Add to Home Screen below (PWA)."
+      ? `Android detected → ${ASSETS["android-apk"].label} (PWA still available below).`
       : os === "ios"
-        ? "iOS detected — use Share → Add to Home Screen for the web IDE."
+        ? "iOS detected — use Share → Add to Home Screen for the web IDE (no APK on iOS)."
         : `Detected ${os} · ${arch}${key && ASSETS[key] ? ` → ${ASSETS[key].label}` : ""}.`;
 
   if (detectLine) detectLine.textContent = label;
@@ -142,19 +156,23 @@ async function main() {
     const url = resolveAssetUrl(assetKey, assets);
     a.setAttribute("href", url);
     if (!assets?.length || url === LATEST) {
-      a.setAttribute("title", "Installers not published yet for this platform — opens GitHub Releases.");
+      a.setAttribute(
+        "title",
+        assetKey === "android-apk"
+          ? "APK not published yet on the latest release — opens GitHub Releases."
+          : "Installers not published yet for this platform — opens GitHub Releases."
+      );
     } else {
       a.removeAttribute("title");
     }
   });
 
   if (primary) {
-    if (os === "android" || os === "ios") {
+    if (os === "ios") {
       primary.textContent = "Open web IDE";
       primary.setAttribute("href", IDE_HREF);
       if (hint) {
-        hint.textContent =
-          "Native desktop installers are for macOS / Windows 10–11 / Linux. Mobile uses the installable web app.";
+        hint.textContent = "iOS uses the installable web app (Share → Add to Home Screen).";
       }
     } else if (key) {
       const url = resolveAssetUrl(key, assets);
@@ -166,7 +184,9 @@ async function main() {
             "Could not reach GitHub Releases — browse the releases page, or try again later.";
         } else if (!assets.length || url === LATEST) {
           hint.textContent =
-            "Installers not published yet for this platform — opening GitHub Releases until a v* build uploads assets.";
+            key === "android-apk"
+              ? "APK not on the latest release yet — opening GitHub Releases until a .apk asset is uploaded."
+              : "Installers not published yet for this platform — opening GitHub Releases until a v* build uploads assets.";
         } else {
           hint.textContent = "Linked to the matching asset on the latest GitHub Release.";
         }

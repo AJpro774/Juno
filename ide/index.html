@@ -43,7 +43,7 @@
         <div class="actions">
           <div class="action-group action-primary">
             <button type="button" id="open-project" class="ghost">Open Project</button>
-            <button type="button" id="demo-project" class="ghost">Demo Project</button>
+            <button type="button" id="demo-project" class="ghost" title="Platformer 3D demo">Demo Project</button>
             <select id="examples" aria-label="Examples"></select>
           </div>
           <div class="action-group action-modes">
@@ -120,6 +120,36 @@
               <div id="inspector" class="inspector" aria-label="Inspector"></div>
             </aside>
           </div>
+          <aside class="promo-rail" aria-label="Creator apps">
+            <div class="promo-rail-inner">
+              <span class="promo-kicker">Apps</span>
+              <div class="promo-apps" role="list">
+                <a
+                  class="promo-app is-current"
+                  role="listitem"
+                  href="/download/"
+                  title="Juni — language, IDE, WASM, desktop &amp; Android APK"
+                >
+                  <span class="promo-app-name">Juni</span>
+                  <span class="promo-app-desc">IDE · Desktop · APK</span>
+                </a>
+                <span
+                  class="promo-app is-soon"
+                  role="listitem"
+                  title="Kuni — AI chatbot (coming soon)"
+                  aria-disabled="true"
+                >
+                  <span class="promo-app-name">Kuni</span>
+                  <span class="promo-app-desc">AI chatbot · Soon</span>
+                </span>
+              </div>
+              <p class="promo-copy promo-copy-aside">
+                Ecosystem from the same creator — Juni ships now; Kuni is next.
+              </p>
+              <a class="promo-cta" href="/download/" data-asset-banner="android-apk">Get Juni</a>
+              <a class="promo-link" href="/download/#android-apk">APK</a>
+            </div>
+          </aside>
           <aside class="console-pane">
             <div class="pane-head console-head">
               <span>Console</span>
@@ -280,17 +310,17 @@
             </label>
             <h3 class="settings-heading">Desktop &amp; Android</h3>
             <p class="settings-blurb">
-              Desktop installers (macOS, Windows 10/11, Linux — ARM64 and x86_64) and Android as a PWA:
-              <a href="/download/">Download</a>.
+              Desktop installers (macOS, Windows 10/11, Linux), Android <strong>APK</strong>, and Android as a
+              PWA: <a href="/download/">Download</a>.
             </p>
             <h3 class="settings-heading">Legal</h3>
             <p class="settings-blurb">
-              Source code is Apache License 2.0 only. The distributed IDE (web, desktop, PWA) is also
-              covered by the EULA. Your projects stay yours.
+              Binding contract: PolyForm Small Business–based license. Free for personal/hobby and
+              small businesses; above that, USD $200/month to the creator. See EULA and License.
             </p>
             <div class="settings-legal-actions">
               <button type="button" id="legal-view-eula" class="ghost tight">View EULA</button>
-              <button type="button" id="legal-view-license" class="ghost tight">View Apache License</button>
+              <button type="button" id="legal-view-license" class="ghost tight">View License</button>
             </div>
           </div>
         </aside>
@@ -309,16 +339,17 @@
       <div class="ai-fix-card eula-gate-card">
         <h3>Welcome to Juni</h3>
         <p class="eula-gate-intro">
-          Before you continue, please review and accept the End User License Agreement. Source code is
-          licensed under Apache License 2.0 only.
+          Before you continue, please review and accept this binding contract (EULA + License).
+          Personal/hobby and Small Business use is free; larger companies must pay USD $200/month
+          directly to the creator.
         </p>
         <div id="eula-gate-body" class="eula-gate-body docs-body"></div>
         <label class="eula-gate-check">
           <input type="checkbox" id="eula-gate-check" />
-          I agree to the Juni EULA
+          I agree to the Juni EULA and Software License (binding contract)
         </label>
         <div class="eula-gate-actions">
-          <button type="button" id="eula-gate-license" class="ghost tight">Include Apache License</button>
+          <button type="button" id="eula-gate-license" class="ghost tight">Include License</button>
           <button type="button" id="eula-gate-accept" class="run tight" disabled>Continue</button>
         </div>
       </div>

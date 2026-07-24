@@ -39,9 +39,9 @@
     Service-Worker-Allowed = "/"
 
 [[headers]]
-  for = "/sitemap.xml"
+  for = "/.well-known/assetlinks.json"
   [headers.values]
-    Content-Type = "application/xml; charset=utf-8"
+    Content-Type = "application/json"
     Cache-Control = "public, max-age=3600"
 
 [[headers]]
