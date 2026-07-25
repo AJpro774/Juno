@@ -289,14 +289,12 @@ pub fn identifier_at(source: &str, line: u32, col: u32) -> Option<(String, Span)
     }
 
     // Extend left for `module.` prefix
-    let mut qual_start = start;
     if start > 0 && source.as_bytes()[start - 1] == b'.' {
         if let Some((pstart, pend)) = word_range_before(source, start - 1) {
             let prefix = &source[pstart..pend];
             if !prefix.is_empty() {
-                qual_start = pstart;
                 let combined = format!("{prefix}.{word}");
-                let span = span_for_range(source, qual_start, end);
+                let span = span_for_range(source, pstart, end);
                 return Some((combined, span));
             }
         }
