@@ -83,7 +83,7 @@ export function appendBubble(
   log: HTMLElement,
   role: "user" | "assistant" | "system",
   text: string,
-  opts: { markdown?: boolean; images?: string[]; audios?: string[] } = {}
+  opts: { markdown?: boolean; images?: string[] } = {}
 ): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = `ai-bubble-wrap ai-bubble-wrap-${role}`;
@@ -99,19 +99,6 @@ export function appendBubble(
       gallery.appendChild(img);
     }
     wrap.appendChild(gallery);
-  }
-
-  if (opts.audios?.length) {
-    const audios = document.createElement("div");
-    audios.className = "bubble-audios";
-    for (const src of opts.audios) {
-      const audio = document.createElement("audio");
-      audio.controls = true;
-      audio.src = src;
-      audio.className = "bubble-audio";
-      audios.appendChild(audio);
-    }
-    wrap.appendChild(audios);
   }
 
   const bubble = document.createElement("div");
@@ -136,6 +123,6 @@ export function showEmptyHint(log: HTMLElement): void {
   const hint = document.createElement("div");
   hint.className = "empty-hint";
   hint.innerHTML =
-    "<strong>Pick a model</strong> and <strong>FP8 / MXFP6</strong>, then load.<br />Gemma 4 QAT is <strong>full multimodal</strong> — image, audio, and video frames.";
+    "<strong>Pick a model</strong> and <strong>FP8 / MXFP6</strong>, then load.<br /><strong>Gemma 4 E4B</strong> supports text + images (and video frames).";
   log.appendChild(hint);
 }

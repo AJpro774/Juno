@@ -2,9 +2,8 @@
  * KunoEngine scale ladder + FP8 / MXFP6 quant switch.
  *
  * WebLLM tiers use MLC prebuilts (q4f32 ≈ FP8-class, q4f16/q3f16 ≈ MXFP6-class).
- * GGUF tiers (Unsloth Gemma 4 QAT) use wllama / llama.cpp WASM.
- * Hub tiers are Hugging Face safetensors checkpoints (server / Python) — catalogued
- * for selection, not loadable in-browser today.
+ * Hub tiers (Surge, Gemma 4 GGUF) are catalogued but not loadable in-browser today
+ * (server / desktop, or GGUF above the ~2GB WASM limit).
  */
 
 export type KunoQuant = "fp8" | "mxfp6";
@@ -36,7 +35,7 @@ export type KunoHubKind = "chat";
 export type KunoHubSource = {
   repo: string;
   kind: KunoHubKind;
-  format: "safetensors";
+  format: "safetensors" | "gguf";
   /** Approximate download size (GB) for notes. */
   sizeGb: number;
   /** HF gated repo (needs login / access grant). */
@@ -97,7 +96,8 @@ export const KUNO_SCALE_TIERS: KunoScaleTier[] = [
       fp8: "Gemma 4 E4B QAT",
     },
     ramGb: 5,
-    note: "Unsloth Gemma 4 E4B QAT GGUF via wllama (image+audio) — MXFP6→UD-Q2_K_XL (~3.2GB), FP8→UD-Q4_K_XL (~4.2GB) + mmproj",
+    note:
+      "Unsloth Gemma 4 E4B QAT via wllama — text + image (mmproj ~1GB). MXFP6→UD-Q2_K_XL (~3.2GB), FP8→UD-Q4_K_XL (~4.2GB). No audio/voice. CPU offload reduces WASM abort risk.",
     backend: "wllama",
     variants: {
       mxfp6: "gguf:unsloth/gemma-4-E4B-it-qat-GGUF:gemma-4-E4B-it-qat-UD-Q2_K_XL.gguf",
@@ -153,26 +153,26 @@ export const KUNO_SCALE_TIERS: KunoScaleTier[] = [
       fp8: "Gemma 4 12B QAT",
     },
     ramGb: 8,
-    note: "Unsloth Gemma 4 12B QAT GGUF via wllama (vision) — UD-Q4_K_XL (~6.7GB) + mmproj. Needs ample RAM / browser Memory64.",
-    backend: "wllama",
+    note:
+      "unsloth/gemma-4-12B-it-qat-GGUF (~6.7GB) exceeds the browser ~2GB WASM limit. Use Gemma 2 9B (WebLLM) in-browser, or run the GGUF in desktop llama.cpp.",
+    backend: "hub",
     variants: {
-      mxfp6:
-        "gguf:unsloth/gemma-4-12B-it-qat-GGUF:gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
-      fp8: "gguf:unsloth/gemma-4-12B-it-qat-GGUF:gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
+      mxfp6: "hub:unsloth/gemma-4-12B-it-qat-GGUF",
+      fp8: "hub:unsloth/gemma-4-12B-it-qat-GGUF",
     },
     vramMb: { mxfp6: 6720, fp8: 6720 },
-    gguf: {
+    hub: {
       mxfp6: {
         repo: "unsloth/gemma-4-12B-it-qat-GGUF",
-        file: "gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
-        mmprojFile: "mmproj-F16.gguf",
-        sizeMb: 6720,
+        kind: "chat",
+        format: "gguf",
+        sizeGb: 6.7,
       },
       fp8: {
         repo: "unsloth/gemma-4-12B-it-qat-GGUF",
-        file: "gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
-        mmprojFile: "mmproj-F16.gguf",
-        sizeMb: 6720,
+        kind: "chat",
+        format: "gguf",
+        sizeGb: 6.7,
       },
     },
   },
@@ -258,7 +258,7 @@ export type KunoModelOption = {
   scaleId: KunoScaleId;
   quant: KunoQuant;
   backend: KunoBackend;
-  /** True when GGUF loads with an mmproj (image / audio capable). */
+  /** True when GGUF loads with an mmproj (image capable). */
   multimodal: boolean;
   /** Hugging Face hub metadata when backend === "hub". */
   hub?: KunoHubSource;
@@ -330,6 +330,12 @@ export function modelMetaFor(scaleId: KunoScaleId, quant: KunoQuant): KunoModelO
 /** Human-readable reason a hub tier cannot load in-browser. */
 export function hubUnavailableMessage(hub: KunoHubSource, modelName: string): string {
   const gated = hub.gated ? " (gated — HF login + access required)" : "";
+  if (hub.format === "gguf") {
+    return (
+      `${modelName} is ${hub.repo}${gated}: GGUF ~${hub.sizeGb}GB exceeds the browser WASM ~2GB single-file limit ` +
+      `(needs pre-split shards or desktop llama.cpp). For in-browser chat, load Llama 3.1 8B, Gemma 2 9B, or Gemma 4 E4B.`
+    );
+  }
   return (
     `${modelName} is ${hub.repo}${gated}: ${hub.format} checkpoint (~${hub.sizeGb}GB). ` +
     `Deploy on a GPU cluster with Transformers / vLLM / SGLang. Not loadable in-browser via WebLLM or wllama.`

@@ -1,15 +1,11 @@
 /**
  * Wllama (llama.cpp WASM) backend for HuggingFace GGUF models.
- * Full multimodal: image + audio via mmproj (Gemma 4 any-to-any).
+ * Text + image via mmproj (Gemma 4). Audio modality is never exposed.
  */
 
 import { CacheManager, Wllama } from "@wllama/wllama";
 import type { ChatMessage, LoadProgress, ModalitySupport } from "./types";
-import {
-  audioDataUrlToWav16k,
-  dataUrlToArrayBuffer,
-  defaultPromptForMedia,
-} from "./types";
+import { dataUrlToArrayBuffer, defaultPromptForMedia } from "./types";
 
 export type GgufSource = {
   repo: string;
@@ -19,7 +15,6 @@ export type GgufSource = {
 
 type WllamaContentPart =
   | { type: "image"; data: ArrayBuffer }
-  | { type: "audio"; data: ArrayBuffer }
   | { type: "text"; text: string };
 
 type WllamaHandle = {
@@ -93,14 +88,11 @@ async function purgeSourceCache(cache: CacheManager, source: GgufSource): Promis
   }
 }
 
-function readModalities(wllama: Wllama): ModalitySupport {
+function readImageSupport(wllama: Wllama): boolean {
   try {
-    return {
-      image: wllama.supportInputModality("image"),
-      audio: wllama.supportInputModality("audio"),
-    };
+    return wllama.supportInputModality("image");
   } catch {
-    return { image: false, audio: false };
+    return false;
   }
 }
 
@@ -114,7 +106,11 @@ const DEFAULT_MEDIA_MARKER = "<__media__>";
 function ensureMediaMarker(wllama: Wllama, mmRequested: boolean): void {
   const anyW = wllama as unknown as {
     mediaMarker?: string;
-    getLoadedContextInfo?: () => { media_marker?: string; has_image_input?: boolean; has_audio_input?: boolean };
+    getLoadedContextInfo?: () => {
+      media_marker?: string;
+      has_image_input?: boolean;
+      has_audio_input?: boolean;
+    };
   };
   const info = (() => {
     try {
@@ -129,7 +125,7 @@ function ensureMediaMarker(wllama: Wllama, mmRequested: boolean): void {
   }
   if (mmRequested && info && !info.has_image_input && !info.has_audio_input) {
     console.warn(
-      "[kuno] mmproj was requested but WASM reports no image/audio input — multimodal may fail.",
+      "[kuno] mmproj was requested but WASM reports no image input — multimodal may fail.",
       info
     );
   }
@@ -139,16 +135,12 @@ async function toWllamaMessages(messages: ChatMessage[]) {
   return Promise.all(
     messages.map(async (m) => {
       const images = m.images?.filter(Boolean) ?? [];
-      const audios = m.audios?.filter(Boolean) ?? [];
-      if (m.role === "user" && (images.length > 0 || audios.length > 0)) {
+      if (m.role === "user" && images.length > 0) {
         const content: WllamaContentPart[] = [];
         for (const url of images) {
           content.push({ type: "image", data: await dataUrlToArrayBuffer(url) });
         }
-        for (const url of audios) {
-          content.push({ type: "audio", data: await audioDataUrlToWav16k(url) });
-        }
-        const text = m.content.trim() || defaultPromptForMedia(images.length, audios.length);
+        const text = m.content.trim() || defaultPromptForMedia(images.length, 0);
         content.push({ type: "text", text });
         return { role: m.role, content };
       }
@@ -162,8 +154,7 @@ function explainGgufError(source: GgufSource, msg: string): Error {
     return new Error(
       `GGUF cache was incomplete for ${source.file}. Cleared local cache — try Load model again. ` +
         `Hub file: ${hfResolveUrl(source.repo, source.file)}. ` +
-        `Note: Gemma 4 E4B/12B GGUFs are 3–7GB (often above the browser ~2GB single-buffer limit); ` +
-        `a desktop build or a pre-split GGUF may be required.`
+        `Note: Gemma 4 E4B GGUFs are ~3–4GB (+ mmproj ~1GB); large loads may exceed browser memory.`
     );
   }
   if (/arraybuffer|2\s*gb|quota|memory|too large|oom/i.test(msg)) {
@@ -205,13 +196,6 @@ export async function loadGgufEngine(
   const paths = await wasmPaths();
   const cacheManager = new CacheManager();
 
-  // Drop incomplete leftovers so wllama does not skip a real re-download.
-  try {
-    await purgeSourceCache(cacheManager, source);
-  } catch {
-    /* ignore */
-  }
-
   const wllama = new Wllama(paths, {
     parallelDownloads: 2,
     cacheManager,
@@ -226,8 +210,11 @@ export async function loadGgufEngine(
   const mm = source.mmprojFile;
   const loadParams = {
     n_threads: 1,
-    n_ctx: 4096,
-    n_batch: 512,
+    n_ctx: 1024,
+    n_batch: 128,
+    // Default wllama WebGPU offloads ALL layers → VRAM OOM/(ABORT) on big GGUFs.
+    // Keep CPU path to reduce abort risk with mmproj.
+    n_gpu_layers: 0,
     progressCallback: ({ loaded, total }: { loaded: number; total: number }) => {
       const pct = total > 0 ? loaded / total : 0;
       onProgress?.({
@@ -245,7 +232,7 @@ export async function loadGgufEngine(
       progress: 0.05,
       text: mm
         ? `Downloading ${source.repo} / ${source.file} + ${mm}…`
-        : `Downloading ${source.repo} / ${source.file}…`,
+        : `Downloading ${source.repo} / ${source.file} (text)…`,
     });
     await wllama.loadModelFromHF(
       {
@@ -261,7 +248,7 @@ export async function loadGgufEngine(
     await runLoad(true);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (/Model file not found/i.test(msg)) {
+    if (/Model file not found|arraybuffer|2\s*gb/i.test(msg)) {
       onProgress?.({ progress: 0.04, text: "Clearing broken GGUF cache and retrying…" });
       try {
         await purgeSourceCache(cacheManager, source);
@@ -291,30 +278,24 @@ export async function loadGgufEngine(
 
   instance = wllama;
   loadedKey = key;
-  ensureMediaMarker(wllama, Boolean(mm));
-  // Gemma 4 QAT + mmproj is any-to-any (image + audio). wllama's probe often
-  // only sets has_image_input, leaving has_audio_input false — still allow audio.
-  const probed = readModalities(wllama);
+  if (mm) ensureMediaMarker(wllama, true);
+  // Text + image only: never claim audio even if the WASM probe reports it.
   loadedModalities = {
-    image: probed.image || Boolean(mm),
-    audio: probed.audio || Boolean(mm),
+    image: (mm ? readImageSupport(wllama) : false) || Boolean(mm),
+    audio: false,
   };
 
-  const bits = [
-    loadedModalities.image ? "image" : null,
-    loadedModalities.audio ? "audio" : null,
-  ]
-    .filter(Boolean)
-    .join("+");
   onProgress?.({
     progress: 1,
-    text: bits ? `KunoEngine ready (GGUF · ${bits})` : "KunoEngine ready (GGUF)",
+    text: mm
+      ? `KunoEngine ready (GGUF · ${loadedModalities.image ? "image" : "mmproj"})`
+      : "KunoEngine ready (GGUF · text)",
   });
   return wrapWllama(wllama, loadedModalities);
 }
 
 function wrapWllama(wllama: Wllama, modalities: ModalitySupport): WllamaHandle {
-  const multimodal = modalities.image || modalities.audio;
+  const multimodal = modalities.image;
   return {
     multimodal,
     modalities,
@@ -326,30 +307,40 @@ function wrapWllama(wllama: Wllama, modalities: ModalitySupport): WllamaHandle {
           const maxTokens = (req.max_tokens as number | undefined) ?? 1024;
           const stream = Boolean(req.stream);
 
-          if (stream) {
-            const gen = await wllama.createChatCompletion({
+          try {
+            if (stream) {
+              const gen = await wllama.createChatCompletion({
+                messages,
+                temperature,
+                max_tokens: maxTokens,
+                stream: true,
+              });
+              return (async function* () {
+                try {
+                  for await (const chunk of gen) {
+                    yield {
+                      choices: chunk.choices?.map((c) => ({
+                        delta: { content: c.delta?.content ?? undefined },
+                      })),
+                    };
+                  }
+                } catch (e) {
+                  markEngineDead(wllama);
+                  throw e;
+                }
+              })();
+            }
+
+            return await wllama.createChatCompletion({
               messages,
               temperature,
               max_tokens: maxTokens,
-              stream: true,
+              stream: false,
             });
-            return (async function* () {
-              for await (const chunk of gen) {
-                yield {
-                  choices: chunk.choices?.map((c) => ({
-                    delta: { content: c.delta?.content ?? undefined },
-                  })),
-                };
-              }
-            })();
+          } catch (e) {
+            markEngineDead(wllama);
+            throw e;
           }
-
-          return wllama.createChatCompletion({
-            messages,
-            temperature,
-            max_tokens: maxTokens,
-            stream: false,
-          });
         },
       },
     },
@@ -369,6 +360,15 @@ function wrapWllama(wllama: Wllama, modalities: ModalitySupport): WllamaHandle {
       }
     },
   };
+}
+
+/** After a WASM (ABORT), the worker is dead — drop the cached handle. */
+function markEngineDead(wllama: Wllama): void {
+  if (instance === wllama) {
+    instance = null;
+    loadedKey = "";
+    loadedModalities = { image: false, audio: false };
+  }
 }
 
 export async function unloadGgufEngine(): Promise<void> {

@@ -180,9 +180,7 @@ function seekVideo(video: HTMLVideoElement, time: number): Promise<void> {
   });
 }
 
-export function defaultPromptForMedia(images: number, audios: number): string {
-  if (images && audios) return "Describe the attached image(s) and audio.";
-  if (audios) return "Transcribe or describe this audio.";
+export function defaultPromptForMedia(images: number, _audios = 0): string {
   if (images) return "Describe this image.";
   return "";
 }

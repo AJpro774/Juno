@@ -64,8 +64,8 @@
             </label>
             <p id="model-note" class="model-note"></p>
             <p class="engine-blurb">
-              Powered by <strong>KunoEngine</strong> — WebLLM + wllama GGUF.
-              <strong>Gemma 4 QAT</strong> is full multimodal (image · audio · video frames).
+              Powered by <strong>KunoEngine</strong> — WebLLM + wllama.
+              <strong>Gemma 4 E4B</strong> is text + image (wllama + mmproj).
               Switch <strong>FP8</strong> / <strong>MXFP6</strong> independently.
             </p>
           </div>
@@ -90,7 +90,7 @@
               <textarea
                 id="prompt"
                 rows="2"
-                placeholder="Message Kuni… (Gemma 4: image · audio · video frames)"
+                placeholder="Message Kuni… (Gemma 4: images)"
                 autocomplete="off"
               ></textarea>
             </div>
@@ -98,18 +98,12 @@
               <input
                 type="file"
                 id="media-input"
-                accept="image/*,audio/*,video/*"
+                accept="image/*,video/*"
                 multiple
                 hidden
               />
-              <button type="button" id="btn-attach" class="ghost tight" title="Attach media">
+              <button type="button" id="btn-attach" class="ghost tight" title="Attach image or video frames">
                 Media
-              </button>
-              <button type="button" id="btn-voice" class="ghost tight" title="Back-and-forth voice conversation">
-                Voice
-              </button>
-              <button type="button" id="btn-mic" class="ghost tight" title="Record audio" hidden>
-                Mic
               </button>
               <button type="submit" id="btn-send" class="run">Send</button>
             </div>

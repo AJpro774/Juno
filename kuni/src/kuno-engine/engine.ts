@@ -126,19 +126,18 @@ export function activeModelMeta() {
   return modelMetaFor(getScaleId(), getQuant());
 }
 
-/** Runtime modalities for the selected / loaded engine (image / audio). */
+/** Runtime modalities for the selected / loaded engine (image only — never claim audio). */
 export function getActiveModalities(): ModalitySupport {
   const meta = activeModelMeta();
   const currentId = resolveModelIdFor(getScaleId(), getQuant());
   // Before load, or after switching away from a still-resident engine, use catalog.
   if (!engine || lastModelId !== currentId) {
-    return meta.multimodal ? { image: true, audio: true } : { image: false, audio: false };
+    return meta.multimodal ? { image: true, audio: false } : { image: false, audio: false };
   }
   if (lastBackend === "wllama") {
-    // Catalog multimodal (Gemma 4 + mmproj) always exposes image+audio in the UI,
-    // even when the WASM probe only reports vision.
-    if (meta.multimodal) return { image: true, audio: true };
-    return { ...lastModalities };
+    // Multimodal = text + image via mmproj. Never expose audio in the UI.
+    if (meta.multimodal) return { image: true, audio: false };
+    return { image: lastModalities.image, audio: false };
   }
   return { image: false, audio: false };
 }
@@ -228,7 +227,7 @@ export async function ensureEngine(
 
     if (!hasWebGpu()) {
       throw new Error(
-        "WebGPU is required for WebLLM models. Use Chrome/Edge 113+, or pick a Gemma 4 GGUF tier (wllama)."
+        "WebGPU is required for WebLLM models. Use Chrome/Edge 113+."
       );
     }
 
@@ -285,22 +284,16 @@ export async function completeChat(
   onProgress?: (p: LoadProgress) => void
 ): Promise<string> {
   const hasImages = messages.some((m) => (m.images?.length ?? 0) > 0);
-  const hasAudios = messages.some((m) => (m.audios?.length ?? 0) > 0);
   const meta = activeModelMeta();
   const mods = getActiveModalities();
 
-  if ((hasImages || hasAudios) && !meta.multimodal) {
+  if (hasImages && !meta.multimodal) {
     throw new Error(
-      "This model does not support multimodal input. Switch to Gemma 4 E4B QAT or Gemma 4 12B QAT."
+      "This model does not support image input. Switch to Gemma 4 E4B QAT."
     );
   }
   if (hasImages && !mods.image) {
     throw new Error("Loaded model does not accept images.");
-  }
-  if (hasAudios && !mods.audio && !meta.multimodal) {
-    throw new Error(
-      "Loaded model does not accept audio. Try reloading Gemma 4 with mmproj, or attach images instead."
-    );
   }
 
   const eng = await ensureEngine(onProgress);
