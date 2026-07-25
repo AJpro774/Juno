@@ -17,7 +17,8 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
   },
+  assetsInclude: ["**/*.wasm"],
   optimizeDeps: {
-    exclude: ["@mlc-ai/web-llm"],
+    exclude: ["@mlc-ai/web-llm", "@wllama/wllama"],
   },
 });

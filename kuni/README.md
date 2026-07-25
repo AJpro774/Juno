@@ -30,11 +30,13 @@ Open http://localhost:5174 — click **Load model**, then chat. First download i
 
 | Piece | Role |
 |-------|------|
-| `src/kuno-engine/` | Engine wrapper around `@mlc-ai/web-llm` |
-| Default model | `Llama-3.1-8B-Instruct-q4f32_1-MLC` (~6101 MB) |
-| Runtime | WebGPU + WASM (MLC model libs) |
+| `src/kuno-engine/` | Engine wrapper |
+| WebLLM tiers | Llama / Qwen / Gemma 2 / 70B (MLC + WebGPU) |
+| GGUF tiers | **Gemma 4 E4B QAT**, **Gemma 4 12B QAT** via wllama — full multimodal (image · audio · video→frames) with `mmproj-F16.gguf` |
+| Quant switch | **FP8** / **MXFP6** (independent of scale; remaps WebLLM or GGUF file) |
+| Default | Llama 3.1 8B · FP8 (WebLLM) |
 
-WebLLM’s public catalog does not yet ship native FP8 WebGPU builds; the default maps to the closest **~6GB** prebuilt. Swap `DEFAULT_MODEL_ID` in `src/kuno-engine/models.ts` when FP8 records land.
+Picker shows **model names only**. Unsloth GGUFs download from Hugging Face on first load (E4B ~3–4GB, 12B ~6.7GB). Files over ~2GB may fail in some browsers unless Memory64 / OPFS handles them — error text explains if so.
 
 ## Downloads
 

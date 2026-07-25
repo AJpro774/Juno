@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.84",
+    "@wllama/wllama": "^3.5.1",
     "marked": "^15.0.12"
   },
   "devDependencies": {

@@ -51,14 +51,22 @@
           </div>
           <ul id="session-list" class="session-list"></ul>
           <div class="side-foot">
+            <div class="quant-row" role="group" aria-label="Quantization">
+              <span class="model-label">Quant</span>
+              <nav class="quant-switch" id="quant-switch">
+                <button type="button" class="quant-btn" data-quant="fp8">FP8</button>
+                <button type="button" class="quant-btn" data-quant="mxfp6">MXFP6</button>
+              </nav>
+            </div>
             <label class="model-label">
-              Model
-              <select id="model-select"></select>
+              Scale
+              <select id="scale-select"></select>
             </label>
             <p id="model-note" class="model-note"></p>
             <p class="engine-blurb">
-              Powered by <strong>KunoEngine</strong> — WebLLM + WASM, local WebGPU.
-              Default profile: <strong>FP8 · 6GB</strong>.
+              Powered by <strong>KunoEngine</strong> — WebLLM + wllama GGUF.
+              <strong>Gemma 4 QAT</strong> is full multimodal (image · audio · video frames).
+              Switch <strong>FP8</strong> / <strong>MXFP6</strong> independently.
             </p>
           </div>
         </aside>
@@ -77,13 +85,34 @@
           <div id="chat-log" class="ai-chat-log" aria-live="polite"></div>
 
           <form id="compose" class="ai-compose">
-            <textarea
-              id="prompt"
-              rows="2"
-              placeholder="Message Kuni…"
-              autocomplete="off"
-            ></textarea>
-            <button type="submit" id="btn-send" class="run">Send</button>
+            <div class="compose-main">
+              <div id="attach-preview" class="attach-preview" hidden></div>
+              <textarea
+                id="prompt"
+                rows="2"
+                placeholder="Message Kuni… (Gemma 4: image · audio · video frames)"
+                autocomplete="off"
+              ></textarea>
+            </div>
+            <div class="compose-actions">
+              <input
+                type="file"
+                id="media-input"
+                accept="image/*,audio/*,video/*"
+                multiple
+                hidden
+              />
+              <button type="button" id="btn-attach" class="ghost tight" title="Attach media">
+                Media
+              </button>
+              <button type="button" id="btn-voice" class="ghost tight" title="Back-and-forth voice conversation">
+                Voice
+              </button>
+              <button type="button" id="btn-mic" class="ghost tight" title="Record audio" hidden>
+                Mic
+              </button>
+              <button type="submit" id="btn-send" class="run">Send</button>
+            </div>
           </form>
         </main>
       </div>

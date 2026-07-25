@@ -37,7 +37,7 @@ export function saveSessions(sessions: Session[]): void {
   try {
     localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
   } catch {
-    /* ignore */
+    /* ignore — may fail if media data URLs are large */
   }
 }
 
@@ -57,9 +57,9 @@ export function setActiveId(id: string): void {
   }
 }
 
-export function titleFromPrompt(text: string): string {
+export function titleFromPrompt(text: string, hasMedia = false): string {
   const clean = text.replace(/\s+/g, " ").trim();
-  if (!clean) return "New chat";
+  if (!clean) return hasMedia ? "Media chat" : "New chat";
   return clean.length > 42 ? `${clean.slice(0, 42)}…` : clean;
 }
 
@@ -83,10 +83,37 @@ export function appendBubble(
   log: HTMLElement,
   role: "user" | "assistant" | "system",
   text: string,
-  opts: { markdown?: boolean } = {}
+  opts: { markdown?: boolean; images?: string[]; audios?: string[] } = {}
 ): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = `ai-bubble-wrap ai-bubble-wrap-${role}`;
+
+  if (opts.images?.length) {
+    const gallery = document.createElement("div");
+    gallery.className = "bubble-images";
+    for (const src of opts.images) {
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = "Attached image";
+      img.className = "bubble-image";
+      gallery.appendChild(img);
+    }
+    wrap.appendChild(gallery);
+  }
+
+  if (opts.audios?.length) {
+    const audios = document.createElement("div");
+    audios.className = "bubble-audios";
+    for (const src of opts.audios) {
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = src;
+      audio.className = "bubble-audio";
+      audios.appendChild(audio);
+    }
+    wrap.appendChild(audios);
+  }
+
   const bubble = document.createElement("div");
   bubble.className = `ai-bubble ai-bubble-${role}`;
   if (role === "assistant" && opts.markdown) {
@@ -109,6 +136,6 @@ export function showEmptyHint(log: HTMLElement): void {
   const hint = document.createElement("div");
   hint.className = "empty-hint";
   hint.innerHTML =
-    "<strong>Load the FP8 · 6GB model</strong>, then ask anything.<br />KunoEngine keeps inference on-device via WebLLM + WASM.";
+    "<strong>Pick a model</strong> and <strong>FP8 / MXFP6</strong>, then load.<br />Gemma 4 QAT is <strong>full multimodal</strong> — image, audio, and video frames.";
   log.appendChild(hint);
 }
