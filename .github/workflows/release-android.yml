@@ -152,7 +152,7 @@ jobs:
             # `yes` exits 141 (SIGPIPE) when bubblewrap closes stdin — ignore with +pipefail
             set +o pipefail
             yes "" | bubblewrap init \
-              --manifest=https://jkengine.netlify.app/manifest.webmanifest \
+              --manifest=https://junoengine.netlify.app/manifest.webmanifest \
               --directory=.
             INIT_RC=${PIPESTATUS[1]}
             set -o pipefail
@@ -168,14 +168,14 @@ jobs:
             const path = "twa-manifest.json";
             const m = JSON.parse(fs.readFileSync(path, "utf8"));
             m.packageId = "dev.juni.ide";
-            m.host = "jkengine.netlify.app";
+            m.host = "junoengine.netlify.app";
             m.name = "Juni IDE";
             m.launcherName = "Juni";
             m.startUrl = "/";
-            m.webManifestUrl = "https://jkengine.netlify.app/manifest.webmanifest";
-            m.fullScopeUrl = "https://jkengine.netlify.app/";
-            m.iconUrl = "https://jkengine.netlify.app/icons/icon-512.png";
-            m.maskableIconUrl = "https://jkengine.netlify.app/icons/icon-512.png";
+            m.webManifestUrl = "https://junoengine.netlify.app/manifest.webmanifest";
+            m.fullScopeUrl = "https://junoengine.netlify.app/";
+            m.iconUrl = "https://junoengine.netlify.app/icons/icon-512.png";
+            m.maskableIconUrl = "https://junoengine.netlify.app/icons/icon-512.png";
             m.appVersionName = process.env.VER;
             m.appVersionCode = Number(process.env.CODE);
             m.signingKey = { path: "./android.keystore", alias: process.env.ALIAS || "juni" };
