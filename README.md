@@ -6,11 +6,14 @@
 
 ## Try it online
 
-**[Open the Juni IDE](https://junoengine.netlify.app/)** — edit, compile, and run in your browser.
+Hosted IDE (same build):
 
-**[Open Kuni](https://junoengine.netlify.app/kuni/)** — local AI chatbot on KunoEngine (WebLLM + WASM, FP8 · 6GB).
+- **[junoengine.netlify.app](https://junoengine.netlify.app/)** — Netlify (canonical)
+- **[junoengine.vercel.app](https://junoengine.vercel.app/)** — Vercel mirror
 
-Or deploy the same IDE to **Netlify** via root [`netlify.toml`](netlify.toml) (build base `/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
+**[Open Kuni](https://junoengine.netlify.app/kuni/)** — local AI chatbot on KunoEngine (WebLLM + WASM). Also at [junoengine.vercel.app/kuni/](https://junoengine.vercel.app/kuni/).
+
+Deploy via root [`netlify.toml`](netlify.toml) or [`vercel.json`](vercel.json) (build `ide/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
 ## Status (v12.0.0)
 
@@ -75,9 +78,13 @@ cd desktop && npm install && npm run dev
 
 ## Publish (hosted IDE)
 
-Canonical hosted IDE: **https://junoengine.netlify.app/**
+| Host | URL |
+|------|-----|
+| **Netlify** (canonical) | https://junoengine.netlify.app/ |
+| **Vercel** (mirror) | https://junoengine.vercel.app/ |
 
-Deploy with root [`netlify.toml`](netlify.toml) (import the repo in Netlify, or `npx netlify deploy --build --prod` from a full clone). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
+- Netlify: root [`netlify.toml`](netlify.toml) — import the repo, or `npx netlify deploy --build --prod` from a full clone. See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
+- Vercel: root [`vercel.json`](vercel.json) — Framework **Other**, install `npm install --prefix ide`, build `cd ide && npm run build`, output `ide/dist`, `NODE_VERSION=20`.
 
 ```bash
 git remote add origin https://github.com/AJpro774/Juno.git
@@ -87,7 +94,7 @@ git push origin v6.0.0
 
 ### Optional: GitHub Pages (legacy)
 
-[`.github/workflows/pages.yml`](.github/workflows/pages.yml) can still publish a Pages build (`GITHUB_PAGES=true`, Vite base `/Juno/`). Enable **Settings → Pages → Build and deployment → GitHub Actions** if you want that mirror. Prefer Netlify for the canonical URL.
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) can still publish a Pages build (`GITHUB_PAGES=true`, Vite base `/Juno/`). Enable **Settings → Pages → Build and deployment → GitHub Actions** if you want that mirror. Prefer Netlify or Vercel for the `junoengine.*` URLs.
 
 ## Docs
 
