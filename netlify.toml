@@ -1,4 +1,5 @@
-# Netlify: build the flat canonical IDE at `ide/`. Publishes `ide/dist`.
+# Netlify: mirror build of the flat IDE at `ide/`. Publishes `ide/dist`.
+# Canonical / latest hosted IDE: https://junoengine.vercel.app/
 
 [build]
   command = "(cp -f sitemap.xml ide/public/sitemap.xml || true) && cd ide && npm install && npm run build"

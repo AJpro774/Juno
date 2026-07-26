@@ -1,6 +1,6 @@
 # Juni Android APK (Trusted Web Activity)
 
-Wraps the live PWA at [https://junoengine.netlify.app](https://junoengine.netlify.app) in a sideloadable APK via [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap).
+Wraps the live PWA at [https://junoengine.vercel.app](https://junoengine.vercel.app) in a sideloadable APK via [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap).
 
 ## CI
 
@@ -28,7 +28,7 @@ bubblewrap updateConfig --jdkPath "$JAVA_HOME" --androidSdkPath "$ANDROID_HOME"
 
 cd android-twa
 # first time only — generates the Android Gradle project next to twa-manifest.json
-yes '' | bubblewrap init --manifest=https://junoengine.netlify.app/manifest.webmanifest \
+yes '' | bubblewrap init --manifest=https://junoengine.vercel.app/manifest.webmanifest \
   --directory=. 2>/dev/null || true
 # if init already ran / twa-manifest exists:
 bubblewrap update --skipVersionUpgrade

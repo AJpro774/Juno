@@ -4,7 +4,7 @@ Host the **Juni IDE** (or a game export) as a static site on [Netlify](https://w
 
 ## IDE (recommended)
 
-The repo root [`netlify.toml`](../../netlify.toml) builds the flat canonical IDE:
+The repo root [`netlify.toml`](../../netlify.toml) builds the flat IDE (Netlify mirror; latest host is [junoengine.vercel.app](https://junoengine.vercel.app/)):
 
 | Setting | Value |
 |---------|--------|

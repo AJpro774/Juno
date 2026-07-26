@@ -8,12 +8,12 @@
 
 Hosted IDE (same build):
 
-- **[junoengine.netlify.app](https://junoengine.netlify.app/)** — Netlify (canonical)
-- **[junoengine.vercel.app](https://junoengine.vercel.app/)** — Vercel mirror
+- **[junoengine.vercel.app](https://junoengine.vercel.app/)** — Vercel (canonical / latest)
+- **[junoengine.netlify.app](https://junoengine.netlify.app/)** — Netlify mirror
 
-**[Open Kuni](https://junoengine.netlify.app/kuni/)** — local AI chatbot on KunoEngine (WebLLM + WASM). Also at [junoengine.vercel.app/kuni/](https://junoengine.vercel.app/kuni/).
+**[Open Kuni](https://junoengine.vercel.app/kuni/)** — local AI chatbot on KunoEngine (WebLLM + WASM). Also at [junoengine.netlify.app/kuni/](https://junoengine.netlify.app/kuni/).
 
-Deploy via root [`netlify.toml`](netlify.toml) or [`vercel.json`](vercel.json) (build `ide/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
+Deploy via root [`vercel.json`](vercel.json) or [`netlify.toml`](netlify.toml) (build `ide/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
 ## Status (v12.0.0)
 
@@ -80,11 +80,11 @@ cd desktop && npm install && npm run dev
 
 | Host | URL |
 |------|-----|
-| **Netlify** (canonical) | https://junoengine.netlify.app/ |
-| **Vercel** (mirror) | https://junoengine.vercel.app/ |
+| **Vercel** (canonical / latest) | https://junoengine.vercel.app/ |
+| **Netlify** (mirror) | https://junoengine.netlify.app/ |
 
-- Netlify: root [`netlify.toml`](netlify.toml) — import the repo, or `npx netlify deploy --build --prod` from a full clone. See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 - Vercel: root [`vercel.json`](vercel.json) — Framework **Other**, install `npm install --prefix ide`, build `cd ide && npm run build`, output `ide/dist`, `NODE_VERSION=20`.
+- Netlify: root [`netlify.toml`](netlify.toml) — import the repo, or `npx netlify deploy --build --prod` from a full clone. See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
 ```bash
 git remote add origin https://github.com/AJpro774/Juno.git
@@ -94,7 +94,7 @@ git push origin v6.0.0
 
 ### Optional: GitHub Pages (legacy)
 
-[`.github/workflows/pages.yml`](.github/workflows/pages.yml) can still publish a Pages build (`GITHUB_PAGES=true`, Vite base `/Juno/`). Enable **Settings → Pages → Build and deployment → GitHub Actions** if you want that mirror. Prefer Netlify or Vercel for the `junoengine.*` URLs.
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) can still publish a Pages build (`GITHUB_PAGES=true`, Vite base `/Juno/`). Enable **Settings → Pages → Build and deployment → GitHub Actions** if you want that mirror. Prefer **Vercel** (`junoengine.vercel.app`) for the latest hosted IDE.
 
 ## Docs
 
