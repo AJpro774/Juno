@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd ide && npm run build",
+  "installCommand": "npm install --prefix ide",
+  "outputDirectory": "ide/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/kuni", "destination": "/kuni/index.html" },
+    { "source": "/kuni/(.*)", "destination": "/kuni/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

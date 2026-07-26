@@ -1,0 +1,13 @@
+{
+  "name": "juno",
+  "private": true,
+  "version": "12.0.0",
+  "description": "Juno monorepo — Vercel/Netlify entry delegates to ide/",
+  "scripts": {
+    "build": "npm --prefix ide run build",
+    "install:ide": "npm install --prefix ide"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
