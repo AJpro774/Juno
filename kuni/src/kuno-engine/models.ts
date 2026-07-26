@@ -2,8 +2,8 @@
  * KunoEngine scale ladder + FP8 / MXFP6 quant switch.
  *
  * WebLLM tiers use MLC prebuilts (q4f32 ≈ FP8-class, q4f16/q3f16 ≈ MXFP6-class).
- * Hub tiers (Surge, Gemma 4 GGUF) are catalogued but not loadable in-browser today
- * (server / desktop, or GGUF above the ~2GB WASM limit).
+ * Hub tiers (Surge, Gemma 4 GGUF, SOLAR, Solar Open2, Qwen3-Coder, DeepSeek, Kimi)
+ * are catalogued but not loadable in-browser today (server / desktop, or GGUF above the ~2GB WASM limit).
  */
 
 export type KunoQuant = "fp8" | "mxfp6";
@@ -16,9 +16,17 @@ export type KunoScaleId =
   | "standard-6"
   | "creator-8"
   | "gemma4-12b"
+  | "solar-10"
   | "studio-12"
+  | "qwen3-coder-30"
+  | "qwen3-coder-next"
   | "rig-32"
+  | "deepseek-coder-v2"
   | "beast-256"
+  | "qwen3-coder-480"
+  | "solar-open2-250"
+  | "deepseek-v3"
+  | "kimi-k2"
   | "surge-k27";
 
 export type KunoGgufSource = {
@@ -30,6 +38,7 @@ export type KunoGgufSource = {
   sizeMb: number;
 };
 
+/** Hub catalog kind (chat LLMs only in the in-browser catalog). */
 export type KunoHubKind = "chat";
 
 export type KunoHubSource = {
@@ -177,6 +186,37 @@ export const KUNO_SCALE_TIERS: KunoScaleTier[] = [
     },
   },
   {
+    id: "solar-10",
+    label: "SOLAR · 10.7B",
+    modelNames: {
+      mxfp6: "SOLAR 10.7B Instruct",
+      fp8: "SOLAR 10.7B Instruct",
+    },
+    ramGb: 16,
+    note:
+      "upstage/SOLAR-10.7B-Instruct-v1.0 — chat LLM (safetensors ~21GB). Hub reference only: not in WebLLM; TheBloke GGUFs (~4.5–11GB) exceed the browser ~2GB WASM limit. Use desktop llama.cpp / Transformers.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:upstage/SOLAR-10.7B-Instruct-v1.0",
+      fp8: "hub:upstage/SOLAR-10.7B-Instruct-v1.0",
+    },
+    vramMb: { mxfp6: 21_500, fp8: 21_500 },
+    hub: {
+      mxfp6: {
+        repo: "upstage/SOLAR-10.7B-Instruct-v1.0",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 21.5,
+      },
+      fp8: {
+        repo: "upstage/SOLAR-10.7B-Instruct-v1.0",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 21.5,
+      },
+    },
+  },
+  {
     id: "studio-12",
     label: "Studio · 12GB",
     modelNames: { mxfp6: "Llama 2 13B", fp8: "Gemma 2 9B" },
@@ -188,6 +228,68 @@ export const KUNO_SCALE_TIERS: KunoScaleTier[] = [
       fp8: "gemma-2-9b-it-q4f32_1-MLC",
     },
     vramMb: { mxfp6: 11814, fp8: 8383 },
+  },
+  {
+    id: "qwen3-coder-30",
+    label: "Qwen3-Coder · 30B",
+    modelNames: {
+      mxfp6: "Qwen3-Coder 30B-A3B",
+      fp8: "Qwen3-Coder 30B-A3B",
+    },
+    ramGb: 64,
+    note:
+      "Qwen/Qwen3-Coder-30B-A3B-Instruct — 30.5B MoE coder (3.3B active). Hub reference; run with vLLM / Transformers / desktop GGUF. Not WebLLM/wllama.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:Qwen/Qwen3-Coder-30B-A3B-Instruct",
+      fp8: "hub:Qwen/Qwen3-Coder-30B-A3B-Instruct",
+    },
+    vramMb: { mxfp6: 61_000, fp8: 61_000 },
+    hub: {
+      mxfp6: {
+        repo: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 61,
+      },
+      fp8: {
+        repo: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 61,
+      },
+    },
+  },
+  {
+    id: "qwen3-coder-next",
+    label: "Qwen3-Coder · Next",
+    modelNames: {
+      mxfp6: "Qwen3-Coder Next",
+      fp8: "Qwen3-Coder Next",
+    },
+    ramGb: 160,
+    note:
+      "Qwen/Qwen3-Coder-Next — ~80B coder (~160GB-class). Hub reference; multi-GPU / desktop. Not WebLLM/wllama.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:Qwen/Qwen3-Coder-Next",
+      fp8: "hub:Qwen/Qwen3-Coder-Next",
+    },
+    vramMb: { mxfp6: 160_000, fp8: 160_000 },
+    hub: {
+      mxfp6: {
+        repo: "Qwen/Qwen3-Coder-Next",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 160,
+      },
+      fp8: {
+        repo: "Qwen/Qwen3-Coder-Next",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 160,
+      },
+    },
   },
   {
     id: "rig-32",
@@ -203,6 +305,37 @@ export const KUNO_SCALE_TIERS: KunoScaleTier[] = [
     vramMb: { mxfp6: 31153, fp8: 31153 },
   },
   {
+    id: "deepseek-coder-v2",
+    label: "DeepSeek-Coder · V2",
+    modelNames: {
+      mxfp6: "DeepSeek-Coder V2",
+      fp8: "DeepSeek-Coder V2",
+    },
+    ramGb: 256,
+    note:
+      "deepseek-ai/DeepSeek-Coder-V2-Instruct — ~236B MoE coder. Hub reference; multi-GPU cluster. Not WebLLM/wllama.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:deepseek-ai/DeepSeek-Coder-V2-Instruct",
+      fp8: "hub:deepseek-ai/DeepSeek-Coder-V2-Instruct",
+    },
+    vramMb: { mxfp6: 472_000, fp8: 472_000 },
+    hub: {
+      mxfp6: {
+        repo: "deepseek-ai/DeepSeek-Coder-V2-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 472,
+      },
+      fp8: {
+        repo: "deepseek-ai/DeepSeek-Coder-V2-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 472,
+      },
+    },
+  },
+  {
     id: "beast-256",
     label: "Beast · 256GB",
     modelNames: { mxfp6: "Llama 3.1 70B", fp8: "Llama 3.1 70B" },
@@ -214,6 +347,130 @@ export const KUNO_SCALE_TIERS: KunoScaleTier[] = [
       fp8: "Llama-3.1-70B-Instruct-q3f16_1-MLC",
     },
     vramMb: { mxfp6: 31153, fp8: 31153 },
+  },
+  {
+    id: "qwen3-coder-480",
+    label: "Qwen3-Coder · 480B",
+    modelNames: {
+      mxfp6: "Qwen3-Coder 480B-A35B",
+      fp8: "Qwen3-Coder 480B-A35B",
+    },
+    ramGb: 512,
+    note:
+      "Qwen/Qwen3-Coder-480B-A35B-Instruct — largest dedicated open coder (480B MoE / 35B active, Apache-2.0). Hub reference; multi-GPU cluster only. Not WebLLM/wllama.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:Qwen/Qwen3-Coder-480B-A35B-Instruct",
+      fp8: "hub:Qwen/Qwen3-Coder-480B-A35B-Instruct",
+    },
+    vramMb: { mxfp6: 960_000, fp8: 960_000 },
+    hub: {
+      mxfp6: {
+        repo: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 960,
+      },
+      fp8: {
+        repo: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 960,
+      },
+    },
+  },
+  {
+    id: "solar-open2-250",
+    label: "Solar Open2 · 250B",
+    modelNames: {
+      mxfp6: "Solar Open2 250B",
+      fp8: "Solar Open2 250B",
+    },
+    ramGb: 512,
+    note:
+      "upstage/Solar-Open2-250B — 250B-A15B Hybrid-Attention MoE chat LLM (~500GB safetensors). Hub reference only; needs multi-GPU (min ~4× H200) with vLLM / Transformers. Not WebLLM/wllama.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:upstage/Solar-Open2-250B",
+      fp8: "hub:upstage/Solar-Open2-250B",
+    },
+    vramMb: { mxfp6: 500_000, fp8: 500_000 },
+    hub: {
+      mxfp6: {
+        repo: "upstage/Solar-Open2-250B",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 500,
+      },
+      fp8: {
+        repo: "upstage/Solar-Open2-250B",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 500,
+      },
+    },
+  },
+  {
+    id: "deepseek-v3",
+    label: "DeepSeek · V3",
+    modelNames: {
+      mxfp6: "DeepSeek V3",
+      fp8: "DeepSeek V3",
+    },
+    ramGb: 1024,
+    note:
+      "deepseek-ai/DeepSeek-V3 — ~685B MoE generalist (strong coding). Hub reference; multi-GPU cluster. Not WebLLM/wllama.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:deepseek-ai/DeepSeek-V3",
+      fp8: "hub:deepseek-ai/DeepSeek-V3",
+    },
+    vramMb: { mxfp6: 1_370_000, fp8: 1_370_000 },
+    hub: {
+      mxfp6: {
+        repo: "deepseek-ai/DeepSeek-V3",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 1370,
+      },
+      fp8: {
+        repo: "deepseek-ai/DeepSeek-V3",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 1370,
+      },
+    },
+  },
+  {
+    id: "kimi-k2",
+    label: "Kimi · K2",
+    modelNames: {
+      mxfp6: "Kimi K2 Instruct",
+      fp8: "Kimi K2 Instruct",
+    },
+    ramGb: 1024,
+    note:
+      "moonshotai/Kimi-K2-Instruct — ~1T MoE generalist (strong agentic coding). Hub reference; multi-GPU cluster. Not WebLLM/wllama.",
+    backend: "hub",
+    variants: {
+      mxfp6: "hub:moonshotai/Kimi-K2-Instruct",
+      fp8: "hub:moonshotai/Kimi-K2-Instruct",
+    },
+    vramMb: { mxfp6: 2_050_000, fp8: 2_050_000 },
+    hub: {
+      mxfp6: {
+        repo: "moonshotai/Kimi-K2-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 2050,
+      },
+      fp8: {
+        repo: "moonshotai/Kimi-K2-Instruct",
+        kind: "chat",
+        format: "safetensors",
+        sizeGb: 2050,
+      },
+    },
   },
   {
     id: "surge-k27",
@@ -329,16 +586,16 @@ export function modelMetaFor(scaleId: KunoScaleId, quant: KunoQuant): KunoModelO
 
 /** Human-readable reason a hub tier cannot load in-browser. */
 export function hubUnavailableMessage(hub: KunoHubSource, modelName: string): string {
-  const gated = hub.gated ? " (gated — HF login + access required)" : "";
+  const gated = hub.gated ? " (HF gated)" : "";
   if (hub.format === "gguf") {
     return (
-      `${modelName} is ${hub.repo}${gated}: GGUF ~${hub.sizeGb}GB exceeds the browser WASM ~2GB single-file limit ` +
-      `(needs pre-split shards or desktop llama.cpp). For in-browser chat, load Llama 3.1 8B, Gemma 2 9B, or Gemma 4 E4B.`
+      `${modelName} (~${hub.sizeGb}GB GGUF)${gated} is too large for in-browser load. ` +
+      `Pick Llama 3.1 8B, Gemma 2 9B, or Gemma 4 E4B instead.`
     );
   }
   return (
-    `${modelName} is ${hub.repo}${gated}: ${hub.format} checkpoint (~${hub.sizeGb}GB). ` +
-    `Deploy on a GPU cluster with Transformers / vLLM / SGLang. Not loadable in-browser via WebLLM or wllama.`
+    `${modelName} (${hub.repo}, ~${hub.sizeGb}GB)${gated} needs a GPU server (vLLM / Transformers). ` +
+    `For in-browser chat, pick Llama 3.1 8B, Gemma 2 9B, or Gemma 4 E4B.`
   );
 }
 

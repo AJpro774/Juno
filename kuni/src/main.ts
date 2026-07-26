@@ -240,7 +240,8 @@ async function loadModel(): Promise<void> {
     const msg =
       meta.hub != null
         ? hubUnavailableMessage(meta.hub, meta.modelName)
-        : `${meta.modelName} is a Hugging Face hub checkpoint and cannot load in-browser.`;
+        : `${meta.modelName} cannot load in-browser — pick a WebLLM or Gemma 4 E4B tier.`;
+    els.log.querySelector(".empty-hint")?.remove();
     appendBubble(els.log, "system", msg);
     setProgress(null);
     refreshStatus();

@@ -892,23 +892,30 @@ function ensureEulaAccepted(): Promise<void> {
   const check = document.getElementById("eula-gate-check") as HTMLInputElement | null;
   const accept = document.getElementById("eula-gate-accept") as HTMLButtonElement | null;
   const viewLicense = document.getElementById("eula-gate-license") as HTMLButtonElement | null;
+  // Never silently accept — missing gate UI would skip the binding contract.
   if (!gate || !body || !check || !accept) {
-    acceptEula();
-    return Promise.resolve();
+    return Promise.reject(new Error("EULA gate UI missing (#eula-gate); cannot continue without acceptance."));
   }
-  body.innerHTML = marked.parse(EULA_MARKDOWN, { async: false }) as string;
+  const renderMd = (md: string) => {
+    try {
+      body.innerHTML = marked.parse(md, { async: false }) as string;
+    } catch {
+      body.textContent = md;
+    }
+  };
+  // Reveal first so a markdown parse failure cannot leave the gate stuck hidden.
   gate.hidden = false;
   accept.disabled = true;
+  renderMd(EULA_MARKDOWN);
   return new Promise((resolve) => {
     const sync = () => {
       accept.disabled = !check.checked;
     };
     check.addEventListener("change", sync);
     viewLicense?.addEventListener("click", () => {
-      body.innerHTML = marked.parse(
+      renderMd(
         `${EULA_MARKDOWN}\n\n---\n\n# Juni Software License and Commercial Contract 1.0\n\n${LICENSE_MARKDOWN}`,
-        { async: false },
-      ) as string;
+      );
     });
     accept.addEventListener("click", () => {
       if (!check.checked) return;

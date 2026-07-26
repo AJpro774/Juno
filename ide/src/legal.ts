@@ -6,14 +6,18 @@ import eulaMd from "../../EULA.md?raw";
 export const LICENSE_MARKDOWN = licenseMd;
 export const EULA_MARKDOWN = eulaMd;
 
-/** Bump when EULA/LICENSE terms change meaningfully (forces re-accept). */
-export const EULA_ACCEPTANCE_VERSION = "3";
+/**
+ * Bump when EULA/LICENSE terms change meaningfully (forces re-accept).
+ * Storage key: `juni.eula.accepted.v${EULA_ACCEPTANCE_VERSION}`
+ * v1 = Apache+EULA; v3 = Software License / Commercial Contract; v4 = ensure v12 re-prompt.
+ */
+export const EULA_ACCEPTANCE_VERSION = "4";
 
-const STORAGE_KEY = `juni.eula.accepted.v${EULA_ACCEPTANCE_VERSION}`;
+export const EULA_STORAGE_KEY = `juni.eula.accepted.v${EULA_ACCEPTANCE_VERSION}`;
 
 export function hasAcceptedEula(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
+    return localStorage.getItem(EULA_STORAGE_KEY) === "1";
   } catch {
     return false;
   }
@@ -21,7 +25,7 @@ export function hasAcceptedEula(): boolean {
 
 export function acceptEula(): void {
   try {
-    localStorage.setItem(STORAGE_KEY, "1");
+    localStorage.setItem(EULA_STORAGE_KEY, "1");
     localStorage.setItem("juni.eula.acceptedAt", new Date().toISOString());
   } catch {
     /* ignore */
