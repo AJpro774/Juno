@@ -2,6 +2,7 @@ import "./style.css";
 import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { marked } from "marked";
+import { inject } from "@vercel/analytics";
 import { registerJuniLanguage, JUNI_LANGUAGE_ID, applyJuniEditorTheme } from "./juni-lang";
 import { wireCodeSearchPanel } from "./code-search";
 import { wireAnimEditorPanel } from "./anim-editor";
@@ -1122,6 +1123,9 @@ async function handleOpenProject() {
 
 async function main() {
   await ensureEulaAccepted();
+
+  // Initialize Vercel Web Analytics
+  inject();
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
