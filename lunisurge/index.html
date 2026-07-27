@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LuniSurge — planning on LunoEngine</title>
+    <meta
+      name="description"
+      content="LuniSurge (Luni) is a node-based project planning canvas built on LunoEngine — goals, steps, notes, and decisions. Private by default in the browser."
+    />
+    <meta name="theme-color" content="#0b6e75" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <header class="top">
+        <div class="brand-cluster">
+          <div class="brand">
+            <span class="brand-mark">LuniSurge</span>
+            <span class="brand-tag">Plan</span>
+          </div>
+          <nav class="app-switch" aria-label="Switch app">
+            <a class="app-switch-btn" href="/">Juni</a>
+            <a class="app-switch-btn" href="/kuni/">Kuni</a>
+            <a
+              class="app-switch-btn app-switch-expand is-active"
+              href="/luni/"
+              aria-current="page"
+              title="LuniSurge"
+            >
+              <span class="expand-short">Luni</span>
+              <span class="expand-full" aria-hidden="true">LuniSurge</span>
+            </a>
+          </nav>
+        </div>
+        <div class="actions">
+          <span class="engine-status" aria-live="polite">Built on LunoEngine</span>
+          <div class="add-wrap">
+            <button type="button" id="btn-add" class="run tight" aria-expanded="false" aria-haspopup="true">
+              New node ▾
+            </button>
+            <div id="add-menu" class="add-menu" hidden role="menu">
+              <button type="button" role="menuitem" data-add-type="goal">Goal</button>
+              <button type="button" role="menuitem" data-add-type="step">Step</button>
+              <button type="button" role="menuitem" data-add-type="note">Note</button>
+              <button type="button" role="menuitem" data-add-type="decision">Decision</button>
+            </div>
+          </div>
+          <button type="button" id="btn-demo" class="ghost tight">Demo</button>
+          <button type="button" id="btn-clear" class="ghost tight">Clear</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <aside class="side-pane left-pane" aria-label="Board tools">
+          <div class="pane-head-light">Board</div>
+          <label class="field-label">
+            Name
+            <input id="board-name" type="text" autocomplete="off" />
+          </label>
+          <div class="pane-head-light">Add</div>
+          <div class="toolbar-types" role="group" aria-label="Add node type">
+            <button type="button" class="ghost tight" data-toolbar-type="goal">Goal</button>
+            <button type="button" class="ghost tight" data-toolbar-type="step">Step</button>
+            <button type="button" class="ghost tight" data-toolbar-type="note">Note</button>
+            <button type="button" class="ghost tight" data-toolbar-type="decision">Decision</button>
+          </div>
+          <p class="engine-blurb">
+            Built on <strong>LunoEngine</strong> — graph store, canvas, and local persistence for planning boards.
+          </p>
+        </aside>
+
+        <main class="canvas-stage" aria-label="Planning canvas">
+          <div id="canvas-host"></div>
+        </main>
+
+        <aside class="side-pane right-pane" aria-label="Inspector">
+          <div class="pane-head-light">Inspector</div>
+          <p id="inspector-empty" class="inspector-empty">Select a node to edit title, body, type, and status.</p>
+          <div id="inspector-form" hidden>
+            <label class="field-label">
+              Title
+              <input id="field-title" type="text" autocomplete="off" />
+            </label>
+            <label class="field-label">
+              Body
+              <textarea id="field-body" rows="5"></textarea>
+            </label>
+            <label class="field-label">
+              Type
+              <select id="field-type"></select>
+            </label>
+            <label class="field-label" id="status-row">
+              Status
+              <select id="field-status"></select>
+            </label>
+            <button type="button" id="btn-delete-node" class="ghost tight danger">Delete node</button>
+          </div>
+
+          <div class="pane-head-light next-head">Next steps</div>
+          <ul id="next-list" class="next-list"></ul>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

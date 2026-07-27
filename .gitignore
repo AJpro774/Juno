@@ -2,6 +2,7 @@
 node_modules/
 ide/dist/
 kuni/dist/
+lunisurge/dist/
 .DS_Store
 *.swp
 .cursor/
@@ -20,8 +21,17 @@ _github_upload/
 # Local Netlify folder
 .netlify
 
-# Local env / secrets (Cesium ion token, etc.) — never commit
+# Local env / secrets (Cesium ion token, Vercel token, etc.) — never commit
 .env
 .env.local
+.env.*.local
 ide/.env
 ide/.env.local
+kuni/.env
+kuni/.env.local
+lunisurge/.env
+lunisurge/.env.local
+
+# Vercel CLI link metadata (optional local)
+.vercel
+

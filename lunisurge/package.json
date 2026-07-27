@@ -1,0 +1,17 @@
+{
+  "name": "lunisurge",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "LuniSurge (Luni) — planning canvas built on LunoEngine",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:nested": "tsc && LUNI_BASE=/luni/ vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
+  }
+}

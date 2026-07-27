@@ -7,6 +7,8 @@
   "rewrites": [
     { "source": "/kuni", "destination": "/kuni/index.html" },
     { "source": "/kuni/(.*)", "destination": "/kuni/index.html" },
+    { "source": "/luni", "destination": "/luni/index.html" },
+    { "source": "/luni/(.*)", "destination": "/luni/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

@@ -18,9 +18,9 @@ License contract, permanent provenance, Android APK pipeline, and Kuni nested in
 - Bubblewrap TWA APK workflow uploads to GitHub Releases (version from tag / `ide/package.json`)
 - TWA manifest brand version → **12.0.0** (`appVersionCode` 12000)
 
-### IDE / Kuni
-- App switcher and promo rail for **Juni** + **Kuni** (nested Vite build under `/kuni/`)
-- Netlify routing for Kuni; wasm init `BASE_URL` fix; layout-resize console noise fix
+### IDE / Kuni / Luni
+- App switcher and promo rail for **Juni** + **Kuni** + **Luni** (LuniSurge nested under `/luni/`, built on **LunoEngine**; Kuni under `/kuni/`)
+- Netlify / Vercel routing for Kuni and Luni; wasm init `BASE_URL` fix; layout-resize console noise fix
 - Platformer tutorial / Cat Coffee polish from recent IDE work
 
 ### Release

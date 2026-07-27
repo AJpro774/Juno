@@ -40,6 +40,23 @@
   force = false
 
 [[redirects]]
+  from = "/luni"
+  to = "/luni/"
+  status = 301
+
+# Serve Luni's own index (do not fall through to Juni SPA).
+[[redirects]]
+  from = "/luni/"
+  to = "/luni/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/luni/*"
+  to = "/luni/:splat"
+  status = 200
+  force = false
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

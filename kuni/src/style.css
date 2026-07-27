@@ -56,6 +56,7 @@ a {
   display: flex;
   align-items: baseline;
   gap: 0.55rem;
+  flex-shrink: 0;
 }
 
 .brand-cluster {
@@ -63,12 +64,15 @@ a {
   align-items: center;
   gap: 0.85rem;
   flex-wrap: wrap;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 .app-switch {
   display: inline-flex;
   align-items: stretch;
+  flex-shrink: 0;
+  width: max-content;
+  max-width: none;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
@@ -87,6 +91,8 @@ a {
   text-transform: uppercase;
   text-decoration: none;
   padding: 0.38rem 0.7rem;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: background 140ms ease, color 140ms ease;
 }
 
@@ -102,6 +108,32 @@ a {
 
 .app-switch-btn + .app-switch-btn {
   border-left: 1px solid var(--line);
+}
+
+/* Hover/focus expands Luni → LuniSurge (only one label in layout at a time) */
+.app-switch-expand {
+  display: inline-flex;
+  align-items: center;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.app-switch-expand .expand-short,
+.app-switch-expand .expand-full {
+  white-space: nowrap;
+}
+
+.app-switch-expand .expand-full {
+  display: none;
+}
+
+.app-switch-expand:hover .expand-short,
+.app-switch-expand:focus-visible .expand-short {
+  display: none;
+}
+
+.app-switch-expand:hover .expand-full,
+.app-switch-expand:focus-visible .expand-full {
+  display: inline;
 }
 
 .brand-mark {
