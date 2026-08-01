@@ -17,13 +17,13 @@
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.84",
     "@wllama/wllama": "^3.5.1",
-    "marked": "^15.0.12"
+    "marked": "^18.0.7"
   },
   "devDependencies": {
-    "@capacitor/android": "^7.2.0",
-    "@capacitor/cli": "^7.2.0",
-    "@capacitor/core": "^7.2.0",
-    "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/cli": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0"
   }
 }
