@@ -1588,7 +1588,7 @@ dependencies = [
 
 [[package]]
 name = "juni-desktop"
-version = "10.1.0"
+version = "12.0.0"
 dependencies = [
  "base64 0.22.1",
  "juni-driver",
@@ -1609,7 +1609,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "toml 0.8.2",
+ "toml 1.1.2+spec-1.1.0",
 ]
 
 [[package]]

@@ -21,6 +21,16 @@ _github_upload/
 # Local Netlify folder
 .netlify
 
+# Tauri desktop local build artifacts
+desktop/src-tauri/target/
+
+# Root-level Tauri schema dumps (tracked copy lives under desktop/src-tauri/gen/schemas/)
+/acl-manifests.json
+/capabilities.json
+/desktop-schema.json
+/macOS-schema.json
+/linux-schema.json
+
 # Local env / secrets (Cesium ion token, Vercel token, etc.) — never commit
 .env
 .env.local
