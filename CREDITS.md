@@ -99,6 +99,13 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2, Bubblewrap/TWA
 
+## Weekly maintenance — 2026-09-05
+
+- **Author:** Alexander James Patton
+- **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
+- **Work:** Re-applied unmerged weekly fixes on `main` @ `adda74f`; LSP `unused_assignments` cleanup; `check-projects.sh` path slash; `.gitignore` desktop/Tauri hygiene; dependency bumps (Vite 8.2.2, Monaco 0.55.1, marked 18, TypeScript 7, Capacitor 7.6.9, wasm-encoder 0.258, wasm-bindgen 0.2.128, toml 1.x, Tauri CLI 2.11.4); rebuilt `ide/public/pkg`; tracked Linux Tauri schema
+- **Software:** Rust 1.98.1, Cargo, wasm-pack, Vite, Monaco, TypeScript, marked, Tauri 2, Capacitor 7, Node.js
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.
