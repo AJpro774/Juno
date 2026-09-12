@@ -15,15 +15,15 @@
     "android:open": "npx cap open android"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.84",
+    "@mlc-ai/web-llm": "^0.2.85",
     "@wllama/wllama": "^3.6.1",
-    "marked": "^18.0.11"
+    "marked": "^18.0.12"
   },
   "devDependencies": {
     "@capacitor/android": "^7.6.9",
     "@capacitor/cli": "^7.6.9",
     "@capacitor/core": "^7.6.9",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.3.0"
   }
 }

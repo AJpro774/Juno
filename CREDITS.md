@@ -110,8 +110,8 @@ Built with **Cursor** and the open-source toolchain listed per version.
 
 - **Author:** Alexander James Patton
 - **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
-- **Work:** Additional fixes on top of 2026-09-05 cherry-picks @ `adda74f`: machine-local paths in `kuni`/`lunisurge` READMEs; broken docs relative links (`modules.md` → `juni-toml`, example/project repo paths); GitHub Pages nested Kuni/Luni `base` + app-switcher hrefs; sitemap canonical host → `junoengine.vercel.app`
-- **Software:** Rust, TypeScript, Vite, mdBook docs, GitHub Actions
+- **Work:** Re-applied unmerged weekly fixes on `main` @ `adda74ffd5f942eaa528791bfe147647bad1729a` (LSP `unused_assignments`, `check-projects.sh` trailing-slash paths, desktop/Tauri `.gitignore` + Linux schema); docs/README portable paths; fixed docs relative links to examples and repo-root files; GitHub Pages nested Kuni/Luni `KUNI_BASE`/`LUNI_BASE` + relative app-switcher hrefs; sitemap → canonical `junoengine.vercel.app`; dependency bumps (Vite **8.3.0**, marked **18.0.12**, `@mlc-ai/web-llm` **0.2.85**, `dompurify` **3.4.15**, `wasm-encoder` **0.259**); rebuilt `ide/public/pkg`
+- **Software:** Rust 1.98.1, Cargo, wasm-pack, Vite 8.3, Monaco 0.55.1, TypeScript 7.0.2, marked, Tauri 2, Capacitor 7, Node.js
 
 ---
 
