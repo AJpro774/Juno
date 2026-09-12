@@ -6,19 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && npm run embed:kuni && npm run embed:luni",
+    "build:pages": "GITHUB_PAGES=true KUNI_BASE=/Juno/kuni/ LUNI_BASE=/Juno/luni/ npm run build",
     "embed:kuni": "npm --prefix ../kuni install && npm --prefix ../kuni run build:nested && rm -rf dist/kuni && cp -R ../kuni/dist dist/kuni",
     "embed:luni": "npm --prefix ../lunisurge install && npm --prefix ../lunisurge run build:nested && rm -rf dist/luni && cp -R ../lunisurge/dist dist/luni",
     "preview": "vite preview",
     "build:wasm": "wasm-pack build ../crates/juni-wasm --target web --out-dir ../../ide/public/pkg --out-name juni_wasm"
   },
   "devDependencies": {
-    "@webgpu/types": "^0.1.71",
-    "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "@webgpu/types": "^0.1.72",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.84",
-    "marked": "^15.0.12",
-    "monaco-editor": "^0.52.2"
+    "@mlc-ai/web-llm": "^0.2.85",
+    "marked": "^18.0.12",
+    "monaco-editor": "0.55.1"
+  },
+  "overrides": {
+    "dompurify": "3.4.15"
   }
 }
