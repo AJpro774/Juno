@@ -1,15 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://junoengine.netlify.app/</loc>
-    <lastmod>2026-07-17T00:00:00+00:00</lastmod>
+    <loc>https://junoengine.vercel.app/</loc>
+    <lastmod>2026-09-12T00:00:00+00:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://junoengine.netlify.app/download/</loc>
-    <lastmod>2026-07-17T00:00:00+00:00</lastmod>
+    <loc>https://junoengine.vercel.app/download/</loc>
+    <lastmod>2026-09-12T00:00:00+00:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://junoengine.vercel.app/kuni/</loc>
+    <lastmod>2026-09-12T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://junoengine.vercel.app/luni/</loc>
+    <lastmod>2026-09-12T00:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset>

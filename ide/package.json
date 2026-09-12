@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && npm run embed:kuni && npm run embed:luni",
+    "build:pages": "GITHUB_PAGES=true KUNI_BASE=/Juno/kuni/ LUNI_BASE=/Juno/luni/ npm run build",
     "embed:kuni": "npm --prefix ../kuni install && npm --prefix ../kuni run build:nested && rm -rf dist/kuni && cp -R ../kuni/dist dist/kuni",
     "embed:luni": "npm --prefix ../lunisurge install && npm --prefix ../lunisurge run build:nested && rm -rf dist/luni && cp -R ../lunisurge/dist dist/luni",
     "preview": "vite preview",

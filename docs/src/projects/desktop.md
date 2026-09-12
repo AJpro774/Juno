@@ -45,7 +45,7 @@ Bundle targets (see `tauri.conf.json`): **dmg** / **app** (macOS), **nsis** / **
 
 ## Multi-arch CI / GitHub Releases
 
-Workflow: [`.github/workflows/release-desktop.yml`](../../.github/workflows/release-desktop.yml).
+Workflow: [`.github/workflows/release-desktop.yml`](../../../.github/workflows/release-desktop.yml).
 
 | Host | Arch |
 |------|------|

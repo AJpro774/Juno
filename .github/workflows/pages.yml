@@ -39,7 +39,7 @@ jobs:
           cd ide
           npm ci
           npm run build:wasm
-          GITHUB_PAGES=true npm run build
+          GITHUB_PAGES=true KUNI_BASE=/Juno/kuni/ LUNI_BASE=/Juno/luni/ npm run build
 
       - uses: actions/configure-pages@v5
 

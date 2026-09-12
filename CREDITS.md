@@ -106,6 +106,13 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **Work:** Re-applied unmerged weekly fixes on `main` @ `adda74ffd5f942eaa528791bfe147647bad1729a`; LSP `unused_assignments` cleanup in `identifier_at`; `scripts/check-projects.sh` trailing-slash paths; `.gitignore` desktop/Tauri hygiene; dependency bumps (Vite 8.2.2, Monaco 0.55.1, marked 18.0.11, TypeScript 7.0.2, Capacitor 7.6.9, wasm-encoder 0.258, wasm-bindgen 0.2.128, toml 1.x, Tauri CLI 2.11.4); rebuilt `ide/public/pkg`; tracked Linux Tauri schema
 - **Software:** Rust 1.98.1, Cargo, wasm-pack, Vite, Monaco, TypeScript, marked, Tauri 2, Capacitor 7, Node.js
 
+## Weekly maintenance — 2026-09-12
+
+- **Author:** Alexander James Patton
+- **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
+- **Work:** Additional fixes on top of 2026-09-05 cherry-picks @ `adda74f`: machine-local paths in `kuni`/`lunisurge` READMEs; broken docs relative links (`modules.md` → `juni-toml`, example/project repo paths); GitHub Pages nested Kuni/Luni `base` + app-switcher hrefs; sitemap canonical host → `junoengine.vercel.app`
+- **Software:** Rust, TypeScript, Vite, mdBook docs, GitHub Actions
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.
