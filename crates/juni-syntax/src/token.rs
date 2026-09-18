@@ -36,6 +36,7 @@ pub enum TokenKind {
     Export,
     From,
     As,
+    Extern,
 
     // Identifiers and literals
     Ident(String),
@@ -102,6 +103,7 @@ impl TokenKind {
             "export" => TokenKind::Export,
             "from" => TokenKind::From,
             "as" => TokenKind::As,
+            "extern" => TokenKind::Extern,
             _ => return None,
         })
     }

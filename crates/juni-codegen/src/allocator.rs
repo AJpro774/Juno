@@ -2,6 +2,25 @@
 
 use wasm_encoder::{BlockType, Function, Instruction, MemArg, ValType};
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A fallthrough block must leave exactly one value (the pointer) on the stack.
+    /// `wasm_encoder::Function` has no validator, so count pushes/pops by hand
+    /// on the select helpers, which were the historical leak.
+    #[test]
+    fn select_helpers_are_stack_neutral() {
+        let mut f = Function::new(vec![]);
+        emit_max_local_const(&mut f, 0, 16);
+        emit_min_local_const(&mut f, 0, 15);
+        let bytes = f.into_raw_body();
+        // Two `select` opcodes (0x1b), no `if` (0x04) / `else` (0x05).
+        assert_eq!(bytes.iter().filter(|&&b| b == 0x1b).count(), 2);
+        assert!(!bytes.contains(&0x04) && !bytes.contains(&0x05));
+    }
+}
+
 /// Number of size classes (16, 32, …, 524288 bytes).
 pub const NUM_CLASSES: u32 = 16;
 /// Bytes per block header: [block_size: i32][next_free: i32].
@@ -20,30 +39,29 @@ pub fn heap_start(static_region_size: u32) -> u32 {
     heap_base(static_region_size) + META_SIZE
 }
 
+/// Push `max(local, const_val)`.
+///
+/// Uses `select`, which consumes both candidates and the condition, so the
+/// operand stack stays balanced. (An `if`-based version leaked two values per
+/// call, silently corrupting any operands pushed before an allocation, e.g.
+/// the address in `static = "literal"` or earlier call arguments.)
 fn emit_max_local_const(f: &mut Function, local: u32, const_val: i32) {
     f.instruction(&Instruction::LocalGet(local));
     f.instruction(&Instruction::I32Const(const_val));
     f.instruction(&Instruction::LocalGet(local));
     f.instruction(&Instruction::I32Const(const_val));
     f.instruction(&Instruction::I32GtS);
-    f.instruction(&Instruction::If(BlockType::Result(ValType::I32)));
-    f.instruction(&Instruction::LocalGet(local));
-    f.instruction(&Instruction::Else);
-    f.instruction(&Instruction::I32Const(const_val));
-    f.instruction(&Instruction::End);
+    f.instruction(&Instruction::Select);
 }
 
+/// Push `min(local, const_val)` (see [`emit_max_local_const`]).
 fn emit_min_local_const(f: &mut Function, local: u32, const_val: i32) {
     f.instruction(&Instruction::LocalGet(local));
     f.instruction(&Instruction::I32Const(const_val));
     f.instruction(&Instruction::LocalGet(local));
     f.instruction(&Instruction::I32Const(const_val));
     f.instruction(&Instruction::I32LtS);
-    f.instruction(&Instruction::If(BlockType::Result(ValType::I32)));
-    f.instruction(&Instruction::LocalGet(local));
-    f.instruction(&Instruction::Else);
-    f.instruction(&Instruction::I32Const(const_val));
-    f.instruction(&Instruction::End);
+    f.instruction(&Instruction::Select);
 }
 
 /// Emit WASM to allocate `user_size` bytes from local `user_size_local`; leaves user pointer on stack.

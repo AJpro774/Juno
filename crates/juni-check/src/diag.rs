@@ -53,6 +53,30 @@ impl Diagnostic {
         self
     }
 
+    /// Turn a lexer / parser failure into a positioned diagnostic so
+    /// embedders get one shape for every compile failure.
+    pub fn from_parse_error(err: &juni_syntax::ParseError, file: Option<String>) -> Self {
+        use juni_syntax::lexer::LexError;
+        use juni_syntax::ParseError;
+        let (line, col) = match err {
+            ParseError::Unexpected { line, col, .. } => (*line, *col),
+            ParseError::Lex(e) => match e {
+                LexError::UnexpectedChar(_, l, c)
+                | LexError::InvalidNumber(l, c)
+                | LexError::UnterminatedString(l, c) => (*l, *c),
+                LexError::InconsistentIndent(l) => (*l, 1),
+            },
+            ParseError::Message(_) => (1, 1),
+        };
+        Self {
+            severity: Severity::Error,
+            span: Span::new(0, 0, line, col),
+            message: err.to_string(),
+            notes: Vec::new(),
+            file,
+        }
+    }
+
     pub fn format(&self, filename: &str) -> String {
         let kind = match self.severity {
             Severity::Error => "error",

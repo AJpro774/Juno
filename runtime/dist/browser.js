@@ -4,7 +4,7 @@
  * Built with Juni
  */
 import { createCanvasHandlers, createGpuHandlers } from "./canvas.js";
-import { createEnvImports } from "./env.js";
+import { compileWithImports, createEnvImports } from "./env.js";
 import { createAssetHandlers } from "./assets.js";
 import { createAudioHandlers } from "./audio.js";
 import { attachInputListeners, bindMouse, createInputHandlers } from "./input.js";
@@ -120,10 +120,16 @@ export async function instantiateJuni(wasmBytes, options = {}) {
         verbose: options.verbose,
     });
     await assetHandlers.preloadAll();
-    const result = await WebAssembly.instantiate(wasmBytes, { env });
-    const instance = "instance" in result
-        ? result.instance
-        : result;
+    const stubbed = [];
+    const { module, imports } = await compileWithImports(wasmBytes, env, {
+        extraImports: options.extraImports,
+        stubMissingExterns: options.stubMissingExterns,
+        onMissingExtern: options.onMissingExtern ?? ((mod, name) => stubbed.push(`${mod}.${name}`)),
+    });
+    if (stubbed.length > 0) {
+        write(`[extern] no host for ${stubbed.join(", ")} — stubbed (returns 0). Run this script inside its engine for real behavior.`);
+    }
+    const instance = await WebAssembly.instantiate(module, imports);
     envMemoryRef.current = instance.exports.memory;
     bindScriptWasm(instance.exports);
     write("Required Notice: Copyright © 2026 Alexander James Patton (AJpro774) — Juni / Juno under the Juni Software License and Commercial Contract 1.0");

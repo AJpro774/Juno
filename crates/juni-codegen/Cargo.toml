@@ -12,3 +12,4 @@ wasm-encoder.workspace = true
 [dev-dependencies]
 juni-syntax.workspace = true
 juni-check.workspace = true
+wasmparser = "0.221"

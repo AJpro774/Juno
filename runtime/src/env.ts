@@ -9,7 +9,7 @@ import { createAssetStubs } from "./assets.js";
 import { createAudioStubs } from "./audio.js";
 import { createPhysicsImports } from "./physics.js";
 import { createEngineStubs } from "./engine.js";
-import type { EnvOptions, MemoryRef } from "./types.js";
+import type { EnvOptions, ExternOptions, MemoryRef } from "./types.js";
 
 function stub(): void {}
 function stub0(): number {
@@ -192,16 +192,43 @@ export function createEnvImports(options: EnvOptions = {}) {
   };
 }
 
+/**
+ * Compile `wasmBytes` and build the full import object: the `env` builtins
+ * plus every `extern "module":` import the program declares, taken from
+ * `options.extraImports` or stubbed (returning 0) when allowed.
+ *
+ * Compiling first lets us read the import list, so hosts only need to supply
+ * what the program actually uses (codegen prunes unused builtins too).
+ */
+export async function compileWithImports(
+  wasmBytes: BufferSource | Uint8Array,
+  env: Record<string, unknown>,
+  options: ExternOptions = {}
+): Promise<{ module: WebAssembly.Module; imports: WebAssembly.Imports }> {
+  const module = await WebAssembly.compile(wasmBytes as BufferSource);
+  const imports: WebAssembly.Imports = { env: env as WebAssembly.ModuleImports };
+  const stubMissing = options.stubMissingExterns !== false;
+  for (const imp of WebAssembly.Module.imports(module)) {
+    if (imp.module === "env" || imp.kind !== "function") continue;
+    const target = (imports[imp.module] ??= {}) as Record<string, WebAssembly.ImportValue>;
+    const provided = options.extraImports?.[imp.module]?.[imp.name];
+    if (provided) {
+      target[imp.name] = provided;
+    } else if (stubMissing) {
+      options.onMissingExtern?.(imp.module, imp.name);
+      target[imp.name] = () => 0;
+    }
+  }
+  return { module, imports };
+}
+
 export async function instantiateJuni(
   wasmBytes: BufferSource | Uint8Array,
   options: EnvOptions = {}
 ): Promise<WebAssembly.Instance> {
   const { env, memoryRef } = createEnvImports(options);
-  const result = await WebAssembly.instantiate(wasmBytes as BufferSource, { env });
-  const instance =
-    "instance" in result
-      ? (result as WebAssembly.WebAssemblyInstantiatedSource).instance
-      : (result as WebAssembly.Instance);
+  const { module, imports } = await compileWithImports(wasmBytes, env, options);
+  const instance = await WebAssembly.instantiate(module, imports);
   memoryRef.current = instance.exports.memory as WebAssembly.Memory;
   return instance;
 }

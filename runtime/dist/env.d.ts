@@ -1,7 +1,7 @@
 /**
  * Shared Juni WASM env imports for Node and the browser IDE.
  */
-import type { EnvOptions, MemoryRef } from "./types.js";
+import type { EnvOptions, ExternOptions, MemoryRef } from "./types.js";
 export declare function createPrintImports(memoryRef: MemoryRef, onPrint?: (text: string) => void): {
     print_str(ptr: number): void;
     print_i32(v: number): void;
@@ -123,5 +123,17 @@ export declare function createEnvImports(options?: EnvOptions): {
     };
     memoryRef: MemoryRef;
 };
+/**
+ * Compile `wasmBytes` and build the full import object: the `env` builtins
+ * plus every `extern "module":` import the program declares, taken from
+ * `options.extraImports` or stubbed (returning 0) when allowed.
+ *
+ * Compiling first lets us read the import list, so hosts only need to supply
+ * what the program actually uses (codegen prunes unused builtins too).
+ */
+export declare function compileWithImports(wasmBytes: BufferSource | Uint8Array, env: Record<string, unknown>, options?: ExternOptions): Promise<{
+    module: WebAssembly.Module;
+    imports: WebAssembly.Imports;
+}>;
 export declare function instantiateJuni(wasmBytes: BufferSource | Uint8Array, options?: EnvOptions): Promise<WebAssembly.Instance>;
 //# sourceMappingURL=env.d.ts.map

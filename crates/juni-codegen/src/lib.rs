@@ -3,6 +3,9 @@
 mod allocator;
 mod notice;
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use allocator::{heap_base, heap_start};
 use juni_check::hir::*;
 use juni_check::types::{Builtin, Type};
@@ -13,7 +16,7 @@ use wasm_encoder::{
     MemorySection, MemoryType, Module, ProducersField, ProducersSection, TypeSection, ValType,
 };
 
-/// Import indices (must match host `env`):
+/// Builtin (`env`) import indices as referenced by codegen, before pruning:
 /// 0 sqrt 1 stub 2-4 print 5-9 canvas 10-11 gpu
 /// 12-17 sin..ceil 18-19 min/max 20 rand 21 now
 /// 22 key_down 23 mouse_x 24 mouse_y 25 mouse_down
@@ -44,7 +47,11 @@ use wasm_encoder::{
 /// 105 rigidbody3d_set_vel 106 rigidbody3d_get_grounded 107 collider3d_set
 /// 108 transform3d_sync_from_2d
 /// 109 anim_play 110 anim_stop
-const IMPORT_COUNT: u32 = 111;
+///
+/// The emitted module only imports the builtins a program actually calls
+/// (see [`ImportPlan`]); these numbers are the *logical* ids used inside
+/// codegen and are remapped to dense WASM import indices.
+const BUILTIN_IMPORT_COUNT: u32 = 111;
 
 /// Emit a single-module program (backward compatible).
 pub fn emit_wasm(hir: &HirModule) -> Vec<u8> {
@@ -57,6 +64,47 @@ pub fn emit_wasm_program(program: &HirProgram) -> Vec<u8> {
     emit_wasm_inner(&merged)
 }
 
+/// A compiled program plus the import contract a host must satisfy.
+#[derive(Debug, Clone)]
+pub struct EmittedModule {
+    pub wasm: Vec<u8>,
+    /// `env` builtins the module imports, in import order.
+    pub builtins: Vec<&'static str>,
+    /// `extern` host imports, in import order (right after `builtins`).
+    pub externs: Vec<HirExtern>,
+}
+
+/// Emit a program and report exactly which imports it needs, so embedders
+/// (native engines, the browser IDE) can link or stub precisely.
+pub fn emit_program(program: &HirProgram) -> EmittedModule {
+    let merged = merge_program(program);
+    let plan = ImportPlan::for_module(&sorted_by_id(&merged));
+    EmittedModule {
+        wasm: emit_wasm_inner(&merged),
+        builtins: plan.builtin_names,
+        externs: plan.externs,
+    }
+}
+
+fn sorted_by_id(hir: &HirModule) -> HirModule {
+    let mut hir = hir.clone();
+    hir.functions.sort_by_key(|f| f.id.0);
+    hir
+}
+
+/// Names of the `env` builtins a module imports, in WASM import order.
+/// Useful for hosts that want to provide exactly what a program needs.
+pub fn builtin_imports_used(hir: &HirModule) -> Vec<&'static str> {
+    let plan = ImportPlan::for_module(hir);
+    plan.builtin_names
+}
+
+/// Host imports declared by `extern` blocks, in WASM import order
+/// (deduplicated; `(module, name)` pairs follow the builtin imports).
+pub fn extern_imports(hir: &HirModule) -> Vec<HirExtern> {
+    ImportPlan::for_module(hir).externs
+}
+
 fn merge_program(program: &HirProgram) -> HirModule {
     let mut merged = HirModule::default();
     let mut all_inits = Vec::new();
@@ -67,6 +115,7 @@ fn merge_program(program: &HirProgram) -> HirModule {
         merged.statics.extend(module.statics.clone());
         all_inits.extend(module.init_globals.stmts.clone());
         merged.functions.extend(module.functions.clone());
+        merged.externs.extend(module.externs.clone());
         total_static = total_static.max(module.static_region_offset + module.static_region_size);
     }
 
@@ -75,7 +124,155 @@ fn merge_program(program: &HirProgram) -> HirModule {
     merged
 }
 
+/// WASM function index space layout for one emitted module:
+/// `[used builtins][extern imports][defined functions]`.
+///
+/// Builtin ids inside codegen are the historical dense numbering
+/// (`0..BUILTIN_IMPORT_COUNT`); `builtin_remap` turns them into the real
+/// import index or `None` when the program never calls that builtin.
+struct ImportPlan {
+    builtin_remap: Vec<Option<u32>>,
+    builtin_names: Vec<&'static str>,
+    /// Deduplicated externs in import order.
+    externs: Vec<HirExtern>,
+    /// `(module, name, wasm signature)` -> import index.
+    extern_index: HashMap<String, u32>,
+    /// Index of the first defined (non-import) function.
+    func_base: u32,
+    /// Builtins referenced while emitting (filled during the dry run).
+    used: RefCell<Vec<bool>>,
+}
+
+impl ImportPlan {
+    /// Identity plan used for the dry run that discovers used builtins.
+    fn discovery(hir: &HirModule) -> Self {
+        let externs = dedupe_externs(&hir.externs);
+        let extern_index = externs
+            .iter()
+            .enumerate()
+            .map(|(i, x)| (extern_key(x), BUILTIN_IMPORT_COUNT + i as u32))
+            .collect();
+        Self {
+            builtin_remap: (0..BUILTIN_IMPORT_COUNT).map(Some).collect(),
+            builtin_names: Vec::new(),
+            func_base: BUILTIN_IMPORT_COUNT + externs.len() as u32,
+            externs,
+            extern_index,
+            used: RefCell::new(vec![false; BUILTIN_IMPORT_COUNT as usize]),
+        }
+    }
+
+    /// Run codegen once to learn which builtins are called, then lay out the
+    /// pruned import section.
+    fn for_module(hir: &HirModule) -> Self {
+        let discovery = Self::discovery(hir);
+        for func in &hir.functions {
+            let _ = emit_function(func, hir, &discovery);
+        }
+        let used = discovery.used.into_inner();
+
+        let mut builtin_remap = vec![None; BUILTIN_IMPORT_COUNT as usize];
+        let mut builtin_names = Vec::new();
+        let mut next = 0u32;
+        for (i, &is_used) in used.iter().enumerate() {
+            if is_used {
+                builtin_remap[i] = Some(next);
+                builtin_names.push(BUILTIN_IMPORT_NAMES[i]);
+                next += 1;
+            }
+        }
+        let externs = discovery.externs;
+        let extern_index = externs
+            .iter()
+            .enumerate()
+            .map(|(i, x)| (extern_key(x), next + i as u32))
+            .collect();
+        Self {
+            builtin_remap,
+            builtin_names,
+            func_base: next + externs.len() as u32,
+            externs,
+            extern_index,
+            used: RefCell::new(used),
+        }
+    }
+
+    fn builtin(&self, logical: u32) -> u32 {
+        self.used.borrow_mut()[logical as usize] = true;
+        self.builtin_remap[logical as usize]
+            .expect("builtin import referenced but not laid out; discovery pass missed it")
+    }
+
+    fn extern_call(&self, module: &str, name: &str, params: &[ValType], ret: Option<ValType>) -> u32 {
+        let key = extern_key_parts(module, name, params, ret);
+        *self.extern_index.get(&key).unwrap_or_else(|| {
+            panic!("extern `{module}.{name}` called with a signature that was never declared")
+        })
+    }
+}
+
+/// Builtin import names indexed by logical id (same order as the type table).
+const BUILTIN_IMPORT_NAMES: [&str; BUILTIN_IMPORT_COUNT as usize] = [
+    "sqrt_f32", "webgpu_stub", "print_str", "print_i32", "print_f32",
+    "canvas_init", "canvas_clear", "canvas_fill_rect", "canvas_fill_circle", "canvas_fill_text",
+    "gpu_clear", "gpu_draw_triangle",
+    "sin_f32", "cos_f32", "tan_f32", "abs_f32", "floor_f32", "ceil_f32", "min_f32", "max_f32",
+    "rand_f32", "now_f32", "key_down", "mouse_x", "mouse_y", "mouse_down",
+    "scene3d_init", "camera3d_perspective", "mesh3d_box", "mesh3d_set_pose", "mesh3d_rotate",
+    "scene3d_clear", "scene3d_draw",
+    "str_len", "str_eq", "clamp_f32", "lerp_f32", "pow_f32", "sign_f32", "fmod_f32",
+    "smoothstep_f32", "deg_to_rad_f32", "rad_to_deg_f32", "dist2_f32", "pi_f32",
+    "abs_i32", "min_i32", "max_i32", "clamp_i32", "len2_f32", "dot2_f32",
+    "canvas_draw_line", "canvas_stroke_rect", "asset_load_str", "sprite_draw", "mesh_load_obj",
+    "scene3d_create_node", "scene3d_set_parent", "camera3d_look_at", "camera3d_orbit",
+    "mesh3d_custom", "material3d_color", "mesh3d_set_material",
+    "aabb_overlap", "aabb_resolve_x", "audio_load", "audio_play",
+    "world_create", "entity_create", "entity_destroy", "entity_set_tag", "entity_find_by_tag",
+    "transform2d_set", "transform3d_set", "sprite_set", "mesh3d_attach", "world_step",
+    "scene_load", "camera2d_set", "tilemap_load", "tilemap_attach", "world_draw",
+    "material3d_texture", "light3d_directional", "light3d_point", "mesh_load_gltf",
+    "aabb_resolve_y", "audio_play_loop", "audio_set_volume", "gamepad_axis", "gamepad_button",
+    "collision_count", "collision_entity_a", "collision_entity_b",
+    "rigidbody2d_set_vel", "rigidbody2d_get_grounded", "collider2d_set", "camera2d_follow",
+    "prefab_spawn", "world_draw3d", "scene3d_set_ambient", "scene3d_set_fog",
+    "audio_stop", "audio_set_bus_volume", "collision_is_trigger",
+    "rigidbody3d_set_vel", "rigidbody3d_get_grounded", "collider3d_set",
+    "transform3d_sync_from_2d", "anim_play", "anim_stop",
+];
+
+fn extern_key(x: &HirExtern) -> String {
+    let params: Vec<ValType> = x.params.iter().map(val_type).collect();
+    let ret = if matches!(x.ret, Type::Builtin(Builtin::Void)) {
+        None
+    } else {
+        Some(val_type(&x.ret))
+    };
+    extern_key_parts(&x.module, &x.name, &params, ret)
+}
+
+fn extern_key_parts(module: &str, name: &str, params: &[ValType], ret: Option<ValType>) -> String {
+    format!("{module}\0{name}\0{params:?}\0{ret:?}")
+}
+
+/// Keep one import per distinct `(module, name, signature)`; declaration
+/// order is preserved so hosts see a stable layout.
+fn dedupe_externs(externs: &[HirExtern]) -> Vec<HirExtern> {
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for x in externs {
+        if seen.insert(extern_key(x)) {
+            out.push(x.clone());
+        }
+    }
+    out
+}
+
 fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
+    // Function indices assume `hir.functions[i].id == FuncId(i)`; generic
+    // instantiations can be pushed out of order, so sort by id first.
+    let hir = &sorted_by_id(hir);
+    let plan = ImportPlan::for_module(hir);
+
     let mut module = Module::new();
     let mut types = TypeSection::new();
 
@@ -267,120 +464,147 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
         };
         func_type_indices.push(add_fn(&params, &results));
     }
+
+    // One function type per extern import (duplicate type entries are legal WASM).
+    let mut extern_type_indices = Vec::with_capacity(plan.externs.len());
+    for x in &plan.externs {
+        let params: Vec<ValType> = x.params.iter().map(val_type).collect();
+        let results: Vec<ValType> = if matches!(x.ret, Type::Builtin(Builtin::Void)) {
+            vec![]
+        } else {
+            vec![val_type(&x.ret)]
+        };
+        extern_type_indices.push(add_fn(&params, &results));
+    }
     module.section(&types);
 
+    let builtin_imports: [(&str, u32); BUILTIN_IMPORT_COUNT as usize] = [
+        ("sqrt_f32", t_f32_f32),
+        ("webgpu_stub", t_i32_void),
+        ("print_str", t_i32_void),
+        ("print_i32", t_i32_void),
+        ("print_f32", t_f32_void),
+        ("canvas_init", t_2i),
+        ("canvas_clear", t_4f),
+        ("canvas_fill_rect", t_8f),
+        ("canvas_fill_circle", t_7f),
+        ("canvas_fill_text", t_text),
+        ("gpu_clear", t_4f),
+        ("gpu_draw_triangle", t_void),
+        ("sin_f32", t_f32_f32),
+        ("cos_f32", t_f32_f32),
+        ("tan_f32", t_f32_f32),
+        ("abs_f32", t_f32_f32),
+        ("floor_f32", t_f32_f32),
+        ("ceil_f32", t_f32_f32),
+        ("min_f32", t_2f_f32),
+        ("max_f32", t_2f_f32),
+        ("rand_f32", t_void_f32),
+        ("now_f32", t_void_f32),
+        ("key_down", t_i32_i32),
+        ("mouse_x", t_void_f32),
+        ("mouse_y", t_void_f32),
+        ("mouse_down", t_i32_i32),
+        ("scene3d_init", t_2i),
+        ("camera3d_perspective", t_4f_i32),
+        ("mesh3d_box", t_3f_i32),
+        ("mesh3d_set_pose", t_i_6f),
+        ("mesh3d_rotate", t_i_3f),
+        ("scene3d_clear", t_4f),
+        ("scene3d_draw", t_2i_void),
+        ("str_len", t_i32_i32),
+        ("str_eq", t_2i_i32),
+        ("clamp_f32", t_3f_f32),
+        ("lerp_f32", t_3f_f32),
+        ("pow_f32", t_2f_f32),
+        ("sign_f32", t_f32_f32),
+        ("fmod_f32", t_2f_f32),
+        ("smoothstep_f32", t_3f_f32),
+        ("deg_to_rad_f32", t_f32_f32),
+        ("rad_to_deg_f32", t_f32_f32),
+        ("dist2_f32", t_4f_f32_ret),
+        ("pi_f32", t_void_f32),
+        ("abs_i32", t_i32_i32),
+        ("min_i32", t_2i_i32),
+        ("max_i32", t_2i_i32),
+        ("clamp_i32", t_3i_i32),
+        ("len2_f32", t_2f_f32),
+        ("dot2_f32", t_4f_f32_ret),
+        ("canvas_draw_line", t_9f),
+        ("canvas_stroke_rect", t_9f),
+        ("asset_load_str", t_i32_i32),
+        ("sprite_draw", t_i_4f),
+        ("mesh_load_obj", t_i32_i32),
+        ("scene3d_create_node", t_void_i32),
+        ("scene3d_set_parent", t_2i_void),
+        ("camera3d_look_at", t_i_6f),
+        ("camera3d_orbit", t_i_6f),
+        ("mesh3d_custom", t_4i_i32),
+        ("material3d_color", t_4f_i32),
+        ("mesh3d_set_material", t_2i_void),
+        ("aabb_overlap", t_2i_i32),
+        ("aabb_resolve_x", t_2i_f32),
+        ("audio_load", t_i32_i32),
+        ("audio_play", t_i32_void),
+        ("world_create", t_void_i32),
+        ("entity_create", t_void_i32),
+        ("entity_destroy", t_i32_void),
+        ("entity_set_tag", t_2i_void),
+        ("entity_find_by_tag", t_i32_i32),
+        ("transform2d_set", t_i_5f),
+        ("transform3d_set", t_i_9f),
+        ("sprite_set", t_2i_2f),
+        ("mesh3d_attach", t_2i_void),
+        ("world_step", t_f32_void),
+        ("scene_load", t_i32_i32),
+        ("camera2d_set", t_i_3f),
+        ("tilemap_load", t_i32_i32),
+        ("tilemap_attach", t_2i_void),
+        ("world_draw", t_i32_void),
+        ("material3d_texture", t_i32_i32),
+        ("light3d_directional", t_6f_i32),
+        ("light3d_point", t_7f_i32),
+        ("mesh_load_gltf", t_i32_i32),
+        ("aabb_resolve_y", t_2i_f32),
+        ("audio_play_loop", t_i32_void),
+        ("audio_set_volume", t_i_f_void),
+        ("gamepad_axis", t_2i_f32_ret),
+        ("gamepad_button", t_2i_i32),
+        ("collision_count", t_void_i32),
+        ("collision_entity_a", t_i32_i32),
+        ("collision_entity_b", t_i32_i32),
+        ("rigidbody2d_set_vel", t_i_2f_void),
+        ("rigidbody2d_get_grounded", t_i32_i32),
+        ("collider2d_set", t_collider_set),
+        ("camera2d_follow", t_2i_f_void),
+        ("prefab_spawn", t_i_str_2f_i32),
+        ("world_draw3d", t_i32_void),
+        ("scene3d_set_ambient", t_3f_void),
+        ("scene3d_set_fog", t_f32_void),
+        ("audio_stop", t_i32_void),
+        ("audio_set_bus_volume", t_f32_void),
+        ("collision_is_trigger", t_i32_i32),
+        ("rigidbody3d_set_vel", t_i_3f_void),
+        ("rigidbody3d_get_grounded", t_i32_i32),
+        ("collider3d_set", t_collider_set),
+        ("transform3d_sync_from_2d", t_i32_void),
+        ("anim_play", t_2i_i32),
+        ("anim_stop", t_i32_void),
+    ];
+    debug_assert!(builtin_imports
+        .iter()
+        .zip(BUILTIN_IMPORT_NAMES.iter())
+        .all(|((a, _), b)| a == b));
+
     let mut imports = ImportSection::new();
-    imports.import("env", "sqrt_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "webgpu_stub", EntityType::Function(t_i32_void));
-    imports.import("env", "print_str", EntityType::Function(t_i32_void));
-    imports.import("env", "print_i32", EntityType::Function(t_i32_void));
-    imports.import("env", "print_f32", EntityType::Function(t_f32_void));
-    imports.import("env", "canvas_init", EntityType::Function(t_2i));
-    imports.import("env", "canvas_clear", EntityType::Function(t_4f));
-    imports.import("env", "canvas_fill_rect", EntityType::Function(t_8f));
-    imports.import("env", "canvas_fill_circle", EntityType::Function(t_7f));
-    imports.import("env", "canvas_fill_text", EntityType::Function(t_text));
-    imports.import("env", "gpu_clear", EntityType::Function(t_4f));
-    imports.import("env", "gpu_draw_triangle", EntityType::Function(t_void));
-    imports.import("env", "sin_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "cos_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "tan_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "abs_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "floor_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "ceil_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "min_f32", EntityType::Function(t_2f_f32));
-    imports.import("env", "max_f32", EntityType::Function(t_2f_f32));
-    imports.import("env", "rand_f32", EntityType::Function(t_void_f32));
-    imports.import("env", "now_f32", EntityType::Function(t_void_f32));
-    imports.import("env", "key_down", EntityType::Function(t_i32_i32));
-    imports.import("env", "mouse_x", EntityType::Function(t_void_f32));
-    imports.import("env", "mouse_y", EntityType::Function(t_void_f32));
-    imports.import("env", "mouse_down", EntityType::Function(t_i32_i32));
-    imports.import("env", "scene3d_init", EntityType::Function(t_2i));
-    imports.import("env", "camera3d_perspective", EntityType::Function(t_4f_i32));
-    imports.import("env", "mesh3d_box", EntityType::Function(t_3f_i32));
-    imports.import("env", "mesh3d_set_pose", EntityType::Function(t_i_6f));
-    imports.import("env", "mesh3d_rotate", EntityType::Function(t_i_3f));
-    imports.import("env", "scene3d_clear", EntityType::Function(t_4f));
-    imports.import("env", "scene3d_draw", EntityType::Function(t_2i_void));
-    imports.import("env", "str_len", EntityType::Function(t_i32_i32));
-    imports.import("env", "str_eq", EntityType::Function(t_2i_i32));
-    imports.import("env", "clamp_f32", EntityType::Function(t_3f_f32));
-    imports.import("env", "lerp_f32", EntityType::Function(t_3f_f32));
-    imports.import("env", "pow_f32", EntityType::Function(t_2f_f32));
-    imports.import("env", "sign_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "fmod_f32", EntityType::Function(t_2f_f32));
-    imports.import("env", "smoothstep_f32", EntityType::Function(t_3f_f32));
-    imports.import("env", "deg_to_rad_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "rad_to_deg_f32", EntityType::Function(t_f32_f32));
-    imports.import("env", "dist2_f32", EntityType::Function(t_4f_f32_ret));
-    imports.import("env", "pi_f32", EntityType::Function(t_void_f32));
-    imports.import("env", "abs_i32", EntityType::Function(t_i32_i32));
-    imports.import("env", "min_i32", EntityType::Function(t_2i_i32));
-    imports.import("env", "max_i32", EntityType::Function(t_2i_i32));
-    imports.import("env", "clamp_i32", EntityType::Function(t_3i_i32));
-    imports.import("env", "len2_f32", EntityType::Function(t_2f_f32));
-    imports.import("env", "dot2_f32", EntityType::Function(t_4f_f32_ret));
-    imports.import("env", "canvas_draw_line", EntityType::Function(t_9f));
-    imports.import("env", "canvas_stroke_rect", EntityType::Function(t_9f));
-    imports.import("env", "asset_load_str", EntityType::Function(t_i32_i32));
-    imports.import("env", "sprite_draw", EntityType::Function(t_i_4f));
-    imports.import("env", "mesh_load_obj", EntityType::Function(t_i32_i32));
-    imports.import("env", "scene3d_create_node", EntityType::Function(t_void_i32));
-    imports.import("env", "scene3d_set_parent", EntityType::Function(t_2i_void));
-    imports.import("env", "camera3d_look_at", EntityType::Function(t_i_6f));
-    imports.import("env", "camera3d_orbit", EntityType::Function(t_i_6f));
-    imports.import("env", "mesh3d_custom", EntityType::Function(t_4i_i32));
-    imports.import("env", "material3d_color", EntityType::Function(t_4f_i32));
-    imports.import("env", "mesh3d_set_material", EntityType::Function(t_2i_void));
-    imports.import("env", "aabb_overlap", EntityType::Function(t_2i_i32));
-    imports.import("env", "aabb_resolve_x", EntityType::Function(t_2i_f32));
-    imports.import("env", "audio_load", EntityType::Function(t_i32_i32));
-    imports.import("env", "audio_play", EntityType::Function(t_i32_void));
-    imports.import("env", "world_create", EntityType::Function(t_void_i32));
-    imports.import("env", "entity_create", EntityType::Function(t_void_i32));
-    imports.import("env", "entity_destroy", EntityType::Function(t_i32_void));
-    imports.import("env", "entity_set_tag", EntityType::Function(t_2i_void));
-    imports.import("env", "entity_find_by_tag", EntityType::Function(t_i32_i32));
-    imports.import("env", "transform2d_set", EntityType::Function(t_i_5f));
-    imports.import("env", "transform3d_set", EntityType::Function(t_i_9f));
-    imports.import("env", "sprite_set", EntityType::Function(t_2i_2f));
-    imports.import("env", "mesh3d_attach", EntityType::Function(t_2i_void));
-    imports.import("env", "world_step", EntityType::Function(t_f32_void));
-    imports.import("env", "scene_load", EntityType::Function(t_i32_i32));
-    imports.import("env", "camera2d_set", EntityType::Function(t_i_3f));
-    imports.import("env", "tilemap_load", EntityType::Function(t_i32_i32));
-    imports.import("env", "tilemap_attach", EntityType::Function(t_2i_void));
-    imports.import("env", "world_draw", EntityType::Function(t_i32_void));
-    imports.import("env", "material3d_texture", EntityType::Function(t_i32_i32));
-    imports.import("env", "light3d_directional", EntityType::Function(t_6f_i32));
-    imports.import("env", "light3d_point", EntityType::Function(t_7f_i32));
-    imports.import("env", "mesh_load_gltf", EntityType::Function(t_i32_i32));
-    imports.import("env", "aabb_resolve_y", EntityType::Function(t_2i_f32));
-    imports.import("env", "audio_play_loop", EntityType::Function(t_i32_void));
-    imports.import("env", "audio_set_volume", EntityType::Function(t_i_f_void));
-    imports.import("env", "gamepad_axis", EntityType::Function(t_2i_f32_ret));
-    imports.import("env", "gamepad_button", EntityType::Function(t_2i_i32));
-    imports.import("env", "collision_count", EntityType::Function(t_void_i32));
-    imports.import("env", "collision_entity_a", EntityType::Function(t_i32_i32));
-    imports.import("env", "collision_entity_b", EntityType::Function(t_i32_i32));
-    imports.import("env", "rigidbody2d_set_vel", EntityType::Function(t_i_2f_void));
-    imports.import("env", "rigidbody2d_get_grounded", EntityType::Function(t_i32_i32));
-    imports.import("env", "collider2d_set", EntityType::Function(t_collider_set));
-    imports.import("env", "camera2d_follow", EntityType::Function(t_2i_f_void));
-    imports.import("env", "prefab_spawn", EntityType::Function(t_i_str_2f_i32));
-    imports.import("env", "world_draw3d", EntityType::Function(t_i32_void));
-    imports.import("env", "scene3d_set_ambient", EntityType::Function(t_3f_void));
-    imports.import("env", "scene3d_set_fog", EntityType::Function(t_f32_void));
-    imports.import("env", "audio_stop", EntityType::Function(t_i32_void));
-    imports.import("env", "audio_set_bus_volume", EntityType::Function(t_f32_void));
-    imports.import("env", "collision_is_trigger", EntityType::Function(t_i32_i32));
-    imports.import("env", "rigidbody3d_set_vel", EntityType::Function(t_i_3f_void));
-    imports.import("env", "rigidbody3d_get_grounded", EntityType::Function(t_i32_i32));
-    imports.import("env", "collider3d_set", EntityType::Function(t_collider_set));
-    imports.import("env", "transform3d_sync_from_2d", EntityType::Function(t_i32_void));
-    imports.import("env", "anim_play", EntityType::Function(t_2i_i32));
-    imports.import("env", "anim_stop", EntityType::Function(t_i32_void));
+    for (i, (name, ty)) in builtin_imports.iter().enumerate() {
+        if plan.builtin_remap[i].is_some() {
+            imports.import("env", name, EntityType::Function(*ty));
+        }
+    }
+    for (x, &ty) in plan.externs.iter().zip(extern_type_indices.iter()) {
+        imports.import(&x.module, &x.name, EntityType::Function(ty));
+    }
     module.section(&imports);
 
     let mut functions = FunctionSection::new();
@@ -417,14 +641,14 @@ fn emit_wasm_inner(hir: &HirModule) -> Vec<u8> {
     exports.export("memory", ExportKind::Memory, 0);
     for (i, func) in hir.functions.iter().enumerate() {
         if func.export || func.name == "main" {
-            exports.export(&func.name, ExportKind::Func, IMPORT_COUNT + i as u32);
+            exports.export(&func.name, ExportKind::Func, plan.func_base + i as u32);
         }
     }
     module.section(&exports);
 
     let mut codes = CodeSection::new();
     for func in &hir.functions {
-        codes.function(&emit_function(func, hir));
+        codes.function(&emit_function(func, hir, &plan));
     }
     module.section(&codes);
 
@@ -461,6 +685,9 @@ fn val_type(ty: &Type) -> ValType {
 }
 
 fn is_void_expr(expr: &HirExpr) -> bool {
+    if let HirExpr::Call { ty, .. } | HirExpr::ExternCall { ty, .. } = expr {
+        return matches!(ty, Type::Builtin(Builtin::Void));
+    }
     matches!(
         expr,
         HirExpr::PrintStr(_)
@@ -534,7 +761,7 @@ fn align_up(value: u32, align: u32) -> u32 {
     (value + align - 1) / align * align
 }
 
-fn emit_function(func: &HirFunction, hir: &HirModule) -> Function {
+fn emit_function(func: &HirFunction, hir: &HirModule, plan: &ImportPlan) -> Function {
     let param_count = func.params.len() as u32;
     let mut local_decls: Vec<(u32, ValType)> = Vec::new();
     for ty in func.locals.iter().skip(param_count as usize) {
@@ -557,6 +784,7 @@ fn emit_function(func: &HirFunction, hir: &HirModule) -> Function {
     let mut ctx = EmitCtx {
         local_map: &local_map,
         statics: &hir.statics,
+        plan,
         heap_base: hbase,
         scratch,
         scratch2,
@@ -575,6 +803,7 @@ fn emit_function(func: &HirFunction, hir: &HirModule) -> Function {
 struct EmitCtx<'a> {
     local_map: &'a [u32],
     statics: &'a [HirStatic],
+    plan: &'a ImportPlan,
     heap_base: u32,
     scratch: u32,
     scratch2: u32,
@@ -586,6 +815,16 @@ struct EmitCtx<'a> {
 impl<'a> EmitCtx<'a> {
     fn local(&self, id: LocalId) -> u32 {
         self.local_map[id.0 as usize]
+    }
+
+    /// Call a builtin `env` import by its logical id (see the table at the top).
+    fn call_builtin(&self, f: &mut Function, logical: u32) {
+        f.instruction(&Instruction::Call(self.plan.builtin(logical)));
+    }
+
+    /// Call a Juni-defined function by `FuncId`.
+    fn call_user(&self, f: &mut Function, func: u32) {
+        f.instruction(&Instruction::Call(self.plan.func_base + func));
     }
 
     fn static_info(&self, id: StaticId) -> &HirStatic {
@@ -984,7 +1223,27 @@ impl<'a> EmitCtx<'a> {
                 for a in args {
                     self.emit_expr(f, a);
                 }
-                f.instruction(&Instruction::Call(IMPORT_COUNT + func.0));
+                self.call_user(f, func.0);
+            }
+            HirExpr::ExternCall {
+                module,
+                name,
+                args,
+                ty,
+            } => {
+                let mut params = Vec::with_capacity(args.len());
+                for a in args {
+                    self.emit_expr(f, a);
+                    params.push(val_type(&expr_ty(a)));
+                }
+                let ret = if matches!(ty, Type::Builtin(Builtin::Void)) {
+                    None
+                } else {
+                    Some(val_type(ty))
+                };
+                f.instruction(&Instruction::Call(
+                    self.plan.extern_call(module, name, &params, ret),
+                ));
             }
             HirExpr::Field {
                 base,
@@ -1063,7 +1322,7 @@ impl<'a> EmitCtx<'a> {
                     MathUnaryOp::Floor => 16,
                     MathUnaryOp::Ceil => 17,
                 };
-                f.instruction(&Instruction::Call(idx));
+                self.call_builtin(f, idx);
             }
             HirExpr::MathBinary { op, left, right } => {
                 as_f32_expr(f, left, self);
@@ -1072,13 +1331,13 @@ impl<'a> EmitCtx<'a> {
                     MathBinaryOp::Min => 18,
                     MathBinaryOp::Max => 19,
                 };
-                f.instruction(&Instruction::Call(idx));
+                self.call_builtin(f, idx);
             }
             HirExpr::Rand => {
-                f.instruction(&Instruction::Call(20));
+                self.call_builtin(f, 20);
             }
             HirExpr::Now => {
-                f.instruction(&Instruction::Call(21));
+                self.call_builtin(f, 21);
             }
             HirExpr::AsI32(inner) => {
                 as_f32_expr(f, inner, self);
@@ -1090,82 +1349,82 @@ impl<'a> EmitCtx<'a> {
             }
             HirExpr::StrLen(inner) => {
                 self.emit_expr(f, inner);
-                f.instruction(&Instruction::Call(33));
+                self.call_builtin(f, 33);
             }
             HirExpr::StrEq { left, right } => {
                 self.emit_expr(f, left);
                 self.emit_expr(f, right);
-                f.instruction(&Instruction::Call(34));
+                self.call_builtin(f, 34);
             }
             HirExpr::Clamp { x, lo, hi } => {
                 as_f32_expr(f, x, self);
                 as_f32_expr(f, lo, self);
                 as_f32_expr(f, hi, self);
-                f.instruction(&Instruction::Call(35));
+                self.call_builtin(f, 35);
             }
             HirExpr::Lerp { a, b, t } => {
                 as_f32_expr(f, a, self);
                 as_f32_expr(f, b, self);
                 as_f32_expr(f, t, self);
-                f.instruction(&Instruction::Call(36));
+                self.call_builtin(f, 36);
             }
             HirExpr::Pow { base, exp } => {
                 as_f32_expr(f, base, self);
                 as_f32_expr(f, exp, self);
-                f.instruction(&Instruction::Call(37));
+                self.call_builtin(f, 37);
             }
             HirExpr::Sign(inner) => {
                 as_f32_expr(f, inner, self);
-                f.instruction(&Instruction::Call(38));
+                self.call_builtin(f, 38);
             }
             HirExpr::Fmod { x, y } => {
                 as_f32_expr(f, x, self);
                 as_f32_expr(f, y, self);
-                f.instruction(&Instruction::Call(39));
+                self.call_builtin(f, 39);
             }
             HirExpr::Smoothstep { edge0, edge1, x } => {
                 as_f32_expr(f, edge0, self);
                 as_f32_expr(f, edge1, self);
                 as_f32_expr(f, x, self);
-                f.instruction(&Instruction::Call(40));
+                self.call_builtin(f, 40);
             }
             HirExpr::DegToRad(inner) => {
                 as_f32_expr(f, inner, self);
-                f.instruction(&Instruction::Call(41));
+                self.call_builtin(f, 41);
             }
             HirExpr::RadToDeg(inner) => {
                 as_f32_expr(f, inner, self);
-                f.instruction(&Instruction::Call(42));
+                self.call_builtin(f, 42);
             }
             HirExpr::Dist2 { x1, y1, x2, y2 } => {
                 as_f32_expr(f, x1, self);
                 as_f32_expr(f, y1, self);
                 as_f32_expr(f, x2, self);
                 as_f32_expr(f, y2, self);
-                f.instruction(&Instruction::Call(43));
+                self.call_builtin(f, 43);
             }
             HirExpr::Pi => {
-                f.instruction(&Instruction::Call(44));
+                self.call_builtin(f, 44);
             }
             HirExpr::AbsI32(inner) => {
                 self.emit_expr(f, inner);
-                f.instruction(&Instruction::Call(45));
+                self.call_builtin(f, 45);
             }
             HirExpr::IMin { a, b } => {
                 self.emit_expr(f, a);
                 self.emit_expr(f, b);
-                f.instruction(&Instruction::Call(46));
+                self.call_builtin(f, 46);
             }
             HirExpr::IMax { a, b } => {
                 self.emit_expr(f, a);
                 self.emit_expr(f, b);
-                f.instruction(&Instruction::Call(47));
+                self.call_builtin(f, 47);
             }
             HirExpr::IClamp { x, lo, hi } => {
                 self.emit_expr(f, x);
                 self.emit_expr(f, lo);
                 self.emit_expr(f, hi);
-                f.instruction(&Instruction::Call(48));
+                self.call_builtin(f, 48);
             }
             HirExpr::StrConcat { left, right } => {
                 self.emit_str_concat(f, left, right);
@@ -1176,14 +1435,14 @@ impl<'a> EmitCtx<'a> {
             HirExpr::Len2 { x, y } => {
                 as_f32_expr(f, x, self);
                 as_f32_expr(f, y, self);
-                f.instruction(&Instruction::Call(49));
+                self.call_builtin(f, 49);
             }
             HirExpr::Dot2 { x1, y1, x2, y2 } => {
                 as_f32_expr(f, x1, self);
                 as_f32_expr(f, y1, self);
                 as_f32_expr(f, x2, self);
                 as_f32_expr(f, y2, self);
-                f.instruction(&Instruction::Call(50));
+                self.call_builtin(f, 50);
             }
             HirExpr::StrLit(bytes) => {
                 let alloc_size = 4 + bytes.len() as u32;
@@ -1210,27 +1469,27 @@ impl<'a> EmitCtx<'a> {
             }
             HirExpr::PrintStr(inner) => {
                 self.emit_expr(f, inner);
-                f.instruction(&Instruction::Call(2));
+                self.call_builtin(f, 2);
             }
             HirExpr::PrintI32(inner) => {
                 self.emit_expr(f, inner);
-                f.instruction(&Instruction::Call(3));
+                self.call_builtin(f, 3);
             }
             HirExpr::PrintF32(inner) => {
                 as_f32_expr(f, inner, self);
-                f.instruction(&Instruction::Call(4));
+                self.call_builtin(f, 4);
             }
             HirExpr::CanvasInit { w, h } => {
                 self.emit_expr(f, w);
                 self.emit_expr(f, h);
-                f.instruction(&Instruction::Call(5));
+                self.call_builtin(f, 5);
             }
             HirExpr::CanvasClear { r, g, b, a } => {
                 as_f32_expr(f, r, self);
                 as_f32_expr(f, g, self);
                 as_f32_expr(f, b, self);
                 as_f32_expr(f, a, self);
-                f.instruction(&Instruction::Call(6));
+                self.call_builtin(f, 6);
             }
             HirExpr::CanvasFillRect {
                 x, y, w, h, r, g, b, a,
@@ -1238,7 +1497,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [x, y, w, h, r, g, b, a] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(7));
+                self.call_builtin(f, 7);
             }
             HirExpr::CanvasFillCircle {
                 x,
@@ -1252,7 +1511,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [x, y, radius, r, g, b, a] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(8));
+                self.call_builtin(f, 8);
             }
             HirExpr::CanvasFillText {
                 text,
@@ -1267,7 +1526,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [x, y, r, g, b, a] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(9));
+                self.call_builtin(f, 9);
             }
             HirExpr::CanvasDrawLine {
                 x1,
@@ -1283,7 +1542,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [x1, y1, x2, y2, width, r, g, b, a] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(51));
+                self.call_builtin(f, 51);
             }
             HirExpr::CanvasStrokeRect {
                 x,
@@ -1299,36 +1558,36 @@ impl<'a> EmitCtx<'a> {
                 for e in [x, y, w, h, width, r, g, b, a] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(52));
+                self.call_builtin(f, 52);
             }
             HirExpr::GpuClear { r, g, b, a } => {
                 as_f32_expr(f, r, self);
                 as_f32_expr(f, g, self);
                 as_f32_expr(f, b, self);
                 as_f32_expr(f, a, self);
-                f.instruction(&Instruction::Call(10));
+                self.call_builtin(f, 10);
             }
             HirExpr::GpuDrawTriangle => {
-                f.instruction(&Instruction::Call(11));
+                self.call_builtin(f, 11);
             }
             HirExpr::KeyDown(code) => {
                 self.emit_expr(f, code);
-                f.instruction(&Instruction::Call(22));
+                self.call_builtin(f, 22);
             }
             HirExpr::MouseX => {
-                f.instruction(&Instruction::Call(23));
+                self.call_builtin(f, 23);
             }
             HirExpr::MouseY => {
-                f.instruction(&Instruction::Call(24));
+                self.call_builtin(f, 24);
             }
             HirExpr::MouseDown(btn) => {
                 self.emit_expr(f, btn);
-                f.instruction(&Instruction::Call(25));
+                self.call_builtin(f, 25);
             }
             HirExpr::Scene3dInit { w, h } => {
                 self.emit_expr(f, w);
                 self.emit_expr(f, h);
-                f.instruction(&Instruction::Call(26));
+                self.call_builtin(f, 26);
             }
             HirExpr::Camera3dPerspective {
                 fov,
@@ -1339,13 +1598,13 @@ impl<'a> EmitCtx<'a> {
                 for e in [fov, aspect, near, far] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(27));
+                self.call_builtin(f, 27);
             }
             HirExpr::Mesh3dBox { sx, sy, sz } => {
                 for e in [sx, sy, sz] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(28));
+                self.call_builtin(f, 28);
             }
             HirExpr::Mesh3dSetPose {
                 mesh,
@@ -1360,7 +1619,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [tx, ty, tz, rx, ry, rz] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(29));
+                self.call_builtin(f, 29);
             }
             HirExpr::Mesh3dRotate {
                 mesh,
@@ -1372,41 +1631,41 @@ impl<'a> EmitCtx<'a> {
                 for e in [drx, dry, drz] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(30));
+                self.call_builtin(f, 30);
             }
             HirExpr::Scene3dClear { r, g, b, a } => {
                 for e in [r, g, b, a] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(31));
+                self.call_builtin(f, 31);
             }
             HirExpr::Scene3dDraw { mesh, cam } => {
                 self.emit_expr(f, mesh);
                 self.emit_expr(f, cam);
-                f.instruction(&Instruction::Call(32));
+                self.call_builtin(f, 32);
             }
             HirExpr::AssetLoadStr { path } => {
                 self.emit_expr(f, path);
-                f.instruction(&Instruction::Call(53));
+                self.call_builtin(f, 53);
             }
             HirExpr::SpriteDraw { handle, x, y, w, h } => {
                 self.emit_expr(f, handle);
                 for e in [x, y, w, h] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(54));
+                self.call_builtin(f, 54);
             }
             HirExpr::MeshLoadObj { path } => {
                 self.emit_expr(f, path);
-                f.instruction(&Instruction::Call(55));
+                self.call_builtin(f, 55);
             }
             HirExpr::Scene3dCreateNode => {
-                f.instruction(&Instruction::Call(56));
+                self.call_builtin(f, 56);
             }
             HirExpr::Scene3dSetParent { child, parent } => {
                 self.emit_expr(f, child);
                 self.emit_expr(f, parent);
-                f.instruction(&Instruction::Call(57));
+                self.call_builtin(f, 57);
             }
             HirExpr::Camera3dLookAt {
                 cam,
@@ -1421,7 +1680,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [ex, ey, ez, tx, ty, tz] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(58));
+                self.call_builtin(f, 58);
             }
             HirExpr::Camera3dOrbit {
                 cam,
@@ -1436,7 +1695,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [target_x, target_y, target_z, yaw, pitch, distance] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(59));
+                self.call_builtin(f, 59);
             }
             HirExpr::Mesh3dCustom {
                 verts_ptr,
@@ -1447,56 +1706,56 @@ impl<'a> EmitCtx<'a> {
                 for e in [verts_ptr, vert_count, indices_ptr, index_count] {
                     self.emit_expr(f, e);
                 }
-                f.instruction(&Instruction::Call(60));
+                self.call_builtin(f, 60);
             }
             HirExpr::Material3dColor { r, g, b, a } => {
                 for e in [r, g, b, a] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(61));
+                self.call_builtin(f, 61);
             }
             HirExpr::Mesh3dSetMaterial { mesh, material } => {
                 self.emit_expr(f, mesh);
                 self.emit_expr(f, material);
-                f.instruction(&Instruction::Call(62));
+                self.call_builtin(f, 62);
             }
             HirExpr::AabbOverlap { a, b } => {
                 self.emit_expr(f, a);
                 self.emit_expr(f, b);
-                f.instruction(&Instruction::Call(63));
+                self.call_builtin(f, 63);
             }
             HirExpr::AabbResolveX { moving, other, vel_x } => {
                 self.emit_expr(f, moving);
                 self.emit_expr(f, other);
                 as_f32_expr(f, vel_x, self);
-                f.instruction(&Instruction::Call(64));
+                self.call_builtin(f, 64);
             }
             HirExpr::AudioLoad(path) => {
                 self.emit_expr(f, path);
-                f.instruction(&Instruction::Call(65));
+                self.call_builtin(f, 65);
             }
             HirExpr::AudioPlay(handle) => {
                 self.emit_expr(f, handle);
-                f.instruction(&Instruction::Call(66));
+                self.call_builtin(f, 66);
             }
             HirExpr::WorldCreate => {
-                f.instruction(&Instruction::Call(67));
+                self.call_builtin(f, 67);
             }
             HirExpr::EntityCreate => {
-                f.instruction(&Instruction::Call(68));
+                self.call_builtin(f, 68);
             }
             HirExpr::EntityDestroy(id) => {
                 self.emit_expr(f, id);
-                f.instruction(&Instruction::Call(69));
+                self.call_builtin(f, 69);
             }
             HirExpr::EntitySetTag { id, tag } => {
                 self.emit_expr(f, id);
                 self.emit_expr(f, tag);
-                f.instruction(&Instruction::Call(70));
+                self.call_builtin(f, 70);
             }
             HirExpr::EntityFindByTag(tag) => {
                 self.emit_expr(f, tag);
-                f.instruction(&Instruction::Call(71));
+                self.call_builtin(f, 71);
             }
             HirExpr::Transform2dSet {
                 id,
@@ -1510,7 +1769,7 @@ impl<'a> EmitCtx<'a> {
                 for e in [x, y, rot, sx, sy] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(72));
+                self.call_builtin(f, 72);
             }
             HirExpr::Transform3dSet {
                 id,
@@ -1528,57 +1787,57 @@ impl<'a> EmitCtx<'a> {
                 for e in [tx, ty, tz, rx, ry, rz, sx, sy, sz] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(73));
+                self.call_builtin(f, 73);
             }
             HirExpr::SpriteSet { id, tex, w, h } => {
                 self.emit_expr(f, id);
                 self.emit_expr(f, tex);
                 as_f32_expr(f, w, self);
                 as_f32_expr(f, h, self);
-                f.instruction(&Instruction::Call(74));
+                self.call_builtin(f, 74);
             }
             HirExpr::Mesh3dAttach { id, mesh } => {
                 self.emit_expr(f, id);
                 self.emit_expr(f, mesh);
-                f.instruction(&Instruction::Call(75));
+                self.call_builtin(f, 75);
             }
             HirExpr::WorldStep(dt) => {
                 as_f32_expr(f, dt, self);
-                f.instruction(&Instruction::Call(76));
+                self.call_builtin(f, 76);
             }
             HirExpr::SceneLoad(path) => {
                 self.emit_expr(f, path);
-                f.instruction(&Instruction::Call(77));
+                self.call_builtin(f, 77);
             }
             HirExpr::Camera2dSet { id, x, y, zoom } => {
                 self.emit_expr(f, id);
                 for e in [x, y, zoom] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(78));
+                self.call_builtin(f, 78);
             }
             HirExpr::TilemapLoad(path) => {
                 self.emit_expr(f, path);
-                f.instruction(&Instruction::Call(79));
+                self.call_builtin(f, 79);
             }
             HirExpr::TilemapAttach { entity, tilemap } => {
                 self.emit_expr(f, entity);
                 self.emit_expr(f, tilemap);
-                f.instruction(&Instruction::Call(80));
+                self.call_builtin(f, 80);
             }
             HirExpr::WorldDraw(cam) => {
                 self.emit_expr(f, cam);
-                f.instruction(&Instruction::Call(81));
+                self.call_builtin(f, 81);
             }
             HirExpr::Material3dTexture(asset) => {
                 self.emit_expr(f, asset);
-                f.instruction(&Instruction::Call(82));
+                self.call_builtin(f, 82);
             }
             HirExpr::Light3dDirectional { dx, dy, dz, r, g, b } => {
                 for e in [dx, dy, dz, r, g, b] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(83));
+                self.call_builtin(f, 83);
             }
             HirExpr::Light3dPoint {
                 x,
@@ -1592,11 +1851,11 @@ impl<'a> EmitCtx<'a> {
                 for e in [x, y, z, r, g, b, range] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(84));
+                self.call_builtin(f, 84);
             }
             HirExpr::MeshLoadGltf(path) => {
                 self.emit_expr(f, path);
-                f.instruction(&Instruction::Call(85));
+                self.call_builtin(f, 85);
             }
             HirExpr::AabbResolveY {
                 moving,
@@ -1606,59 +1865,59 @@ impl<'a> EmitCtx<'a> {
                 self.emit_expr(f, moving);
                 self.emit_expr(f, other);
                 as_f32_expr(f, vel_y, self);
-                f.instruction(&Instruction::Call(86));
+                self.call_builtin(f, 86);
             }
             HirExpr::AudioPlayLoop(handle) => {
                 self.emit_expr(f, handle);
-                f.instruction(&Instruction::Call(87));
+                self.call_builtin(f, 87);
             }
             HirExpr::AudioSetVolume { handle, volume } => {
                 self.emit_expr(f, handle);
                 as_f32_expr(f, volume, self);
-                f.instruction(&Instruction::Call(88));
+                self.call_builtin(f, 88);
             }
             HirExpr::AudioStop(handle) => {
                 self.emit_expr(f, handle);
-                f.instruction(&Instruction::Call(102));
+                self.call_builtin(f, 102);
             }
             HirExpr::AudioSetBusVolume(volume) => {
                 as_f32_expr(f, volume, self);
-                f.instruction(&Instruction::Call(103));
+                self.call_builtin(f, 103);
             }
             HirExpr::GamepadAxis { pad, axis } => {
                 self.emit_expr(f, pad);
                 self.emit_expr(f, axis);
-                f.instruction(&Instruction::Call(89));
+                self.call_builtin(f, 89);
             }
             HirExpr::GamepadButton { pad, button } => {
                 self.emit_expr(f, pad);
                 self.emit_expr(f, button);
-                f.instruction(&Instruction::Call(90));
+                self.call_builtin(f, 90);
             }
             HirExpr::CollisionCount => {
-                f.instruction(&Instruction::Call(91));
+                self.call_builtin(f, 91);
             }
             HirExpr::CollisionEntityA(i) => {
                 self.emit_expr(f, i);
-                f.instruction(&Instruction::Call(92));
+                self.call_builtin(f, 92);
             }
             HirExpr::CollisionEntityB(i) => {
                 self.emit_expr(f, i);
-                f.instruction(&Instruction::Call(93));
+                self.call_builtin(f, 93);
             }
             HirExpr::CollisionIsTrigger(i) => {
                 self.emit_expr(f, i);
-                f.instruction(&Instruction::Call(104));
+                self.call_builtin(f, 104);
             }
             HirExpr::Rigidbody2dSetVel { id, vx, vy } => {
                 self.emit_expr(f, id);
                 as_f32_expr(f, vx, self);
                 as_f32_expr(f, vy, self);
-                f.instruction(&Instruction::Call(94));
+                self.call_builtin(f, 94);
             }
             HirExpr::Rigidbody2dGetGrounded(id) => {
                 self.emit_expr(f, id);
-                f.instruction(&Instruction::Call(95));
+                self.call_builtin(f, 95);
             }
             HirExpr::Collider2dSet {
                 id,
@@ -1674,18 +1933,18 @@ impl<'a> EmitCtx<'a> {
                 as_f32_expr(f, h, self);
                 as_f32_expr(f, radius, self);
                 self.emit_expr(f, solid);
-                f.instruction(&Instruction::Call(96));
+                self.call_builtin(f, 96);
             }
             HirExpr::Rigidbody3dSetVel { id, vx, vy, vz } => {
                 self.emit_expr(f, id);
                 as_f32_expr(f, vx, self);
                 as_f32_expr(f, vy, self);
                 as_f32_expr(f, vz, self);
-                f.instruction(&Instruction::Call(105));
+                self.call_builtin(f, 105);
             }
             HirExpr::Rigidbody3dGetGrounded(id) => {
                 self.emit_expr(f, id);
-                f.instruction(&Instruction::Call(106));
+                self.call_builtin(f, 106);
             }
             HirExpr::Collider3dSet {
                 id,
@@ -1701,46 +1960,46 @@ impl<'a> EmitCtx<'a> {
                 as_f32_expr(f, h, self);
                 as_f32_expr(f, d, self);
                 self.emit_expr(f, solid);
-                f.instruction(&Instruction::Call(107));
+                self.call_builtin(f, 107);
             }
             HirExpr::Transform3dSyncFrom2d(id) => {
                 self.emit_expr(f, id);
-                f.instruction(&Instruction::Call(108));
+                self.call_builtin(f, 108);
             }
             HirExpr::Camera2dFollow { cam, target, smooth } => {
                 self.emit_expr(f, cam);
                 self.emit_expr(f, target);
                 as_f32_expr(f, smooth, self);
-                f.instruction(&Instruction::Call(97));
+                self.call_builtin(f, 97);
             }
             HirExpr::PrefabSpawn { path, x, y } => {
                 self.emit_expr(f, path);
                 as_f32_expr(f, x, self);
                 as_f32_expr(f, y, self);
-                f.instruction(&Instruction::Call(98));
+                self.call_builtin(f, 98);
             }
             HirExpr::WorldDraw3d(cam) => {
                 self.emit_expr(f, cam);
-                f.instruction(&Instruction::Call(99));
+                self.call_builtin(f, 99);
             }
             HirExpr::Scene3dSetAmbient { r, g, b } => {
                 for e in [r, g, b] {
                     as_f32_expr(f, e, self);
                 }
-                f.instruction(&Instruction::Call(100));
+                self.call_builtin(f, 100);
             }
             HirExpr::Scene3dSetFog(d) => {
                 as_f32_expr(f, d, self);
-                f.instruction(&Instruction::Call(101));
+                self.call_builtin(f, 101);
             }
             HirExpr::AnimPlay { id, clip } => {
                 self.emit_expr(f, id);
                 self.emit_expr(f, clip);
-                f.instruction(&Instruction::Call(109));
+                self.call_builtin(f, 109);
             }
             HirExpr::AnimStop(id) => {
                 self.emit_expr(f, id);
-                f.instruction(&Instruction::Call(110));
+                self.call_builtin(f, 110);
             }
         }
     }
@@ -1873,9 +2132,10 @@ fn expr_ty(expr: &HirExpr) -> Type {
         HirExpr::Float(_) => Type::Builtin(Builtin::F32),
         HirExpr::Bool(_) => Type::Builtin(Builtin::Bool),
         HirExpr::Local(_, t) | HirExpr::Static(_, t) => t.clone(),
-        HirExpr::Unary { ty, .. } | HirExpr::Binary { ty, .. } | HirExpr::Call { ty, .. } => {
-            ty.clone()
-        }
+        HirExpr::Unary { ty, .. }
+        | HirExpr::Binary { ty, .. }
+        | HirExpr::Call { ty, .. }
+        | HirExpr::ExternCall { ty, .. } => ty.clone(),
         HirExpr::Field { ty, .. } | HirExpr::Index { elem_ty: ty, .. } => ty.clone(),
         HirExpr::ArrayLit { elem_ty, elems, .. } => Type::Array {
             elem: Box::new(elem_ty.clone()),
@@ -1992,6 +2252,163 @@ mod tests {
             wasm.windows(gtu.len()).any(|w| w == gtu),
             "expected str_substr sum > src_len trap"
         );
+    }
+
+    /// `(module, name)` of every function import, in order; also validates the module.
+    fn imports_of(wasm: &[u8]) -> Vec<(String, String)> {
+        wasmparser::Validator::new()
+            .validate_all(wasm)
+            .expect("emitted wasm must validate");
+        let mut out = Vec::new();
+        for payload in wasmparser::Parser::new(0).parse_all(wasm) {
+            if let wasmparser::Payload::ImportSection(reader) = payload.unwrap() {
+                for imp in reader {
+                    let imp = imp.unwrap();
+                    out.push((imp.module.to_string(), imp.name.to_string()));
+                }
+            }
+        }
+        out
+    }
+
+    fn exports_of(wasm: &[u8]) -> Vec<String> {
+        let mut out = Vec::new();
+        for payload in wasmparser::Parser::new(0).parse_all(wasm) {
+            if let wasmparser::Payload::ExportSection(reader) = payload.unwrap() {
+                for exp in reader {
+                    out.push(exp.unwrap().name.to_string());
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn allocation_inside_if_body_keeps_operand_stack_balanced() {
+        // Regression: the allocator's max/min helpers leaked operand-stack
+        // values, which the validator only catches when the allocation is not
+        // followed by `return` in the same block.
+        let src = r#"fn main() -> i32:
+    let n = 1
+    if n > 0:
+        let s = "x"
+        print(s)
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let wasm = emit_wasm(&hir);
+        let _ = imports_of(&wasm); // validates
+    }
+
+    #[test]
+    fn unused_builtins_are_pruned_from_imports() {
+        let src = r#"fn main() -> i32:
+    print("hi")
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let wasm = emit_wasm(&hir);
+        let imports = imports_of(&wasm);
+        assert_eq!(imports, vec![("env".to_string(), "print_str".to_string())]);
+        assert_eq!(builtin_imports_used(&hir), vec!["print_str"]);
+        assert!(exports_of(&wasm).contains(&"main".to_string()));
+    }
+
+    #[test]
+    fn no_imports_when_program_is_pure() {
+        let src = r#"fn add(a: i32, b: i32) -> i32:
+    return a + b
+
+fn main() -> i32:
+    return add(1, 2)
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let wasm = emit_wasm(&hir);
+        assert!(imports_of(&wasm).is_empty());
+    }
+
+    #[test]
+    fn extern_block_emits_named_module_imports_after_builtins() {
+        let src = r#"
+extern "kerabit":
+    fn entity(name: str) -> i32
+    fn set_pos(e: i32, x: f32, y: f32, z: f32)
+    fn key_down(name: str) -> bool
+
+state:
+    player: i32 = 0
+
+fn main() -> i32:
+    player = entity("player")
+    set_pos(player, 0.0, 0.5, 0.0)
+    return 0
+
+fn frame(dt: f32) -> i32:
+    if key_down("W"):
+        set_pos(player, sqrt(dt), 0.5, 0.0)
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        let wasm = emit_wasm(&hir);
+        let imports = imports_of(&wasm);
+        assert_eq!(
+            imports,
+            vec![
+                ("env".to_string(), "sqrt_f32".to_string()),
+                ("kerabit".to_string(), "entity".to_string()),
+                ("kerabit".to_string(), "set_pos".to_string()),
+                ("kerabit".to_string(), "key_down".to_string()),
+            ]
+        );
+        let externs = extern_imports(&hir);
+        assert_eq!(externs.len(), 3);
+        assert_eq!(externs[2].name, "key_down");
+        let exports = exports_of(&wasm);
+        assert!(exports.contains(&"main".to_string()) && exports.contains(&"frame".to_string()));
+    }
+
+    #[test]
+    fn extern_imports_dedupe_across_modules() {
+        use juni_check::{check_program_ok, ProgramModule};
+
+        let host = parse(
+            r#"export extern "host":
+    fn ping(x: i32) -> i32
+"#,
+        )
+        .unwrap();
+        let util = parse(
+            r#"from host import ping
+
+export fn twice(x: i32) -> i32:
+    return ping(ping(x))
+"#,
+        )
+        .unwrap();
+        let main = parse(
+            r#"import host
+from util import twice
+
+extern "host":
+    fn ping(x: i32) -> i32
+
+fn main() -> i32:
+    return twice(host.ping(1)) + ping(2)
+"#,
+        )
+        .unwrap();
+        let modules = vec![
+            ProgramModule { name: "host".into(), file: None, module: host },
+            ProgramModule { name: "util".into(), file: None, module: util },
+            ProgramModule { name: "main".into(), file: None, module: main },
+        ];
+        let program = check_program_ok(&modules, "main").unwrap();
+        let wasm = emit_wasm_program(&program);
+        assert_eq!(imports_of(&wasm), vec![("host".to_string(), "ping".to_string())]);
     }
 
     #[test]

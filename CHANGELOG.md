@@ -2,6 +2,33 @@
 
 All notable changes to Juni are documented here.
 
+## [13.0.0] — 2026-09-18
+
+Host imports (`extern`), pruned import tables, and an embeddable compile API — the release that lets native engines (first: **Kerabit 3.0**) run Juni as their scripting language.
+
+### Language
+- **`extern "module":` blocks** declare host imports as signature-only `fn`s; only scalars (`i32` / `i64` / `f32` / `f64` / `bool` / `str`) cross the boundary, an omitted return type means void, `i32` → `f32` arguments widen automatically
+- Externs shadow same-named builtin intrinsics (hosts may redefine `key_down` etc.), can be `export`ed and imported (`import host` / `from host import ...`), and identical declarations across modules collapse into one import
+- Errors for non-scalar extern types, arity / argument mismatches, name clashes with `fn` / `state`, and using an extern as a value
+
+### Compiler
+- **Import pruning:** emitted modules import only the `env` builtins they call, then externs in source order (hosts must link by name, not by fixed index; `juni_codegen::emit_program` / `builtin_imports_used` / `extern_imports` report the layout)
+- **Allocator fix:** `max` / `min` helpers leaked two operand-stack values per allocation, so any operand pushed before a heap allocation (a `state` variable's address in `x = "literal"` / `x = entity("name")`, earlier call arguments, allocations inside `if` bodies) was silently misaligned or rejected by validators; now uses `select`
+- Defined functions are emitted in `FuncId` order so generic instantiations can no longer skew call indices
+- `check_fn` skips bodies whose signature was rejected instead of panicking
+
+### Embedding / driver
+- `juni_driver::compile_single_with_prelude` / `check_single_with_prelude`: compile one file against host **prelude** modules whose exports are visible unqualified; returns wasm bytes, the builtin / extern import contract, and positioned `Diagnostic`s (parse errors included via `Diagnostic::from_parse_error`)
+- `juni_check::check_program_with_preludes`; `juni-driver` now depends on `juni-check` + `juni-codegen`
+
+### Runtime / IDE
+- `instantiateJuni(bytes, { extraImports, stubMissingExterns, onMissingExtern })` and `compileWithImports`: supply extern hosts by module + name; missing externs are stubbed to `0` with a console note so engine scripts still preview in the IDE
+- Monaco highlights `extern`; LSP symbols index extern fns (`extern "module" fn`)
+- Docs: [Host imports: `extern`](docs/src/language/extern.md); fixtures `tests/compile/ok_extern.juni` / `fail_extern_type.juni`
+
+### Release
+- Brand / package / desktop / crate versions → **13.0.0** (`appVersionCode` 13000)
+
 ## [12.0.0] — 2026-07-24
 
 License contract, permanent provenance, Android APK pipeline, and Kuni nested in the hosted IDE.

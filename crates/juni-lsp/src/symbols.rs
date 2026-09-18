@@ -136,7 +136,32 @@ pub fn index_module(name: String, file: String, source: String, module: &Module)
                     );
                 }
             }
+            Item::Extern(block) => {
+                for ef in &block.fns {
+                    locals.insert(
+                        ef.name.clone(),
+                        Symbol {
+                            name: ef.name.clone(),
+                            kind: SymbolKind::Function,
+                            span: ef.span,
+                            detail: Some(format!("extern \"{}\" fn", block.module)),
+                        },
+                    );
+                }
+            }
             Item::Export(decl) => match &decl.item {
+                ExportItem::Extern(block) => {
+                    for ef in &block.fns {
+                        let sym = Symbol {
+                            name: ef.name.clone(),
+                            kind: SymbolKind::Function,
+                            span: ef.span,
+                            detail: Some(format!("export extern \"{}\" fn", block.module)),
+                        };
+                        exports.insert(ef.name.clone(), sym.clone());
+                        locals.insert(ef.name.clone(), sym);
+                    }
+                }
                 ExportItem::Struct(s) => {
                     let sym = Symbol {
                         name: s.name.clone(),

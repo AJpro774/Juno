@@ -36,6 +36,8 @@ pub struct HirModule {
     pub static_region_offset: u32,
     pub init_globals: HirBlock,
     pub functions: Vec<HirFunction>,
+    /// Host imports declared with `extern "module":` in this module.
+    pub externs: Vec<HirExtern>,
 }
 
 impl Default for HirModule {
@@ -50,8 +52,21 @@ impl Default for HirModule {
             static_region_offset: 0,
             init_globals: HirBlock { stmts: vec![] },
             functions: Vec::new(),
+            externs: Vec::new(),
         }
     }
+}
+
+/// A WASM import `(module, name)` declared by an `extern` block.
+///
+/// Params / return are scalar types only; `str` crosses the boundary as an
+/// `i32` pointer to `[len: i32][utf8 bytes]` in the exported linear memory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HirExtern {
+    pub module: String,
+    pub name: String,
+    pub params: Vec<Type>,
+    pub ret: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -179,6 +194,13 @@ pub enum HirExpr {
     },
     Call {
         func: FuncId,
+        args: Vec<HirExpr>,
+        ty: Type,
+    },
+    /// Call into a host import declared by an `extern` block.
+    ExternCall {
+        module: String,
+        name: String,
         args: Vec<HirExpr>,
         ty: Type,
     },

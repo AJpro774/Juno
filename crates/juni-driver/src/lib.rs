@@ -2,6 +2,7 @@
 
 pub mod assets;
 pub mod discover;
+pub mod embed;
 pub mod imports;
 pub mod manifest;
 pub mod resolve;
@@ -14,6 +15,9 @@ use thiserror::Error;
 
 pub use assets::{build_asset_pack, scan_assets, write_asset_pack, AssetEntry, AssetError, AssetPack};
 pub use discover::{discover_sources, logical_name_for_path};
+pub use embed::{
+    check_single_with_prelude, compile_single_with_prelude, CompileOutput, PreludeSource,
+};
 pub use imports::extract_imports;
 pub use manifest::{load_manifest, AssetConfig, ManifestError, ProjectConfig, SceneConfig};
 pub use resolve::{build_graph, resolve_module_path, ModuleNode, ResolveError};

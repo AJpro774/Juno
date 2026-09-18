@@ -184,12 +184,37 @@ export function createEnvImports(options = {}) {
         memoryRef,
     };
 }
+/**
+ * Compile `wasmBytes` and build the full import object: the `env` builtins
+ * plus every `extern "module":` import the program declares, taken from
+ * `options.extraImports` or stubbed (returning 0) when allowed.
+ *
+ * Compiling first lets us read the import list, so hosts only need to supply
+ * what the program actually uses (codegen prunes unused builtins too).
+ */
+export async function compileWithImports(wasmBytes, env, options = {}) {
+    const module = await WebAssembly.compile(wasmBytes);
+    const imports = { env: env };
+    const stubMissing = options.stubMissingExterns !== false;
+    for (const imp of WebAssembly.Module.imports(module)) {
+        if (imp.module === "env" || imp.kind !== "function")
+            continue;
+        const target = (imports[imp.module] ??= {});
+        const provided = options.extraImports?.[imp.module]?.[imp.name];
+        if (provided) {
+            target[imp.name] = provided;
+        }
+        else if (stubMissing) {
+            options.onMissingExtern?.(imp.module, imp.name);
+            target[imp.name] = () => 0;
+        }
+    }
+    return { module, imports };
+}
 export async function instantiateJuni(wasmBytes, options = {}) {
     const { env, memoryRef } = createEnvImports(options);
-    const result = await WebAssembly.instantiate(wasmBytes, { env });
-    const instance = "instance" in result
-        ? result.instance
-        : result;
+    const { module, imports } = await compileWithImports(wasmBytes, env, options);
+    const instance = await WebAssembly.instantiate(module, imports);
     memoryRef.current = instance.exports.memory;
     return instance;
 }

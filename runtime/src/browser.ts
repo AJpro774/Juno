@@ -5,7 +5,7 @@
  */
 
 import { createCanvasHandlers, createGpuHandlers } from "./canvas.js";
-import { createEnvImports } from "./env.js";
+import { compileWithImports, createEnvImports } from "./env.js";
 import { createAssetHandlers } from "./assets.js";
 import { createAudioHandlers } from "./audio.js";
 import { attachInputListeners, bindMouse, createInputHandlers } from "./input.js";
@@ -151,11 +151,19 @@ export async function instantiateJuni(
 
   await assetHandlers.preloadAll();
 
-  const result = await WebAssembly.instantiate(wasmBytes as BufferSource, { env });
-  const instance =
-    "instance" in result
-      ? (result as WebAssembly.WebAssemblyInstantiatedSource).instance
-      : (result as WebAssembly.Instance);
+  const stubbed: string[] = [];
+  const { module, imports } = await compileWithImports(wasmBytes, env, {
+    extraImports: options.extraImports,
+    stubMissingExterns: options.stubMissingExterns,
+    onMissingExtern:
+      options.onMissingExtern ?? ((mod, name) => stubbed.push(`${mod}.${name}`)),
+  });
+  if (stubbed.length > 0) {
+    write(
+      `[extern] no host for ${stubbed.join(", ")} — stubbed (returns 0). Run this script inside its engine for real behavior.`
+    );
+  }
+  const instance = await WebAssembly.instantiate(module, imports);
   envMemoryRef.current = instance.exports.memory as WebAssembly.Memory;
   bindScriptWasm(instance.exports);
   write(

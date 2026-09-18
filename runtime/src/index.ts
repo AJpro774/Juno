@@ -34,7 +34,12 @@ export {
   light3dDirectional,
   light3dPoint,
 } from "./scene3d.js";
-export { createEnvImports, createPrintImports, instantiateJuni } from "./env.js";
+export {
+  compileWithImports,
+  createEnvImports,
+  createPrintImports,
+  instantiateJuni,
+} from "./env.js";
 export { createAssetHandlers, createAssetStubs } from "./assets.js";
 export { instantiateJuni as instantiateJuniBrowser, startFrameLoop } from "./browser.js";
 export {

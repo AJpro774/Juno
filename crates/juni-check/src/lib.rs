@@ -8,13 +8,16 @@ pub mod program;
 pub mod types;
 
 pub use diag::{diagnostics_to_json, did_you_mean, Diagnostic, DiagnosticJson, Severity};
-pub use hir::{mangle_symbol, HirModule, HirProgram, ModuleId};
-pub use program::{check_program, check_program_ok, ProgramCheckResult, ProgramModule};
+pub use hir::{mangle_symbol, HirExtern, HirModule, HirProgram, ModuleId};
+pub use program::{
+    check_program, check_program_ok, check_program_with_preludes, ProgramCheckResult,
+    ProgramModule,
+};
 
 use std::collections::HashMap;
 
 use juni_syntax::{
-    BinaryOp, Block, Expr, ExprKind, FnDef, Module, Stmt,
+    BinaryOp, Block, Expr, ExprKind, ExternBlock, FnDef, Module, Stmt,
     StructDef, TypeExpr, TypeExprKind, UnaryOp,
 };
 
@@ -62,6 +65,7 @@ pub(crate) struct ExportTable {
     pub functions: HashMap<String, ExportedFn>,
     pub structs: HashMap<String, StructLayout>,
     pub statics: HashMap<String, (Type, StaticId)>,
+    pub externs: HashMap<String, ExternSig>,
 }
 
 #[derive(Clone)]
@@ -69,6 +73,16 @@ enum QualifiedRef {
     Fn(FnSig),
     Struct(StructLayout),
     Static(Type, StaticId),
+    Extern(ExternSig),
+}
+
+/// Signature of a host import declared by an `extern` block.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ExternSig {
+    pub module: String,
+    pub name: String,
+    pub params: Vec<Type>,
+    pub ret: Type,
 }
 
 struct Checker {
@@ -77,10 +91,13 @@ struct Checker {
     module_id: ModuleId,
     is_entry_module: bool,
     imports: ImportBindings,
+    /// Unqualified bindings injected from prelude modules (consulted last).
+    prelude_imports: HashMap<String, (String, String)>,
     foreign_exports: HashMap<String, ExportTable>,
     item_exported: HashMap<String, bool>,
     structs: HashMap<String, StructLayout>,
     functions: HashMap<String, FnSig>,
+    externs: HashMap<String, ExternSig>,
     statics: HashMap<String, (Type, StaticId)>,
     locals: Vec<HashMap<String, (Type, LocalId)>>,
     next_local: u32,
@@ -149,10 +166,12 @@ impl Checker {
             module_id,
             is_entry_module,
             imports: ImportBindings::default(),
+            prelude_imports: HashMap::new(),
             foreign_exports: foreign_exports.clone(),
             item_exported: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
+            externs: HashMap::new(),
             statics: HashMap::new(),
             locals: Vec::new(),
             next_local: 0,
@@ -173,6 +192,7 @@ impl Checker {
                 static_region_offset,
                 init_globals: HirBlock { stmts: vec![] },
                 functions: Vec::new(),
+                externs: Vec::new(),
             },
             diagnostics: Vec::new(),
             fn_local_types: Vec::new(),
@@ -211,6 +231,7 @@ impl Checker {
                 if !exports.functions.contains_key(&sym)
                     && !exports.structs.contains_key(&sym)
                     && !exports.statics.contains_key(&sym)
+                    && !exports.externs.contains_key(&sym)
                 {
                     self.error(
                         module.span,
@@ -226,6 +247,34 @@ impl Checker {
         }
     }
 
+    /// Make every export of each prelude module visible unqualified here.
+    /// Explicit `from` imports and this module's own items take precedence;
+    /// prelude bindings are only consulted when nothing else matches.
+    pub(crate) fn apply_preludes(&mut self, preludes: &[&str]) {
+        for prelude in preludes {
+            let Some(exports) = self.foreign_exports.get(*prelude) else {
+                continue;
+            };
+            let names = exports
+                .functions
+                .keys()
+                .chain(exports.structs.keys())
+                .chain(exports.statics.keys())
+                .chain(exports.externs.keys())
+                .cloned()
+                .collect::<Vec<_>>();
+            for name in names {
+                if self.imports.from_imports.contains_key(&name)
+                    || self.prelude_imports.contains_key(&name)
+                {
+                    continue;
+                }
+                self.prelude_imports
+                    .insert(name.clone(), (prelude.to_string(), name));
+            }
+        }
+    }
+
     pub(crate) fn export_table(&self) -> ExportTable {
         let mut table = ExportTable::default();
         for (name, sig) in &self.functions {
@@ -236,6 +285,11 @@ impl Checker {
                         sig: sig.clone(),
                     },
                 );
+            }
+        }
+        for (name, sig) in &self.externs {
+            if *self.item_exported.get(name).unwrap_or(&false) {
+                table.externs.insert(name.clone(), sig.clone());
             }
         }
         for (name, layout) in &self.structs {
@@ -322,6 +376,9 @@ impl Checker {
             if let Some(sig) = self.functions.get(name).cloned() {
                 return Some(QualifiedRef::Fn(sig));
             }
+            if let Some(sig) = self.externs.get(name).cloned() {
+                return Some(QualifiedRef::Extern(sig));
+            }
             if let Some(layout) = self.structs.get(name).cloned() {
                 return Some(QualifiedRef::Struct(layout));
             }
@@ -343,6 +400,9 @@ impl Checker {
         if let Some(exported) = exports.functions.get(name) {
             return Some(QualifiedRef::Fn(exported.sig.clone()));
         }
+        if let Some(sig) = exports.externs.get(name) {
+            return Some(QualifiedRef::Extern(sig.clone()));
+        }
         if let Some(layout) = exports.structs.get(name) {
             return Some(QualifiedRef::Struct(layout.clone()));
         }
@@ -359,6 +419,40 @@ impl Checker {
     fn resolve_from_import(&mut self, local: &str, span: juni_syntax::Span) -> Option<QualifiedRef> {
         let (module, name) = self.imports.from_imports.get(local)?.clone();
         self.resolve_qualified(&module, &name, span)
+    }
+
+    /// Resolve a prelude-injected unqualified name (lowest priority).
+    fn resolve_prelude(&mut self, local: &str, span: juni_syntax::Span) -> Option<QualifiedRef> {
+        let (module, name) = self.prelude_imports.get(local)?.clone();
+        self.resolve_qualified(&module, &name, span)
+    }
+
+    /// Extern lookup order: this module, explicit `from` import, prelude.
+    /// Externs shadow same-named builtin intrinsics so hosts can redefine
+    /// e.g. `key_down` with their own signature.
+    fn lookup_extern(&self, name: &str) -> Option<ExternSig> {
+        if let Some(sig) = self.externs.get(name).cloned() {
+            return Some(sig);
+        }
+        if let Some((module, sym)) = self.imports.from_imports.get(name).cloned() {
+            if let Some(sig) = self
+                .foreign_exports
+                .get(&module)
+                .and_then(|e| e.externs.get(&sym).cloned())
+            {
+                return Some(sig);
+            }
+        }
+        if let Some((module, sym)) = self.prelude_imports.get(name).cloned() {
+            if let Some(sig) = self
+                .foreign_exports
+                .get(&module)
+                .and_then(|e| e.externs.get(&sym).cloned())
+            {
+                return Some(sig);
+            }
+        }
+        None
     }
 
     fn push_scope(&mut self) {
@@ -471,6 +565,11 @@ impl Checker {
             }
         }
         for item in &flat {
+            if let FlatItem::Extern(block, exported) = item {
+                self.collect_extern_block(block, *exported);
+            }
+        }
+        for item in &flat {
             if let FlatItem::Fn(f, exported) = item {
                 self.item_exported.insert(f.name.clone(), *exported);
                 self.collect_fn_sig(f);
@@ -556,6 +655,10 @@ impl Checker {
             self.error(span, format!("`{name}` already defined as a function"));
             return;
         }
+        if self.externs.contains_key(name) {
+            self.error(span, format!("`{name}` already declared as an extern function"));
+            return;
+        }
         let (init_expr, init_ty) = self.check_expr(init);
         let ty = if let Some(ann) = ty_ann {
             let t = self.resolve_type(ann);
@@ -628,9 +731,93 @@ impl Checker {
         self.hir.structs.push(layout);
     }
 
+    /// Register every `fn` of an `extern "module":` block as a host import.
+    fn collect_extern_block(&mut self, block: &ExternBlock, exported: bool) {
+        for ef in &block.fns {
+            if self.externs.contains_key(&ef.name) {
+                self.error(ef.span, format!("duplicate extern function `{}`", ef.name));
+                continue;
+            }
+            if self.functions.contains_key(&ef.name)
+                || self.generic_fns.contains_key(&ef.name)
+                || self.structs.contains_key(&ef.name)
+            {
+                self.error(
+                    ef.span,
+                    format!("extern `{}` conflicts with an item of the same name", ef.name),
+                );
+                continue;
+            }
+            if ef.name == "main" || ef.name == "frame" {
+                self.error(
+                    ef.span,
+                    format!("`{}` is an entry point and cannot be an extern", ef.name),
+                );
+                continue;
+            }
+            let mut ok = true;
+            let mut params = Vec::with_capacity(ef.params.len());
+            for p in &ef.params {
+                let ty = self.resolve_type(&p.ty);
+                if !extern_scalar(&ty) {
+                    self.error(
+                        p.span,
+                        format!(
+                            "extern parameter `{}` has type {ty}; only i32, i64, f32, f64, bool, and str cross the host boundary",
+                            p.name
+                        ),
+                    );
+                    ok = false;
+                }
+                params.push(ty);
+            }
+            let ret = match &ef.ret {
+                Some(te) => {
+                    let ty = self.resolve_type(te);
+                    if !extern_scalar(&ty) && !matches!(ty, Type::Builtin(Builtin::Void)) {
+                        self.error(
+                            te.span,
+                            format!(
+                                "extern `{}` returns {ty}; only scalar types or no return are allowed",
+                                ef.name
+                            ),
+                        );
+                        ok = false;
+                    }
+                    ty
+                }
+                None => Type::Builtin(Builtin::Void),
+            };
+            if !ok {
+                continue;
+            }
+            let sig = ExternSig {
+                module: block.module.clone(),
+                name: ef.name.clone(),
+                params: params.clone(),
+                ret: ret.clone(),
+            };
+            self.item_exported.insert(ef.name.clone(), exported);
+            self.externs.insert(ef.name.clone(), sig);
+            self.hir.externs.push(HirExtern {
+                module: block.module.clone(),
+                name: ef.name.clone(),
+                params,
+                ret,
+            });
+        }
+    }
+
     fn collect_fn_sig(&mut self, f: &FnDef) {
         if self.functions.contains_key(&f.name) || self.generic_fns.contains_key(&f.name) {
             self.error(f.span, format!("duplicate function `{}`", f.name));
+            return;
+        }
+        if self.externs.contains_key(&f.name) {
+            self.error(
+                f.span,
+                format!("`{}` is already declared as an extern function", f.name),
+            );
             return;
         }
         if (f.name == "main" || f.name == "frame") && !self.is_entry_module {
@@ -665,7 +852,11 @@ impl Checker {
     }
 
     fn check_fn(&mut self, f: &FnDef, exported: bool) {
-        let sig = self.functions.get(&f.name).cloned().unwrap();
+        // Signature collection may have rejected this fn (name clash); the
+        // diagnostic is already recorded, so skip the body.
+        let Some(sig) = self.functions.get(&f.name).cloned() else {
+            return;
+        };
         self.next_local = 0;
         self.fn_local_types.clear();
         self.fn_local_names.clear();
@@ -1093,6 +1284,9 @@ impl Checker {
     fn known_fn_names(&self) -> impl Iterator<Item = String> + '_ {
         let mut names: Vec<String> = self.functions.keys().cloned().collect();
         names.extend(self.generic_fns.keys().cloned());
+        names.extend(self.externs.keys().cloned());
+        names.extend(self.imports.from_imports.keys().cloned());
+        names.extend(self.prelude_imports.keys().cloned());
         // Common stdlib / host names for suggestions
         for n in [
             "print", "clamp", "lerp", "str_len", "str_eq", "str_concat", "str_substr", "array_len",
@@ -1195,6 +1389,19 @@ impl Checker {
                         self.error(expr.span, format!("`{name}` is a function; call it with ()"));
                         (HirExpr::Int(0), Type::Builtin(Builtin::I32))
                     }
+                    None if self.externs.contains_key(name) => {
+                        self.error(
+                            expr.span,
+                            format!("`{name}` is an extern function; call it with ()"),
+                        );
+                        (HirExpr::Int(0), Type::Builtin(Builtin::I32))
+                    }
+                    None if self.prelude_imports.contains_key(name) => {
+                        match self.resolve_prelude(name, expr.span) {
+                            Some(qref) => self.qualified_to_expr(qref, expr.span),
+                            None => (HirExpr::Int(0), Type::Builtin(Builtin::I32)),
+                        }
+                    }
                     None => {
                         let hint = if self.current_fn == "frame"
                             && self.main_let_names.iter().any(|n| n == name)
@@ -1245,6 +1452,10 @@ impl Checker {
                     if let Some((template, exported)) = self.generic_fns.get(name).cloned() {
                         return self.instantiate_generic_call(&template, exported, args, expr.span);
                     }
+                    // Externs (own / imported / prelude) shadow builtin intrinsics.
+                    if let Some(sig) = self.lookup_extern(name) {
+                        return self.emit_extern_call(sig, args, expr.span);
+                    }
                     if let Some(intrinsic) = self.check_host_intrinsic(name, args, expr.span) {
                         return intrinsic;
                     }
@@ -1252,8 +1463,21 @@ impl Checker {
                         return self.emit_call(sig, args, expr.span);
                     }
                     if let Some(qref) = self.resolve_from_import(name, expr.span) {
-                        if let QualifiedRef::Fn(sig) = qref {
-                            return self.emit_call(sig, args, expr.span);
+                        match qref {
+                            QualifiedRef::Fn(sig) => return self.emit_call(sig, args, expr.span),
+                            QualifiedRef::Extern(sig) => {
+                                return self.emit_extern_call(sig, args, expr.span)
+                            }
+                            _ => {}
+                        }
+                    }
+                    if let Some(qref) = self.resolve_prelude(name, expr.span) {
+                        match qref {
+                            QualifiedRef::Fn(sig) => return self.emit_call(sig, args, expr.span),
+                            QualifiedRef::Extern(sig) => {
+                                return self.emit_extern_call(sig, args, expr.span)
+                            }
+                            _ => {}
                         }
                     }
                     let notes = self.note_did_you_mean(name, self.known_fn_names());
@@ -1267,10 +1491,20 @@ impl Checker {
                 if let ExprKind::Field { base, field } = &callee.kind {
                     if let ExprKind::Ident(module_alias) = &base.kind {
                         if let Some(module) = self.lookup_module_alias(module_alias) {
-                            if let Some(QualifiedRef::Fn(sig)) =
-                                self.resolve_qualified(&module, field, expr.span)
-                            {
-                                return self.emit_call(sig, args, expr.span);
+                            match self.resolve_qualified(&module, field, expr.span) {
+                                Some(QualifiedRef::Fn(sig)) => {
+                                    return self.emit_call(sig, args, expr.span)
+                                }
+                                Some(QualifiedRef::Extern(sig)) => {
+                                    return self.emit_extern_call(sig, args, expr.span)
+                                }
+                                Some(_) => {
+                                    self.error(
+                                        expr.span,
+                                        format!("`{module}.{field}` is not callable"),
+                                    );
+                                }
+                                None => {}
                             }
                             return (HirExpr::Int(0), Type::Builtin(Builtin::I32));
                         }
@@ -1642,7 +1876,69 @@ impl Checker {
                 (HirExpr::Int(0), Type::Builtin(Builtin::I32))
             }
             QualifiedRef::Static(ty, id) => (HirExpr::Static(id, ty.clone()), ty),
+            QualifiedRef::Extern(sig) => {
+                self.error(span, "expected value, found extern function");
+                (HirExpr::Int(0), sig.ret)
+            }
         }
+    }
+
+    /// Type-check a call to a host import and lower it to `HirExpr::ExternCall`.
+    fn emit_extern_call(
+        &mut self,
+        sig: ExternSig,
+        args: &[Expr],
+        span: juni_syntax::Span,
+    ) -> (HirExpr, Type) {
+        if args.len() != sig.params.len() {
+            self.error(
+                span,
+                format!(
+                    "extern `{}` expects {} args, got {}",
+                    sig.name,
+                    sig.params.len(),
+                    args.len()
+                ),
+            );
+        }
+        let mut hir_args = Vec::with_capacity(args.len());
+        for (i, arg) in args.iter().enumerate() {
+            let (e, ty) = self.check_expr(arg);
+            if let Some(expected) = sig.params.get(i) {
+                let ok = types_compatible(expected, &ty)
+                    // Integer literals / i32 values widen to f32 host params.
+                    || (matches!(expected, Type::Builtin(Builtin::F32))
+                        && matches!(ty, Type::Builtin(Builtin::I32)));
+                if !ok {
+                    self.error(
+                        arg.span,
+                        format!(
+                            "argument {} of extern `{}`: expected {expected}, got {ty}",
+                            i + 1,
+                            sig.name
+                        ),
+                    );
+                }
+                if matches!(expected, Type::Builtin(Builtin::F32))
+                    && matches!(ty, Type::Builtin(Builtin::I32))
+                {
+                    hir_args.push(HirExpr::AsF32(Box::new(e)));
+                    continue;
+                }
+            }
+            hir_args.push(e);
+        }
+        self.expr_place = None;
+        let ret = sig.ret.clone();
+        (
+            HirExpr::ExternCall {
+                module: sig.module,
+                name: sig.name,
+                args: hir_args,
+                ty: ret.clone(),
+            },
+            ret,
+        )
     }
 
     fn check_arg(&mut self, args: &[Expr], i: usize) -> (HirExpr, Type) {
@@ -3595,6 +3891,16 @@ fn align_up(value: u32, align: u32) -> u32 {
     (value + align - 1) & !(align - 1)
 }
 
+/// Types allowed as extern parameters / non-void returns.
+fn extern_scalar(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::Builtin(
+            Builtin::I32 | Builtin::I64 | Builtin::F32 | Builtin::F64 | Builtin::Bool | Builtin::Str
+        )
+    )
+}
+
 fn const_i32_expr(expr: &Expr) -> Option<i32> {
     match &expr.kind {
         ExprKind::Int(v) => {
@@ -4321,5 +4627,332 @@ fn main() -> i32:
             .find_map(find_index_len_stmt)
             .expect("expected AssignIndex in main");
         assert_eq!(len, 3);
+    }
+
+    fn find_extern_call(expr: &HirExpr) -> Option<(&str, &str, usize)> {
+        match expr {
+            HirExpr::ExternCall {
+                module, name, args, ..
+            } => Some((module, name, args.len())),
+            HirExpr::Binary { left, right, .. } => {
+                find_extern_call(left).or_else(|| find_extern_call(right))
+            }
+            HirExpr::Unary { expr, .. } | HirExpr::AsF32(expr) | HirExpr::AsI32(expr) => {
+                find_extern_call(expr)
+            }
+            HirExpr::Call { args, .. } => args.iter().find_map(find_extern_call),
+            _ => None,
+        }
+    }
+
+    fn extern_calls_in(hir: &HirModule, func: &str) -> Vec<(String, String, usize)> {
+        let f = hir.functions.iter().find(|f| f.name == func).unwrap();
+        let mut out = Vec::new();
+        for stmt in &f.body.stmts {
+            let e = match stmt {
+                HirStmt::Return(Some(e)) | HirStmt::Expr(e) | HirStmt::Let { init: e, .. } => e,
+                HirStmt::AssignLocal { value, .. } | HirStmt::AssignStatic { value, .. } => value,
+                _ => continue,
+            };
+            if let Some((m, n, a)) = find_extern_call(e) {
+                out.push((m.to_string(), n.to_string(), a));
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn extern_block_declares_host_imports() {
+        let src = r#"
+extern "kerabit":
+    fn entity(name: str) -> i32
+    fn set_pos(e: i32, x: f32, y: f32, z: f32)
+    fn dt() -> f32
+
+fn main() -> i32:
+    let e = entity("player")
+    set_pos(e, 1.0, 2, 3.0)
+    return e
+
+fn frame(dt_in: f32) -> i32:
+    let t = dt() * 2.0
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        assert_eq!(hir.externs.len(), 3);
+        assert_eq!(hir.externs[0].module, "kerabit");
+        assert_eq!(hir.externs[0].name, "entity");
+        assert_eq!(hir.externs[0].params, vec![Type::Builtin(Builtin::Str)]);
+        assert_eq!(hir.externs[0].ret, Type::Builtin(Builtin::I32));
+        assert_eq!(hir.externs[1].ret, Type::Builtin(Builtin::Void));
+        let calls = extern_calls_in(&hir, "main");
+        assert_eq!(
+            calls,
+            vec![
+                ("kerabit".to_string(), "entity".to_string(), 1),
+                ("kerabit".to_string(), "set_pos".to_string(), 4),
+            ]
+        );
+        // The integer literal `2` is widened to f32 for the host param.
+        let main = hir.functions.iter().find(|f| f.name == "main").unwrap();
+        let widened = main.body.stmts.iter().any(|s| {
+            matches!(
+                s,
+                HirStmt::Expr(HirExpr::ExternCall { args, .. })
+                    if matches!(args.get(2), Some(HirExpr::AsF32(_)))
+            )
+        });
+        assert!(widened, "expected AsF32 coercion for int literal into f32 extern param");
+    }
+
+    #[test]
+    fn extern_shadows_builtin_intrinsic() {
+        // Builtin `key_down(i32) -> i32` is replaced by the host's `key_down(str) -> bool`.
+        let src = r#"
+extern "kerabit":
+    fn key_down(name: str) -> bool
+
+fn main() -> i32:
+    if key_down("W"):
+        return 1
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let hir = check_ok(&m).unwrap();
+        assert_eq!(hir.externs.len(), 1);
+        let main = hir.functions.iter().find(|f| f.name == "main").unwrap();
+        let uses_extern = main.body.stmts.iter().any(|s| {
+            matches!(s, HirStmt::If { cond, .. } if matches!(cond, HirExpr::ExternCall { .. }))
+        });
+        assert!(uses_extern, "extern key_down should shadow the builtin");
+    }
+
+    #[test]
+    fn reject_extern_arg_type_mismatch_and_arity() {
+        let src = r#"
+extern "host":
+    fn ping(x: i32) -> i32
+
+fn main() -> i32:
+    let a = ping("no")
+    return ping(1, 2)
+"#;
+        let m = parse(src).unwrap();
+        let result = check(&m);
+        let msgs: Vec<&str> = result.diagnostics.iter().map(|d| d.message.as_str()).collect();
+        assert!(
+            msgs.iter().any(|m| m.contains("expected i32, got str")),
+            "{msgs:?}"
+        );
+        assert!(
+            msgs.iter().any(|m| m.contains("expects 1 args, got 2")),
+            "{msgs:?}"
+        );
+    }
+
+    #[test]
+    fn reject_extern_non_scalar_types() {
+        let src = r#"
+struct Vec2:
+    x: f32
+    y: f32
+
+extern "host":
+    fn bad(v: Vec2) -> i32
+    fn bad_ret() -> Vec2
+
+fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let result = check(&m);
+        let msgs: Vec<&str> = result.diagnostics.iter().map(|d| d.message.as_str()).collect();
+        assert!(msgs.iter().any(|m| m.contains("only i32, i64, f32, f64, bool, and str")), "{msgs:?}");
+        assert!(msgs.iter().any(|m| m.contains("returns")), "{msgs:?}");
+        assert!(result.module.externs.is_empty());
+    }
+
+    #[test]
+    fn reject_extern_conflicting_with_fn() {
+        let src = r#"
+extern "host":
+    fn ping() -> i32
+
+fn ping() -> i32:
+    return 1
+
+fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let result = check(&m);
+        assert!(result
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("already declared as an extern")));
+    }
+
+    #[test]
+    fn reject_extern_used_as_value() {
+        let src = r#"
+extern "host":
+    fn ping() -> i32
+
+fn main() -> i32:
+    let p = ping
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        let result = check(&m);
+        assert!(result
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("extern function; call it with ()")));
+    }
+
+    #[test]
+    fn exported_externs_are_importable_and_qualified() {
+        use crate::program::{check_program_ok, ProgramModule};
+
+        let host = parse(
+            r#"export extern "kerabit":
+    fn entity(name: str) -> i32
+    fn quit()
+"#,
+        )
+        .unwrap();
+        let main = parse(
+            r#"import kerabit
+from kerabit import entity as ent
+
+fn main() -> i32:
+    let e = ent("player")
+    kerabit.quit()
+    return e
+"#,
+        )
+        .unwrap();
+        let modules = vec![
+            ProgramModule {
+                name: "kerabit".into(),
+                file: Some("src/kerabit.juni".into()),
+                module: host,
+            },
+            ProgramModule {
+                name: "main".into(),
+                file: Some("src/main.juni".into()),
+                module: main,
+            },
+        ];
+        let program = check_program_ok(&modules, "main").unwrap();
+        let main_mod = program.modules.iter().find(|m| m.name == "main").unwrap();
+        let calls = extern_calls_in(main_mod, "main");
+        assert_eq!(
+            calls,
+            vec![
+                ("kerabit".to_string(), "entity".to_string(), 1),
+                ("kerabit".to_string(), "quit".to_string(), 0),
+            ]
+        );
+    }
+
+    #[test]
+    fn prelude_exports_are_visible_unqualified() {
+        use crate::program::{check_program_with_preludes, ProgramModule};
+
+        let prelude = parse(
+            r#"export extern "kerabit":
+    fn entity(name: str) -> i32
+    fn key_down(name: str) -> bool
+
+export fn twice(x: i32) -> i32:
+    return x * 2
+"#,
+        )
+        .unwrap();
+        let game = parse(
+            r#"state:
+    player: i32 = 0
+
+fn main() -> i32:
+    player = entity("player")
+    return twice(player)
+
+fn frame(dt: f32) -> i32:
+    if key_down("Escape"):
+        return 1
+    return 0
+"#,
+        )
+        .unwrap();
+        let modules = vec![
+            ProgramModule {
+                name: "kerabit".into(),
+                file: None,
+                module: prelude,
+            },
+            ProgramModule {
+                name: "main".into(),
+                file: Some("game.juni".into()),
+                module: game,
+            },
+        ];
+        let result = check_program_with_preludes(&modules, "main", &["kerabit"]);
+        assert!(
+            result.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            result.diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+        let main_mod = result.program.modules.iter().find(|m| m.name == "main").unwrap();
+        let calls = extern_calls_in(main_mod, "main");
+        assert_eq!(calls, vec![("kerabit".to_string(), "entity".to_string(), 1)]);
+        // Prelude `fn twice` resolves to a regular cross-module call.
+        let main_fn = main_mod.functions.iter().find(|f| f.name == "main").unwrap();
+        assert!(main_fn.body.stmts.iter().any(|s| matches!(
+            s,
+            HirStmt::Return(Some(HirExpr::Call { .. }))
+        )));
+    }
+
+    #[test]
+    fn prelude_does_not_shadow_locals_or_own_items() {
+        use crate::program::{check_program_with_preludes, ProgramModule};
+
+        let prelude = parse(
+            r#"export extern "kerabit":
+    fn speed() -> f32
+
+export fn helper() -> i32:
+    return 1
+"#,
+        )
+        .unwrap();
+        let game = parse(
+            r#"fn helper() -> i32:
+    return 2
+
+fn main() -> i32:
+    let speed = 3
+    return speed + helper()
+"#,
+        )
+        .unwrap();
+        let modules = vec![
+            ProgramModule {
+                name: "kerabit".into(),
+                file: None,
+                module: prelude,
+            },
+            ProgramModule {
+                name: "main".into(),
+                file: None,
+                module: game,
+            },
+        ];
+        let result = check_program_with_preludes(&modules, "main", &["kerabit"]);
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let main_mod = result.program.modules.iter().find(|m| m.name == "main").unwrap();
+        assert!(extern_calls_in(main_mod, "main").is_empty());
     }
 }

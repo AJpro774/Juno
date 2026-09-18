@@ -1,0 +1,20 @@
+# Host imports via `extern`: signature-only fns bound to a WASM import module.
+# The int literal `2` widens to the f32 host parameter.
+extern "kerabit":
+    fn entity(name: str) -> i32
+    fn set_pos(e: i32, x: f32, y: f32, z: f32)
+    fn key_down(name: str) -> bool
+    fn dt() -> f32
+
+state:
+    player: i32 = 0
+
+fn main() -> i32:
+    player = entity("player")
+    set_pos(player, 0.0, 0.5, 2)
+    return 0
+
+fn frame(delta: f32) -> i32:
+    if key_down("W"):
+        set_pos(player, dt() * 4.0, 0.5, 0.0)
+    return 0

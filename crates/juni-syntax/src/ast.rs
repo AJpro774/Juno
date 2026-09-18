@@ -18,6 +18,31 @@ pub enum Item {
     State(StateDef),
     Import(ImportDecl),
     Export(ExportDecl),
+    /// Host import declarations: `extern "module":` + signature-only `fn`s.
+    Extern(ExternBlock),
+}
+
+/// `extern "kerabit":` block — declares WASM imports from a host module.
+///
+/// Each function is a signature without a body; codegen emits one WASM
+/// import `(module, name)` per declaration. Only scalar types (`i32`, `i64`,
+/// `f32`, `f64`, `bool`, `str`) may cross the boundary; an omitted return
+/// type means `void`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExternBlock {
+    /// WASM import module name (the string after `extern`).
+    pub module: String,
+    pub fns: Vec<ExternFn>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExternFn {
+    pub name: String,
+    pub params: Vec<Param>,
+    /// `None` means the import returns nothing.
+    pub ret: Option<TypeExpr>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +83,7 @@ pub enum ExportItem {
     Fn(FnDef),
     Global(GlobalDef),
     State(StateDef),
+    Extern(ExternBlock),
 }
 
 #[derive(Debug, Clone, PartialEq)]

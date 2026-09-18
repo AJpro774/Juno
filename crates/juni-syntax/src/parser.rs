@@ -141,6 +141,7 @@ impl Parser {
             TokenKind::Struct => Item::Struct(self.parse_struct()?),
             TokenKind::Fn => Item::Fn(self.parse_fn()?),
             TokenKind::State => Item::State(self.parse_state()?),
+            TokenKind::Extern => Item::Extern(self.parse_extern()?),
             TokenKind::Let => {
                 let Stmt::Let {
                     name,
@@ -163,8 +164,9 @@ impl Parser {
                 return Err(ParseError::Unexpected {
                     line: t.span.line,
                     col: t.span.col,
-                    expected: "`import`, `from`, `export`, `struct`, `fn`, `state`, or `let`"
-                        .into(),
+                    expected:
+                        "`import`, `from`, `export`, `struct`, `fn`, `state`, `extern`, or `let`"
+                            .into(),
                 });
             }
         };
@@ -255,6 +257,94 @@ impl Parser {
         Ok(StateDef {
             fields,
             span: start.merge(end),
+        })
+    }
+
+    /// `extern "module":` followed by an indented list of signature-only fns.
+    fn parse_extern(&mut self) -> Result<ExternBlock, ParseError> {
+        let start = self.expect(TokenKind::Extern, "`extern`")?.span;
+        let module = match self.peek_kind().clone() {
+            TokenKind::Str(s) => {
+                self.bump();
+                s
+            }
+            _ => {
+                let t = self.peek();
+                return Err(ParseError::Unexpected {
+                    line: t.span.line,
+                    col: t.span.col,
+                    expected: "host module name string after `extern`".into(),
+                });
+            }
+        };
+        if module.is_empty() {
+            return Err(ParseError::Message(
+                "extern module name must not be empty".into(),
+            ));
+        }
+        self.expect(TokenKind::Colon, "`:`")?;
+        self.expect(TokenKind::Newline, "newline")?;
+        self.expect(TokenKind::Indent, "indented block")?;
+        let mut fns = Vec::new();
+        while !matches!(self.peek_kind(), TokenKind::Dedent | TokenKind::Eof) {
+            self.skip_newlines();
+            if matches!(self.peek_kind(), TokenKind::Dedent | TokenKind::Eof) {
+                break;
+            }
+            fns.push(self.parse_extern_fn()?);
+            if matches!(self.peek_kind(), TokenKind::Newline) {
+                self.bump();
+            }
+        }
+        let end = self.expect(TokenKind::Dedent, "dedent")?.span;
+        Ok(ExternBlock {
+            module,
+            fns,
+            span: start.merge(end),
+        })
+    }
+
+    /// `fn name(a: i32, b: f32) -> i32` with no body (return type optional).
+    fn parse_extern_fn(&mut self) -> Result<ExternFn, ParseError> {
+        let start = self.expect(TokenKind::Fn, "`fn`")?.span;
+        let (name, _) = self.expect_ident()?;
+        self.expect(TokenKind::LParen, "`(`")?;
+        let mut params = Vec::new();
+        if !matches!(self.peek_kind(), TokenKind::RParen) {
+            loop {
+                let (pname, pspan) = self.expect_ident()?;
+                self.expect(TokenKind::Colon, "`:`")?;
+                let ty = self.parse_type()?;
+                params.push(Param {
+                    name: pname,
+                    ty,
+                    span: pspan,
+                });
+                if matches!(self.peek_kind(), TokenKind::Comma) {
+                    self.bump();
+                    continue;
+                }
+                break;
+            }
+        }
+        self.expect(TokenKind::RParen, "`)`")?;
+        let ret = if matches!(self.peek_kind(), TokenKind::Arrow) {
+            self.bump();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+        if matches!(self.peek_kind(), TokenKind::Colon) {
+            return Err(ParseError::Message(format!(
+                "extern fn `{name}` cannot have a body (line {})",
+                start.line
+            )));
+        }
+        Ok(ExternFn {
+            name,
+            params,
+            ret,
+            span: start,
         })
     }
 
@@ -903,6 +993,7 @@ fn item_span(item: &Item) -> Span {
         Item::State(s) => s.span,
         Item::Import(i) => i.span,
         Item::Export(e) => e.span,
+        Item::Extern(x) => x.span,
     }
 }
 
@@ -912,6 +1003,7 @@ fn export_item_from_item(item: Item) -> ExportItem {
         Item::Fn(f) => ExportItem::Fn(f),
         Item::Global(g) => ExportItem::Global(g),
         Item::State(s) => ExportItem::State(s),
+        Item::Extern(x) => ExportItem::Extern(x),
         Item::Import(_) | Item::Export(_) => {
             unreachable!("import/export items cannot be re-exported here")
         }
@@ -949,6 +1041,63 @@ fn main() -> i32:
 "#;
         let m = parse(src).unwrap();
         assert_eq!(m.items.len(), 2);
+    }
+
+    #[test]
+    fn parse_extern_block() {
+        let src = r#"
+extern "kerabit":
+    fn entity(name: str) -> i32
+    fn set_pos(e: i32, x: f32, y: f32, z: f32)
+
+    fn key_down(name: str) -> bool
+
+fn main() -> i32:
+    return 0
+"#;
+        let m = parse(src).unwrap();
+        assert_eq!(m.items.len(), 2);
+        match &m.items[0] {
+            Item::Extern(block) => {
+                assert_eq!(block.module, "kerabit");
+                assert_eq!(block.fns.len(), 3);
+                assert_eq!(block.fns[0].name, "entity");
+                assert_eq!(block.fns[0].params.len(), 1);
+                assert!(block.fns[0].ret.is_some());
+                assert_eq!(block.fns[1].name, "set_pos");
+                assert_eq!(block.fns[1].params.len(), 4);
+                assert!(block.fns[1].ret.is_none());
+                assert_eq!(block.fns[2].name, "key_down");
+            }
+            _ => panic!("expected extern block"),
+        }
+    }
+
+    #[test]
+    fn parse_export_extern_block() {
+        let src = "export extern \"host\":\n    fn ping() -> i32\n";
+        let m = parse(src).unwrap();
+        match &m.items[0] {
+            Item::Export(ExportDecl {
+                item: ExportItem::Extern(block),
+                ..
+            }) => {
+                assert_eq!(block.module, "host");
+                assert_eq!(block.fns.len(), 1);
+            }
+            _ => panic!("expected exported extern block"),
+        }
+    }
+
+    #[test]
+    fn reject_extern_fn_with_body() {
+        let src = "extern \"host\":\n    fn ping() -> i32:\n        return 0\n";
+        assert!(parse(src).is_err());
+    }
+
+    #[test]
+    fn reject_extern_without_module() {
+        assert!(parse("extern:\n    fn ping() -> i32\n").is_err());
     }
 
     #[test]

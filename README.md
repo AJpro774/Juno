@@ -15,8 +15,9 @@ Hosted IDE (same build):
 
 Deploy via root [`vercel.json`](vercel.json) or [`netlify.toml`](netlify.toml) (build `ide/`, publish `ide/dist`). See [docs/src/projects/netlify.md](docs/src/projects/netlify.md).
 
-## Status (v12.0.0)
+## Status (v13.0.0)
 
+- **Host imports:** `extern "module":` blocks bind engine functions as WASM imports; pruned import tables; `juni_driver::compile_single_with_prelude` for native engines (Kerabit 3.0 runs Juni as its scripting language)
 - **Language:** runtime array / `str_substr` bounds traps; named borrow diagnostics; `array_len`
 - **IDE:** resizable panes; themes; Cat Coffee; trap console remapping for OOB
 - **Authoring:** entity scripts + Open/Stub; tilemap paint; **3D Edit**; **Code Search**; **Anim** editor

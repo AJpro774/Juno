@@ -27,6 +27,19 @@ pub struct ProgramCheckResult {
 
 /// Type-checked multi-module program in dependency (topological) order.
 pub fn check_program(modules: &[ProgramModule], entry: &str) -> ProgramCheckResult {
+    check_program_with_preludes(modules, entry, &[])
+}
+
+/// Like [`check_program`], but every exported symbol of the named `preludes`
+/// modules is visible unqualified in all other modules (as if each had
+/// `from <prelude> import <every export>`). Prelude modules must precede
+/// their users in `modules`. Local definitions and explicit imports always
+/// win over prelude bindings.
+pub fn check_program_with_preludes(
+    modules: &[ProgramModule],
+    entry: &str,
+    preludes: &[&str],
+) -> ProgramCheckResult {
     let entry_idx = modules
         .iter()
         .position(|m| m.name == entry)
@@ -52,6 +65,9 @@ pub fn check_program(modules: &[ProgramModule], entry: &str) -> ProgramCheckResu
             static_region_offset,
         );
         checker.process_imports(&pm.module);
+        if !preludes.contains(&pm.name.as_str()) {
+            checker.apply_preludes(preludes);
+        }
         checker.check_module(&pm.module);
 
         next_func_id += checker.functions.len() as u32;
@@ -98,11 +114,13 @@ pub fn flatten_items(module: &Module) -> Vec<FlatItem<'_>> {
                 ExportItem::Fn(f) => out.push(FlatItem::Fn(f, true)),
                 ExportItem::Global(g) => out.push(FlatItem::Global(g, true)),
                 ExportItem::State(s) => out.push(FlatItem::State(s, true)),
+                ExportItem::Extern(x) => out.push(FlatItem::Extern(x, true)),
             },
             Item::Struct(s) => out.push(FlatItem::Struct(s, false)),
             Item::Fn(f) => out.push(FlatItem::Fn(f, false)),
             Item::Global(g) => out.push(FlatItem::Global(g, false)),
             Item::State(s) => out.push(FlatItem::State(s, false)),
+            Item::Extern(x) => out.push(FlatItem::Extern(x, false)),
             Item::Import(_) => {}
         }
     }
@@ -114,6 +132,7 @@ pub enum FlatItem<'a> {
     Fn(&'a juni_syntax::FnDef, bool),
     Global(&'a juni_syntax::GlobalDef, bool),
     State(&'a juni_syntax::StateDef, bool),
+    Extern(&'a juni_syntax::ExternBlock, bool),
 }
 
 pub(crate) fn imports_from_module(module: &Module) -> ImportBindings {

@@ -2,7 +2,22 @@
 export type MemoryRef = {
     current: WebAssembly.Memory | null;
 };
-export type RunOptions = {
+/** Host functions for `extern "module":` imports, keyed by module then name. */
+export type ExternImports = Record<string, Record<string, (...args: number[]) => number | void>>;
+/** Options shared by every instantiation path for `extern` host imports. */
+export type ExternOptions = {
+    /** Implementations for `extern` imports (modules other than `env`). */
+    extraImports?: ExternImports;
+    /**
+     * When an `extern` import has no implementation, provide a stub returning 0
+     * instead of failing instantiation. Defaults to `true` so IDE previews of
+     * engine-targeted scripts still start.
+     */
+    stubMissingExterns?: boolean;
+    /** Called once per stubbed `(module, name)`. */
+    onMissingExtern?: (module: string, name: string) => void;
+};
+export type RunOptions = ExternOptions & {
     onPrint?: (text: string) => void;
     canvasEl?: HTMLCanvasElement | null;
     gpuCanvasEl?: HTMLCanvasElement | null;
@@ -68,7 +83,7 @@ export type Scene3dHandlers = {
     clear?: (r: number, g: number, b: number, a: number) => void;
     draw?: (meshId: number, camId: number) => void;
 };
-export type EnvOptions = {
+export type EnvOptions = ExternOptions & {
     memoryRef?: MemoryRef;
     onPrint?: (text: string) => void;
     canvas?: CanvasHandlers;

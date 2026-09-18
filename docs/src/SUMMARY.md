@@ -10,6 +10,7 @@
 - [Memory](language/memory.md)
 - [Module state](language/state.md)
 - [Modules and imports](language/modules.md)
+- [Host imports: `extern`](language/extern.md)
 - [Standard library](language/stdlib.md)
 - [Control flow](language/control-flow.md)
 

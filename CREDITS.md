@@ -99,6 +99,13 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2, Bubblewrap/TWA
 
+## v13 — Host imports & engine embedding
+
+- **Author:** Alexander James Patton
+- **Deliverable:** `extern "module":` host imports; pruned import tables; allocator operand-stack fix; `juni_driver::compile_single_with_prelude` for native engines (Kerabit 3.0); runtime `extraImports` — `v13.0.0`
+- **Built with:** Cursor
+- **Software:** Rust, TypeScript, WebAssembly, wasm-encoder / wasmparser, Vite, Monaco, Tauri 2
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.
