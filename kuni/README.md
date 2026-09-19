@@ -9,7 +9,7 @@ UI language matches the [Juni IDE](../ide/): parchment + forest green, Syne word
 From the Juni IDE (recommended — one site, switch instantly):
 
 ```bash
-cd /Users/caryn/Juno/ide
+cd ide
 npm install
 npm run dev
 ```
@@ -19,7 +19,7 @@ Open http://localhost:5173 — use the **Juni | Kuni** switcher in the header (o
 Standalone Kuni:
 
 ```bash
-cd /Users/caryn/Juno/kuni
+cd kuni
 npm install
 npm run dev
 ```

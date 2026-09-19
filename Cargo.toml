@@ -23,11 +23,11 @@ juni-check = { path = "crates/juni-check" }
 juni-codegen = { path = "crates/juni-codegen" }
 juni-driver = { path = "crates/juni-driver" }
 juni-lsp = { path = "crates/juni-lsp", default-features = false }
-wasm-encoder = "0.221"
+wasm-encoder = "0.259"
 clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 anyhow = "1"
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.128"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde-wasm-bindgen = "0.6"

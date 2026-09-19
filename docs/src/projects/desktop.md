@@ -45,7 +45,7 @@ Bundle targets (see `tauri.conf.json`): **dmg** / **app** (macOS), **nsis** / **
 
 ## Multi-arch CI / GitHub Releases
 
-Workflow: [`.github/workflows/release-desktop.yml`](../../.github/workflows/release-desktop.yml).
+Workflow: [`.github/workflows/release-desktop.yml`](../../../.github/workflows/release-desktop.yml).
 
 | Host | Arch |
 |------|------|
@@ -126,7 +126,7 @@ Install the **web IDE** as an app:
 2. **Add to Home Screen** / **Install app**.
 3. Launch from the home-screen icon (standalone display via `manifest.webmanifest` + `sw.js`).
 
-See the Android section on the [download page](/download/).
+See the Android section on the [download page](../../../ide/public/download/).
 
 ## Language server
 

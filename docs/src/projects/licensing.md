@@ -4,8 +4,8 @@ Juni / Juno uses the **Juni Software License and Commercial Contract 1.0** (a mo
 
 | What | Terms |
 |------|--------|
-| **Source code** and official builds | [LICENSE](../../LICENSE) |
-| **Distributed IDE / apps** | [EULA](../../EULA.md) **and** [LICENSE](../../LICENSE) |
+| **Source code** and official builds | [LICENSE](../../../LICENSE) |
+| **Distributed IDE / apps** | [EULA](../../../EULA.md) **and** [LICENSE](../../../LICENSE) |
 
 ### Free vs paid
 

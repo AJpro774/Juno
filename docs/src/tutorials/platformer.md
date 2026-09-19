@@ -1,6 +1,6 @@
 # Build a 2D platformer
 
-Walk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../examples/projects/platformer).
+Walk through a small Juni platformer: scene, player, movement, gravity, camera, and a goal. The finished shape matches [`examples/projects/platformer`](../../../examples/projects/platformer).
 
 Open the [Juni IDE](https://junoengine.vercel.app/) (Chrome works best) or follow along in the desktop app.
 

@@ -149,7 +149,7 @@ export fn clamp01(x: f32) -> f32:
         let mut out = Vec::new();
         for payload in wasmparser::Parser::new(0).parse_all(wasm) {
             if let wasmparser::Payload::ImportSection(reader) = payload.unwrap() {
-                for imp in reader {
+                for imp in reader.into_imports() {
                     let imp = imp.unwrap();
                     out.push((imp.module.to_string(), imp.name.to_string()));
                 }

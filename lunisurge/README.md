@@ -9,7 +9,7 @@ UI language matches the [Juni IDE](../ide/) ecosystem: parchment glow, Syne word
 From the Juni IDE (recommended — one site, switch instantly):
 
 ```bash
-cd /Users/caryn/Juno/ide
+cd ide
 npm install
 npm run dev
 ```
@@ -19,7 +19,7 @@ Open http://localhost:5173 — use the **Juni | Kuni | Luni** switcher (hover **
 Standalone Luni:
 
 ```bash
-cd /Users/caryn/Juno/lunisurge
+cd lunisurge
 npm install
 npm run dev
 ```

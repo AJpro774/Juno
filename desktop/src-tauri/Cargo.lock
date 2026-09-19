@@ -1580,15 +1580,23 @@ dependencies = [
 
 [[package]]
 name = "juni-check"
-version = "6.0.0"
+version = "13.0.0"
 dependencies = [
  "juni-syntax",
  "thiserror 2.0.18",
 ]
 
 [[package]]
+name = "juni-codegen"
+version = "13.0.0"
+dependencies = [
+ "juni-check",
+ "wasm-encoder",
+]
+
+[[package]]
 name = "juni-desktop"
-version = "10.1.0"
+version = "13.0.0"
 dependencies = [
  "base64 0.22.1",
  "juni-driver",
@@ -1602,19 +1610,21 @@ dependencies = [
 
 [[package]]
 name = "juni-driver"
-version = "6.0.0"
+version = "13.0.0"
 dependencies = [
  "base64 0.22.1",
+ "juni-check",
+ "juni-codegen",
  "juni-syntax",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "toml 0.8.2",
+ "toml 1.1.2+spec-1.1.0",
 ]
 
 [[package]]
 name = "juni-lsp"
-version = "6.0.0"
+version = "13.0.0"
 dependencies = [
  "juni-check",
  "juni-driver",
@@ -1626,7 +1636,7 @@ dependencies = [
 
 [[package]]
 name = "juni-syntax"
-version = "6.0.0"
+version = "13.0.0"
 dependencies = [
  "thiserror 2.0.18",
 ]
@@ -1641,6 +1651,12 @@ dependencies = [
  "serde",
  "unicode-segmentation",
 ]
+
+[[package]]
+name = "leb128fmt"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libappindicator"
@@ -3849,6 +3865,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-encoder"
+version = "0.259.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1d0246511d901aacf25d2dc9111f0054947de5e093fe662099e709ff7530dc3"
+dependencies = [
+ "leb128fmt",
+ "wasmparser",
+]
+
+[[package]]
 name = "wasm-streams"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3859,6 +3885,17 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "wasmparser"
+version = "0.259.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f7c12eac7bb587801590f6a67ff0bc84d0748513864b71108e4b311cc3df694"
+dependencies = [
+ "bitflags 2.13.0",
+ "indexmap 2.14.0",
+ "semver",
 ]
 
 [[package]]

@@ -7,11 +7,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:nested": "tsc && LUNI_BASE=/luni/ vite build",
+    "build:nested": "tsc && LUNI_BASE=${LUNI_BASE:-/luni/} vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   }
 }

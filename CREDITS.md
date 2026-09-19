@@ -106,6 +106,13 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebAssembly, wasm-encoder / wasmparser, Vite, Monaco, Tauri 2
 
+## Weekly maintenance — 2026-09-19
+
+- **Author:** Alexander James Patton
+- **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
+- **Work:** Against `main` @ `c16741f0221a083b3d0006b41ffd399aeae65eac` (v13.0.0). Re-applied still-unmerged weekly fixes (LSP `unused_assignments`, `check-projects.sh` trailing-slash paths, desktop/Tauri `.gitignore` + Linux schema, portable README paths, docs relative links, GitHub Pages nested `KUNI_BASE`/`LUNI_BASE` + relative app-switcher hrefs, sitemap → `junoengine.vercel.app`). New: docs download-page link in `desktop.md`; wasmparser **0.259** import-section test helpers (`into_imports`). Dependency bumps — Vite **8.3.0**, Monaco **0.55.1**, TypeScript **7.0.2**, marked **18.0.13**, `@webgpu/types` **0.1.74**, `@mlc-ai/web-llm` **0.2.85**, Capacitor **7.6.9**, `@tauri-apps/cli` **2.11.4**, `wasm-encoder`/`wasmparser` **0.259**, `wasm-bindgen` **0.2.128**, `toml` **1.x**; rebuilt `ide/public/pkg`
+- **Software:** Rust 1.98.1, Cargo, wasm-pack, Vite 8.3, Monaco 0.55.1, TypeScript 7.0.2, marked, Tauri 2, Capacitor 7, Node.js
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.
