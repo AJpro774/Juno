@@ -63,4 +63,4 @@ Circular imports are rejected at project load time with a clear error.
 - `juni check` / `juni build` read `juni.toml` when run in a project directory.
 - `juni lsp` indexes the workspace for completion and go-to-definition across modules.
 
-See [juni.toml projects](juni-toml.md) and the `examples/projects/hello_modules` sample.
+See [juni.toml projects](../projects/juni-toml.md) and the `examples/projects/hello_modules` sample.

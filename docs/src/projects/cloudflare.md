@@ -1,6 +1,6 @@
 # Deploy to Cloudflare Workers
 
-Host the **Juni IDE** as a static SPA on [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) (git-connected **Workers Builds**). Root [`wrangler.toml`](../../wrangler.toml) points assets at `ide/dist` with SPA `not_found_handling`.
+Host the **Juni IDE** as a static SPA on [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) (git-connected **Workers Builds**). Root [`wrangler.toml`](../../../wrangler.toml) points assets at `ide/dist` with SPA `not_found_handling`.
 
 ## Dashboard build settings
 
@@ -27,7 +27,7 @@ npx wrangler deploy
 ## SPA / download hub
 
 SPA fallback is set in `wrangler.toml` via `assets.not_found_handling = "single-page-application"`.  
-[`ide/public/_redirects`](../../ide/public/_redirects) only handles `/download` (do **not** add a `/* → /index.html` rule — Workers rejects it as an infinite loop).
+[`ide/public/_redirects`](../../../ide/public/_redirects) only handles `/download` (do **not** add a `/* → /index.html` rule — Workers rejects it as an infinite loop).
 
 ## Alongside Netlify
 
