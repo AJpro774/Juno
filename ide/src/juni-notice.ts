@@ -1,7 +1,7 @@
 /** Shared Juni provenance / Required Notice for projects and exports. */
 
 export const JUNI_REQUIRED_NOTICE =
-  "Required Notice: Copyright © 2026 Alexander James Patton (AJpro774) — Juni / Juno under the Juni Software License and Commercial Contract 1.0";
+  "Required Notice: Copyright © 2026 Alexander James Patton (AJpro774) — Juni / Juno under the Apache License 2.0";
 
 export const JUNI_BUILT_WITH = "Built with Juni";
 
@@ -11,8 +11,7 @@ export function juniNoticeFileBody(): string {
 ${JUNI_BUILT_WITH}
 
 This project / build was created with the Juni language and tooling.
-Do not remove this notice from exports or redistributed runtime files
-(see LICENSE Game and Project Export Exception).
+Keep this notice in redistributed runtime / export files (see LICENSE NOTICE requirements).
 `;
 }
 

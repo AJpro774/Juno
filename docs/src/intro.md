@@ -2,7 +2,7 @@
 
 **Juni** is a systems language with Python-like ergonomics and C++-level control. It compiles to **WebAssembly**, with Canvas2D, a small WebGPU 3D API, frame loops, and input for games and simulations.
 
-**v12.0** ships the Juni Software License and Commercial Contract, WASM/export provenance (`juni.notice`), Android APK release pipeline, Kuni nested app, and IDE promo/switcher polish.
+**v12.0** ships WASM/export provenance (`juni.notice`), Android APK release pipeline, Kuni nested app, and IDE promo/switcher polish. Licensing is Apache-2.0 with a free-for-everyone EULA (no royalties).
 
 **v11.0** hardens the memory model: runtime bounds traps for dynamic `T[N]` indexes and `str_substr`, named borrow diagnostics, and `array_len`.
 

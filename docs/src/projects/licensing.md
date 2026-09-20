@@ -1,23 +1,21 @@
 # Licensing
 
-Juni / Juno uses the **Juni Software License and Commercial Contract 1.0** (a modified [PolyForm Small Business License 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0)) plus an EULA for distributed apps. Together they form a **binding contract** on download, install, use, or IDE acceptance.
+Juni / Juno uses the **Apache License 2.0** for source and builds, plus an EULA for distributed IDE/apps.
 
 | What | Terms |
 |------|--------|
-| **Source code** and official builds | [LICENSE](../../LICENSE) |
+| **Source code** and official builds | [LICENSE](../../LICENSE) (Apache-2.0) |
 | **Distributed IDE / apps** | [EULA](../../EULA.md) **and** [LICENSE](../../LICENSE) |
 
-### Free vs paid
+### Free for everyone — no royalties
 
 | Who | Cost |
 |-----|------|
-| Personal / hobby | Free |
-| Company under Small Business limits (&lt;100 workers, &lt;$1M USD 2019 CPI-adjusted prior-year revenue) | Free |
-| Company above those limits | **USD $200 / month**, paid directly to Alexander James Patton (AJpro774) |
+| Personal / hobby / education | Free |
+| Indie and commercial companies of any size | Free |
+| Shipping games / projects made with Juni | Free — **no royalties**, no revenue share |
 
-Arrange Commercial License payment via the contact method on the official repo/site. Use without payment when required is a material breach.
-
-You may still ship **your** games and projects with the normal export runtime — see the Game and Project Export Exception in `LICENSE`.
+You keep ownership of your content. You may ship your games with the normal export runtime; keep Required Notice / attribution lines where they appear (Apache NOTICE rules).
 
 ### Provenance (automatic)
 
@@ -28,10 +26,10 @@ Juni permanently packs evidence into projects and builds:
 - Every compiled WASM includes a `juni.notice` custom section and `producers` (`processed-by: juni`)
 - Runtime logs the Required Notice on instantiate
 
-Do not strip these; LICENSE forbids removing Required Notice lines from exports/runtime.
+Do not strip these; LICENSE requires retaining attribution notices.
 
 In the IDE:
 
-1. **First launch** — accept the EULA/contract (version bumps force re-accept).
+1. **First launch** — accept the EULA (version bumps force re-accept).
 2. **Settings → Legal** — full EULA and license text.
 3. **Credits** — short summary.

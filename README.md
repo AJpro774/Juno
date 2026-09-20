@@ -103,8 +103,8 @@ See [docs/src/intro.md](docs/src/intro.md), or open **Docs** in the IDE.
 
 ## License
 
-Juni is under the [Juni Software License and Commercial Contract 1.0](LICENSE) (modified [PolyForm Small Business 1.0.0](https://polyformproject.org/licenses/small-business/1.0.0)) plus the [EULA](EULA.md). **Binding contract** on use/accept.
+Juni is under the [Apache License 2.0](LICENSE) plus the [EULA](EULA.md) for distributed IDE/apps.
 
-- **Free:** personal/hobby, and companies under PolyForm Small Business limits (<100 workers, <$1M USD 2019 CPI-adjusted prior-year revenue)
-- **Required above that:** **USD $200/month**, paid directly to Alexander James Patton (AJpro774)
-- Games you create remain yours (export exception in `LICENSE`)
+- **Free for everyone** — personal, hobby, education, and commercial use of any size
+- **No monthly fees, no revenue share, no royalties** on games or projects you ship
+- Games you create remain yours

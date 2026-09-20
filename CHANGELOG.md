@@ -2,6 +2,12 @@
 
 All notable changes to Juni are documented here.
 
+## [Unreleased]
+
+### Licensing
+- Return to a **completely free, no-royalties** model: **Apache License 2.0** for source/builds; EULA updated with no monthly fees and no royalties on shipped games
+- IDE EULA gate version bumped to **v5** (re-accept with the new terms)
+
 ## [13.0.0] — 2026-09-18
 
 Host imports (`extern`), pruned import tables, and an embeddable compile API — the release that lets native engines (first: **Kerabit 3.0**) run Juni as their scripting language.

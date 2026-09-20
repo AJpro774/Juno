@@ -1,6 +1,6 @@
 /** Browser-facing Juni runtime: wires canvas, input, and WebGPU hosts.
  *
- * Required Notice: Copyright © 2026 Alexander James Patton (AJpro774) — Juni / Juno under the Juni Software License and Commercial Contract 1.0
+ * Required Notice: Copyright © 2026 Alexander James Patton (AJpro774) — Juni / Juno under the Apache License 2.0
  * Built with Juni
  */
 import type { FrameController, RunOptions } from "./types.js";

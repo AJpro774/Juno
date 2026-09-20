@@ -853,7 +853,7 @@ function setPanel(
     const md = `${CREDITS_MARKDOWN}\n\n${legalSummaryMarkdown()}`;
     docsBody.innerHTML = marked.parse(md, { async: false }) as string;
   } else if (mode === "license") {
-    sideTitle.textContent = "Juni Software License";
+    sideTitle.textContent = "Apache License 2.0";
     docsNav.style.display = "none";
     docsBody.innerHTML = marked.parse(LICENSE_MARKDOWN, { async: false }) as string;
   } else if (mode === "eula") {
@@ -892,7 +892,7 @@ function ensureEulaAccepted(): Promise<void> {
   const check = document.getElementById("eula-gate-check") as HTMLInputElement | null;
   const accept = document.getElementById("eula-gate-accept") as HTMLButtonElement | null;
   const viewLicense = document.getElementById("eula-gate-license") as HTMLButtonElement | null;
-  // Never silently accept — missing gate UI would skip the binding contract.
+  // Never silently accept — missing gate UI would skip EULA acceptance.
   if (!gate || !body || !check || !accept) {
     return Promise.reject(new Error("EULA gate UI missing (#eula-gate); cannot continue without acceptance."));
   }
@@ -914,7 +914,7 @@ function ensureEulaAccepted(): Promise<void> {
     check.addEventListener("change", sync);
     viewLicense?.addEventListener("click", () => {
       renderMd(
-        `${EULA_MARKDOWN}\n\n---\n\n# Juni Software License and Commercial Contract 1.0\n\n${LICENSE_MARKDOWN}`,
+        `${EULA_MARKDOWN}\n\n---\n\n# Apache License 2.0\n\n${LICENSE_MARKDOWN}`,
       );
     });
     accept.addEventListener("click", () => {

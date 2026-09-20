@@ -77,7 +77,7 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **v9.3:** Script Open/Stub UX; `on_collision` / `on_trigger_enter`; `collision_is_trigger`; Edit-mode Show colliders; platformer coin trigger demo; `9.3.0` brand bump
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2
-- **License:** Juni Software License and Commercial Contract 1.0 (modified PolyForm Small Business) + EULA; Commercial License USD $200/mo above Small Business — see `LICENSE` and `EULA.md`
+- **License:** Apache License 2.0 + EULA — free for everyone, no royalties — see `LICENSE` and `EULA.md`
 
 ## v10 — Expand
 
@@ -95,7 +95,7 @@ Built with **Cursor** and the open-source toolchain listed per version.
 ## v12 — License, provenance & ship
 
 - **Author:** Alexander James Patton
-- **Deliverable:** Juni Software License and Commercial Contract 1.0; WASM `juni.notice` / export notices; Android APK (Bubblewrap TWA) CI; Kuni nested chat app; IDE app switcher + promo rail — `v12.0.0`
+- **Deliverable:** WASM `juni.notice` / export notices; Android APK (Bubblewrap TWA) CI; Kuni nested chat app; IDE app switcher + promo rail — `v12.0.0` (licensing later returned to Apache-2.0, free / no royalties)
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebGPU, Canvas2D, Web Audio, Vite, Monaco, Tauri 2, Bubblewrap/TWA
 
