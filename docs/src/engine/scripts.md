@@ -95,7 +95,7 @@ Inspector → **Script**: enable, set **Module** and **Handler**. Use **Stub** t
 
 **Authoring loop:** Stub the export → set a trigger/solid collider → **Show colliders** in Edit to confirm the shape → Play / Export Web. Collision and trigger events (`on_collision` / `on_trigger_enter` / `on_trigger_exit`) use the same Stub/Open path with those fixed names.
 
-Game input can still live in entry `frame`. Use entity scripts for per-entity ticks and collision/trigger reactions that should run whenever `world_step` runs. The [platformer](../../examples/projects/platformer) sample collects the coin via `coin_on_trigger_enter`; goal and hazard still poll contacts after `world_step`. The [platformer_3d](../../examples/projects/platformer_3d) sample demos `coin_on_trigger_enter` / `coin_on_trigger_exit` with native 3D physics.
+Game input can still live in entry `frame`. Use entity scripts for per-entity ticks and collision/trigger reactions that should run whenever `world_step` runs. The [platformer](../../../examples/projects/platformer) sample collects the coin via `coin_on_trigger_enter`; goal and hazard still poll contacts after `world_step`. The [platformer_3d](../../../examples/projects/platformer_3d) sample demos `coin_on_trigger_enter` / `coin_on_trigger_exit` with native 3D physics.
 
 ## Notes
 
