@@ -38,7 +38,7 @@ jobs:
           npm ci
           npm run build:wasm
           npm run build
-          GITHUB_PAGES=true npm run build
+          GITHUB_PAGES=true KUNI_BASE=/Juno/kuni/ LUNI_BASE=/Juno/luni/ npm run build
 
   desktop-check:
     runs-on: ubuntu-latest

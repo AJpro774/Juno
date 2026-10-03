@@ -4,8 +4,8 @@ Juni / Juno uses the **Apache License 2.0** for source and builds, plus an EULA 
 
 | What | Terms |
 |------|--------|
-| **Source code** and official builds | [LICENSE](../../LICENSE) (Apache-2.0) |
-| **Distributed IDE / apps** | [EULA](../../EULA.md) **and** [LICENSE](../../LICENSE) |
+| **Source code** and official builds | [LICENSE](../../../LICENSE) (Apache-2.0) |
+| **Distributed IDE / apps** | [EULA](../../../EULA.md) **and** [LICENSE](../../../LICENSE) |
 
 ### Free for everyone — no royalties
 

@@ -4,7 +4,7 @@ Host the **Juni IDE** (or a game export) as a static site on [Netlify](https://w
 
 ## IDE (recommended)
 
-The repo root [`netlify.toml`](../../netlify.toml) builds the flat IDE (Netlify mirror; latest host is [junoengine.vercel.app](https://junoengine.vercel.app/)):
+The repo root [`netlify.toml`](../../../netlify.toml) builds the flat IDE (Netlify mirror; latest host is [junoengine.vercel.app](https://junoengine.vercel.app/)):
 
 | Setting | Value |
 |---------|--------|
@@ -46,7 +46,7 @@ cd ide && npm run build:wasm
 # commit ide/public/pkg, then push
 ```
 
-GitHub Pages CI still runs `build:wasm` on every deploy — see [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml).
+GitHub Pages CI still runs `build:wasm` on every deploy — see [`.github/workflows/pages.yml`](../../../.github/workflows/pages.yml).
 
 ### SPA redirects
 
