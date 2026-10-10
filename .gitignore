@@ -1,4 +1,5 @@
 /target/
+desktop/src-tauri/target/
 node_modules/
 ide/dist/
 kuni/dist/
@@ -11,6 +12,14 @@ debug-*.log
 github_upload/
 github_upload_batches/
 itchupload/
+
+# Tauri schema dumps at repo root (keep desktop/src-tauri/gen/schemas/)
+/acl-manifests.json
+/capabilities.json
+/desktop-schema.json
+/macOS-schema.json
+/windows-schema.json
+/linux-schema.json
 
 # Legacy nested upload mirrors (canonical layout is flat: ide/, crates/, docs/, …)
 1_root_crates/
