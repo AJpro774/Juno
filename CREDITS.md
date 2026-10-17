@@ -106,6 +106,34 @@ Built with **Cursor** and the open-source toolchain listed per version.
 - **Built with:** Cursor
 - **Software:** Rust, TypeScript, WebAssembly, wasm-encoder / wasmparser, Vite, Monaco, Tauri 2
 
+## Weekly maintenance — 2026-09-26
+
+- **Author:** Alexander James Patton
+- **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
+- **Work:** Against `main` @ `a6819deb6b345a1d92547fd698ba827877d3955b` (v13.0.0, Apache-2.0 restore). Re-applied still-unmerged weekly fixes (LSP `unused_assignments`, `check-projects.sh` trailing-slash paths, desktop/Tauri `.gitignore` + Linux schema, portable README paths, docs relative links, GitHub Pages nested `KUNI_BASE`/`LUNI_BASE` + relative app-switcher hrefs, sitemap → `junoengine.vercel.app`). Kept Apache licensing copy on `licensing.md` / IDE EULA gate (did not reintroduce commercial-license wording from older weekly branches). New: IDE brand tag + docs intro → **v13**; Kuni npm overrides for `@xmldom/xmldom` **0.9.12** and `brace-expansion` **5.0.12** (Capacitor CLI audit). Dependency bumps — Vite **8.3.1**, Monaco **0.55.1**, TypeScript **7.0.2**, marked **18.0.14**, `@webgpu/types` **0.1.74**, `@mlc-ai/web-llm` **0.2.85**, Capacitor **7.6.9**, `@tauri-apps/cli` **2.12.0**, `wasm-encoder`/`wasmparser` **0.259**, `wasm-bindgen` **0.2.129**, `toml` **1.x**; rebuilt `ide/public/pkg`
+- **Software:** Rust 1.98.1, Cargo, wasm-pack, Vite 8.3.1, Monaco 0.55.1, TypeScript 7.0.2, marked, Tauri 2, Capacitor 7, Node.js
+
+## Weekly maintenance — 2026-10-03
+
+- **Author:** Alexander James Patton
+- **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
+- **Work:** Against `main` @ `a6819deb6b345a1d92547fd698ba827877d3955b` (v13.0.0; prior weekly PRs still unmerged). Re-applied still-relevant weekly fixes from 2026-09-26, then advanced deps: Vite **8.3.2**, `dompurify` override **3.4.16**, `@tauri-apps/cli` **2.12.1**, `@wllama/wllama` **3.8.1**, `wasm-encoder`/`wasmparser` **0.261** (import-section tests still use `into_imports()`), Cargo lock patches (`libc`, `tokio`, `yoke-derive`); refreshed sitemaps `lastmod` and rebuilt `ide/public/pkg` on Rust **1.99.0**
+- **Software:** Rust 1.99.0, Cargo, wasm-pack, Vite 8.3.2, Monaco 0.55.1, TypeScript 7.0.2, marked, Tauri 2, Capacitor 7, wllama 3.8.1, Node.js
+
+## Weekly maintenance — 2026-10-10
+
+- **Author:** Alexander James Patton
+- **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
+- **Work:** Against `main` @ `a6819deb6b345a1d92547fd698ba827877d3955b` (v13.0.0; prior weekly PRs still unmerged). Re-applied still-relevant weekly fixes from 2026-10-03 (LSP `unused_assignments`, `check-projects.sh` trailing slash, docs/README portable paths, Pages nested bases + relative switcher hrefs, sitemap → Vercel, desktop gitignore/Linux schema, v13 brand/docs, Kuni audit overrides, Apache licensing path depth). Advanced deps: Vite **8.3.4**, marked **18.1.0**, desktop Tauri crates **2.12.3** (+ plugin lock refresh); kept Monaco **0.55.1**, Capacitor **7.6.9**, `wasm-encoder`/`wasmparser` **0.261**; Cargo lock patches (`toml` **1.1.8**, `serde_json` **1.0.152**); refreshed sitemaps `lastmod` to **2026-10-10** and rebuilt `ide/public/pkg` on Rust **1.99.0**
+- **Software:** Rust 1.99.0, Cargo, wasm-pack, Vite 8.3.4, Monaco 0.55.1, TypeScript 7.0.2, marked 18.1.0, Tauri 2.12.3, Capacitor 7, wllama 3.8.1, Node.js
+
+## Weekly maintenance — 2026-10-17
+
+- **Author:** Alexander James Patton
+- **Built with:** Cursor Automation (weekly maintenance agent); Cursor Grok 4.5
+- **Work:** Against `main` @ `a6819deb6b345a1d92547fd698ba827877d3955b` (v13.0.0; prior weekly PRs still unmerged). Re-applied still-relevant weekly fixes from 2026-10-10, then fixed CI: install **wasm-pack** before IDE `build:wasm`, and install Tauri Linux GTK/WebKit packages for `desktop-check`. Advanced deps: marked **18.1.1**, `@mlc-ai/web-llm` **0.2.86**, `dompurify` override **3.4.17**, `@tauri-apps/cli` **2.12.3**, desktop Tauri crates **2.12.4** (+ plugin lock refresh), `wasm-encoder`/`wasmparser` **0.262**; Cargo lock patches (`serde_json` **1.0.154**, `libc`, `tokio`, `syn`); kept Monaco **0.55.1**, Capacitor **7.6.9**, Vite **8.3.4**; refreshed sitemaps `lastmod` to **2026-10-17** and rebuilt `ide/public/pkg` on Rust **1.99.1**
+- **Software:** Rust 1.99.1, Cargo, wasm-pack, Vite 8.3.4, Monaco 0.55.1, TypeScript 7.0.2, marked 18.1.1, Tauri 2.12.4, Capacitor 7, wllama 3.8.1, Node.js
+
 ---
 
 Thank you to the maintainers of Rust, WebAssembly, WebGPU, Vite, and Monaco.

@@ -8,7 +8,7 @@ echo "Building WASM compiler..."
 npm run build:wasm
 
 echo "Building production IDE (GitHub Pages base)..."
-GITHUB_PAGES=true npm run build
+GITHUB_PAGES=true KUNI_BASE=/Juno/kuni/ LUNI_BASE=/Juno/luni/ npm run build
 
 echo ""
 echo "Smoke build OK. Preview with:"
